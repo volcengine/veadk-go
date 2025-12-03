@@ -19,7 +19,7 @@ import (
 	"os"
 	"strings"
 
-	"veadk-go/consts"
+	"github.com/volcengine/veadk-go/common"
 )
 
 type VeIAMCredential struct {
@@ -29,7 +29,7 @@ type VeIAMCredential struct {
 }
 
 func GetCredentialFromVeFaaSIAM() (VeIAMCredential, error) {
-	b, err := os.ReadFile(consts.VEFAAS_IAM_CRIDENTIAL_PATH)
+	b, err := os.ReadFile(common.VEFAAS_IAM_CRIDENTIAL_PATH)
 	if err != nil {
 		return VeIAMCredential{}, err
 	}

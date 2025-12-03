@@ -18,5 +18,5 @@
 go.work
 
 .idea/
-agent/.env
-agent/config.yaml
+agents/.env
+agents/config.yaml

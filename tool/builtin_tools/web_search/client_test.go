@@ -18,16 +18,17 @@ import (
 	"encoding/json"
 	"log"
 	"testing"
-	"veadk-go/consts"
+
+	"github.com/volcengine/veadk-go/common"
 )
 
 func TestClient_DoRequest(t *testing.T) {
 
-	ak := getEnvWithDefault(consts.VOLCENGINE_ACCESS_KEY, "")
-	sk := getEnvWithDefault(consts.VOLCENGINE_SECRET_KEY, "")
+	ak := getEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, "")
+	sk := getEnvWithDefault(common.VOLCENGINE_SECRET_KEY, "")
 
 	body := map[string]any{
-		"Query":       "AI手机",
+		"Query":       "How to create a LLMAgent?",
 		"SearchType":  "web",
 		"Count":       5,
 		"NeedSummary": true,

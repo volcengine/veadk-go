@@ -12,11 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package consts
-
-const VEFAAS_IAM_CRIDENTIAL_PATH = "/var/run/secrets/iam/credential"
-
-const (
-	VOLCENGINE_ACCESS_KEY = "VOLCENGINE_ACCESS_KEY"
-	VOLCENGINE_SECRET_KEY = "VOLCENGINE_SECRET_KEY"
-)
+package agent

@@ -19,15 +19,48 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"veadk-go/auth/veauth"
-	"veadk-go/consts"
+
+	"github.com/volcengine/veadk-go/auth/veauth"
+	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/log"
 
 	"google.golang.org/adk/tool"
+	"google.golang.org/adk/tool/functiontool"
 )
 
 //The document of this tool see: https://www.volcengine.com/docs/85508/1650263
 
-func WebSearch(query string, toolContext tool.Context) ([]string, error) {
+// WebSearchTool is a built-in tool that is automatically invoked by Agents
+// models to retrieve search results from websites.
+var WebSearchTool tool.Tool
+
+func init() {
+	var err error
+	WebSearchTool, err = functiontool.New(
+		functiontool.Config{
+			Name: "web_search",
+			Description: `Search a query in websites.
+Args:
+	query: The query to search.
+Returns:
+	A list of result documents.`,
+		},
+		WebSearch)
+	if err != nil {
+		panic(err)
+	}
+	log.Info("init WebSearchTool successful")
+}
+
+type webSearchArgs struct {
+	Query string `json:"query" jsonschema:"The query to search"`
+}
+
+type webSearchResult struct {
+	Result []string `json:"result,omitempty"`
+}
+
+func WebSearch(ctx tool.Context, args webSearchArgs) (webSearchResult, error) {
 	// Search a query in websites.
 	// Args:
 	// 		query: The query to search.
@@ -36,16 +69,16 @@ func WebSearch(query string, toolContext tool.Context) ([]string, error) {
 	var ak string
 	var sk string
 	//var sessionToken string
-	var out []string
+	var out = webSearchResult{Result: make([]string, 0)}
 
-	if toolContext != nil {
-		ak = getStringFromToolContext(toolContext, consts.VOLCENGINE_ACCESS_KEY)
-		sk = getStringFromToolContext(toolContext, consts.VOLCENGINE_SECRET_KEY)
+	if ctx != nil {
+		ak = getStringFromToolContext(ctx, common.VOLCENGINE_ACCESS_KEY)
+		sk = getStringFromToolContext(ctx, common.VOLCENGINE_SECRET_KEY)
 	}
 
 	if strings.TrimSpace(ak) == "" || strings.TrimSpace(sk) == "" {
-		ak = getEnvWithDefault(consts.VOLCENGINE_ACCESS_KEY, "")
-		sk = getEnvWithDefault(consts.VOLCENGINE_SECRET_KEY, "")
+		ak = getEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, "")
+		sk = getEnvWithDefault(common.VOLCENGINE_SECRET_KEY, "")
 	}
 
 	if strings.TrimSpace(ak) == "" || strings.TrimSpace(sk) == "" {
@@ -59,7 +92,7 @@ func WebSearch(query string, toolContext tool.Context) ([]string, error) {
 	}
 	//header := map[string]string{"X-Security-Token": sessionToken}
 	body := map[string]any{
-		"Query":       query,
+		"Query":       args.Query,
 		"SearchType":  "web",
 		"Count":       5,
 		"NeedSummary": true,
@@ -73,10 +106,10 @@ func WebSearch(query string, toolContext tool.Context) ([]string, error) {
 		return out, err
 	}
 	if len(resp.Result.WebResults) <= 0 {
-		return nil, fmt.Errorf("web search result is empty")
+		return out, fmt.Errorf("web search result is empty")
 	}
 	for _, item := range resp.Result.WebResults {
-		out = append(out, item.Summary)
+		out.Result = append(out.Result, item.Summary)
 	}
 
 	return out, nil
