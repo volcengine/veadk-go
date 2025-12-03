@@ -24,3 +24,9 @@ const (
 const (
 	DEFAULT_LOGGING_LEVER = "info"
 )
+
+// MEMORY
+const (
+	DEFAULT_SHORT_TERM_MEMORY_BACKEND = "local"
+	DEFAULT_GORM_LOG_LEVEL            = "error"
+)

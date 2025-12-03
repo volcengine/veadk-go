@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -31,6 +32,7 @@ type VeADKConfig struct {
 	TlsConfig           *TLSConfig                 `yaml:"tls_config"`
 	VikingKnowledgebase *VikingKnowledgebaseConfig `yaml:"viking_knowledgebase"`
 	Veidentity          *VeIdentityConfig          `yaml:"veidentity"`
+	Database            *DatabaseConfig            `yaml:"database"`
 	LOGGING             *Logging                   `yaml:"LOGGING"`
 }
 
@@ -58,15 +60,21 @@ func SetupVeADKConfig() error {
 	}
 	// 3. 从环境变量构建最终配置
 	globalConfig = &VeADKConfig{
-		Model:               &ModelConfig{},
+		Model: &ModelConfig{
+			Agent: &AgentConfig{},
+		},
 		Tool:                &BuiltinToolConfigs{},
 		PromptPilot:         &PromptPilotConfig{},
 		TlsConfig:           &TLSConfig{},
 		VikingKnowledgebase: &VikingKnowledgebaseConfig{},
 		Veidentity:          &VeIdentityConfig{},
 		LOGGING:             &Logging{},
+		Database: &DatabaseConfig{
+			Postgresql: &CommonDatabaseConfig{},
+		},
 	}
 	globalConfig.LOGGING.MapEnvToConfig()
+	globalConfig.Database.MapEnvToConfig()
 	return nil
 }
 
@@ -125,6 +133,10 @@ func setYamlToEnv(data map[string]interface{}, prefix string) {
 			if os.Getenv(fullKey) == "" {
 				os.Setenv(fullKey, v)
 			}
+		case int:
+			if os.Getenv(fullKey) == "" {
+				os.Setenv(fullKey, strconv.Itoa(v))
+			}
 		}
 	}
 }
@@ -144,5 +156,5 @@ func getEnv(envName string, defaultValue string, allowFalseValues bool) string {
 		return defaultValue
 	}
 
-	panic(fmt.Sprintf("环境变量 %s 未设置，请在系统环境变量、.env 或 config.yaml 中配置", envName))
+	return ""
 }

@@ -14,8 +14,64 @@
 
 package agent
 
-import "testing"
+import (
+	"context"
+	"fmt"
+	"testing"
+
+	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/memory"
+	"github.com/volcengine/veadk-go/model"
+	model2 "google.golang.org/adk/model"
+	"google.golang.org/adk/session"
+	"google.golang.org/genai"
+)
 
 func TestRun(t *testing.T) {
-	Run()
+	stm, err := memory.NewShortTermMemory()
+	if err != nil {
+		panic(err)
+	}
+
+	//_, err = stm.CreateSession(context.Background(), "test", "1", "3")
+	//if err != nil {
+	//	panic(err)
+	//}
+	get, err := stm.SessionService().Get(context.Background(), &session.GetRequest{
+		AppName:   "test",
+		UserID:    "1",
+		SessionID: "3",
+	})
+	if err != nil {
+		panic(err)
+	}
+	log.Info("sessionid", "id", get.Session.ID())
+
+	llm, err := model.NewModel(context.Background(), "doubao-seed-1-6-250615", &model.ClientConfig{
+		APIKey:  "9f0af936-9b89-4d3e-8ec7-242834dea341",
+		BaseURL: "https://ark.cn-beijing.volces.com/api/v3/",
+	})
+	if err != nil {
+		panic(err)
+	}
+	for got, err := range llm.GenerateContent(context.Background(), &model2.LLMRequest{
+		Contents: []*genai.Content{
+			{
+				Parts: []*genai.Part{
+					{
+						Text: "你好",
+					},
+				},
+				Role: "user",
+			},
+		},
+	}, false) {
+		if err != nil {
+			panic(err)
+		}
+		for _, v := range got.Content.Parts {
+			fmt.Println(v.Text)
+		}
+
+	}
 }

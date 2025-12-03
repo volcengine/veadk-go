@@ -1,0 +1,14 @@
+model:
+  agent:
+    name: "doubao-seed-1-6-250615"
+    api_base: "test"
+
+database:
+  short_term_memory_backend: postgresql
+  postgresql:
+    backend: postgresql
+    UserName: test
+    Password: test
+    Port: 5432
+    Host: 127.0.0.1
+    Schema: test_veadk

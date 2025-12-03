@@ -15,28 +15,39 @@
 package log
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"reflect"
+	"time"
 
-	"veadk-go/configs"
+	"github.com/volcengine/veadk-go/configs"
+	gormlog "gorm.io/gorm/logger"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-var gLOGGING *zap.Logger
+var gLogger *Logger
 
-func init() {
-	SetupLog()
+type Logger struct {
+	logger    *zap.Logger
+	level     zapcore.Level
+	gormLevel gormlog.LogLevel
 }
 
-func SetupLog() {
-	level := configs.GetGlobalConfig().LOGGING.Level
-	zapLevel, err := zapcore.ParseLevel(level)
-	if err != nil {
-		zapLevel = zapcore.InfoLevel
+func init() {
+	gLogger = NewLogger(-2)
+}
+
+func NewLogger(level zapcore.Level) *Logger {
+	var err error
+	if level < zapcore.DebugLevel {
+		level, err = zapcore.ParseLevel(configs.GetGlobalConfig().LOGGING.Level)
+		if err != nil {
+			level = zapcore.InfoLevel
+		}
 	}
 
 	// 配置日志格式（文本或 JSON）
@@ -57,54 +68,152 @@ func SetupLog() {
 	// 输出到stdout
 	writeSyncer := zapcore.AddSync(os.Stdout)
 
-	// 构建核心组件：编码器、输出目标、日志级别（Debug）
 	core := zapcore.NewCore(
 		zapcore.NewConsoleEncoder(encoderConfig),
 		writeSyncer,
-		zapLevel,
+		level,
 	)
 
-	gLOGGING = zap.New(core, zap.AddCaller())
+	var gormLevel gormlog.LogLevel
+	switch level {
+	case zapcore.DebugLevel, zapcore.InfoLevel:
+		gormLevel = gormlog.Info
+	case zapcore.WarnLevel:
+		gormLevel = gormlog.Warn
+	case zapcore.ErrorLevel:
+		gormLevel = gormlog.Error
+	case zapcore.FatalLevel:
+		gormLevel = gormlog.Silent
+	default:
+		gormLevel = gormlog.Info
+	}
+
+	return &Logger{
+		logger:    zap.New(core, zap.AddCaller()),
+		level:     level,
+		gormLevel: gormLevel,
+	}
+}
+
+func (l *Logger) LogMode(level gormlog.LogLevel) gormlog.Interface {
+	var zapLevel zapcore.Level
+	switch level {
+	case gormlog.Info:
+		zapLevel = zapcore.InfoLevel
+	case gormlog.Warn:
+		zapLevel = zapcore.WarnLevel
+	case gormlog.Error:
+		zapLevel = zapcore.ErrorLevel
+	case gormlog.Silent:
+		zapLevel = zapcore.FatalLevel
+	default:
+		return l
+	}
+	return NewLogger(zapLevel)
+}
+
+func (l *Logger) Trace(ctx context.Context, begin time.Time, fc func() (sql string, rowsAffected int64), err error) {
+	if l.gormLevel <= gormlog.Silent {
+		return
+	}
+
+	elapsed := time.Since(begin)
+	switch {
+	case err != nil:
+		sql, rows := fc()
+		if rows == -1 {
+			l.Error(ctx, err.Error(), "cost", float64(elapsed.Nanoseconds())/1e6, "sql", sql)
+		} else {
+			l.Error(ctx, err.Error(), "cost", float64(elapsed.Nanoseconds())/1e6, "rows", rows, "sql", sql)
+		}
+	case l.gormLevel == gormlog.Info:
+		sql, rows := fc()
+		if rows == -1 {
+			l.Info(ctx, "gorm", "cost", float64(elapsed.Nanoseconds())/1e6, "sql", sql)
+		} else {
+			l.Info(ctx, "gorm", "cost", float64(elapsed.Nanoseconds())/1e6, "rows", rows, "sql", sql)
+		}
+	}
+}
+
+func (l *Logger) Debug(ctx context.Context, msg string, args ...interface{}) {
+	fields, err := toZapFields(args...)
+	if err != nil {
+		// 若参数解析出错，添加错误信息并继续输出日志
+		l.logger.Debug(msg, append(fields, zap.Error(err))...)
+		return
+	}
+	l.logger.Debug(msg, fields...)
 }
 
 func Debug(msg string, args ...interface{}) {
 	fields, err := toZapFields(args...)
 	if err != nil {
 		// 若参数解析出错，添加错误信息并继续输出日志
-		gLOGGING.Debug(msg, append(fields, zap.Error(err))...)
+		gLogger.logger.Debug(msg, append(fields, zap.Error(err))...)
 		return
 	}
-	gLOGGING.Debug(msg, fields...)
+	gLogger.logger.Debug(msg, fields...)
+}
+
+func (l *Logger) Info(ctx context.Context, msg string, args ...interface{}) {
+	fields, err := toZapFields(args...)
+	if err != nil {
+		// 若参数解析出错，添加错误信息并继续输出日志
+		l.logger.Info(msg, append(fields, zap.Error(err))...)
+		return
+	}
+	l.logger.Info(msg, fields...)
 }
 
 func Info(msg string, args ...interface{}) {
 	fields, err := toZapFields(args...)
 	if err != nil {
 		// 若参数解析出错，添加错误信息并继续输出日志
-		gLOGGING.Info(msg, append(fields, zap.Error(err))...)
+		gLogger.logger.Info(msg, append(fields, zap.Error(err))...)
 		return
 	}
-	gLOGGING.Info(msg, fields...)
+	gLogger.logger.Info(msg, fields...)
+}
+
+func (l *Logger) Warn(ctx context.Context, msg string, args ...interface{}) {
+	fields, err := toZapFields(args...)
+	if err != nil {
+		// 若参数解析出错，添加错误信息并继续输出日志
+		l.logger.Warn(msg, append(fields, zap.Error(err))...)
+		return
+	}
+	l.logger.Warn(msg, fields...)
 }
 
 func Warn(msg string, args ...interface{}) {
 	fields, err := toZapFields(args...)
 	if err != nil {
 		// 若参数解析出错，添加错误信息并继续输出日志
-		gLOGGING.Warn(msg, append(fields, zap.Error(err))...)
+		gLogger.logger.Warn(msg, append(fields, zap.Error(err))...)
 		return
 	}
-	gLOGGING.Warn(msg, fields...)
+	gLogger.logger.Warn(msg, fields...)
+}
+
+func (l *Logger) Error(ctx context.Context, msg string, args ...interface{}) {
+	fields, err := toZapFields(args...)
+	if err != nil {
+		// 若参数解析出错，添加错误信息并继续输出日志
+		l.logger.Error(msg, append(fields, zap.Error(err))...)
+		return
+	}
+	l.logger.Error(msg, fields...)
 }
 
 func Error(msg string, args ...interface{}) {
 	fields, err := toZapFields(args...)
 	if err != nil {
 		// 若参数解析出错，添加错误信息并继续输出日志
-		gLOGGING.Error(msg, append(fields, zap.Error(err))...)
+		gLogger.logger.Error(msg, append(fields, zap.Error(err))...)
 		return
 	}
-	gLOGGING.Error(msg, fields...)
+	gLogger.logger.Error(msg, fields...)
 }
 
 // toZapFields 将键值对参数转换为 []zap.Field

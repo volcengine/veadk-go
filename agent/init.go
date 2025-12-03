@@ -14,7 +14,7 @@
 
 package agent
 
-import "veadk-go/configs"
+import "github.com/volcengine/veadk-go/configs"
 
 func init() {
 	configs.SetupVeADKConfig()

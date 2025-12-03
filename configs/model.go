@@ -15,20 +15,28 @@
 package configs
 
 import (
-	"sync"
-	"veadk-go/common"
+	"github.com/volcengine/veadk-go/common"
 )
 
-type ModelConfig struct {
+type CommonModelConfig struct {
 	Name     string
 	Provider string
 	ApiBase  string
-	apiKey   string
-	mu       sync.Once // 用于缓存apiKey的同步
+	ApiKey   string
+}
+
+type AgentConfig struct {
+	CommonModelConfig
+}
+
+type ModelConfig struct {
+	Agent *AgentConfig
 }
 
 func (c *ModelConfig) MapEnvToConfig() {
-	c.Name = getEnv("MODEL_AGENT_NAME", common.DEFAULT_MODEL_AGENT_NAME, false)
-	c.Name = getEnv("MODEL_AGENT_PROVIDER", common.DEFAULT_MODEL_AGENT_PROVIDER, false)
-	c.Name = getEnv("MODEL_AGENT_API_BASE", common.DEFAULT_MODEL_AGENT_API_BASE, false)
+	// Agent
+	c.Agent.Name = getEnv(common.MODEL_AGENT_NAME, common.DEFAULT_MODEL_AGENT_NAME, false)
+	c.Agent.Provider = getEnv(common.MODEL_AGENT_PROVIDER, common.DEFAULT_MODEL_AGENT_PROVIDER, false)
+	c.Agent.ApiBase = getEnv(common.MODEL_AGENT_API_BASE, common.DEFAULT_MODEL_AGENT_API_BASE, false)
+	c.Agent.ApiKey = getEnv(common.MODEL_AGENT_API_KEY, "", false)
 }

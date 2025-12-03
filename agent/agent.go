@@ -15,7 +15,7 @@
 package agent
 
 import (
-	"veadk-go/log"
+	"github.com/volcengine/veadk-go/log"
 )
 
 func Run() {
