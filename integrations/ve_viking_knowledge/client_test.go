@@ -15,12 +15,12 @@
 package ve_viking_knowledge
 
 import (
-    "encoding/json"
-    "errors"
-    "fmt"
-    "os"
-    "testing"
-    "time"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"testing"
+	"time"
 
 	"github.com/volcengine/veadk-go/common"
 )
@@ -28,7 +28,7 @@ import (
 func TestClient_SearchKnowledge(t *testing.T) {
 	client := getClientOrSkip(t, "sjy_test_coffee_kg")
 	fmt.Println("Search knowledge by knowledge")
-	result, err := client.SearchKnowledge("拿铁", 5, nil, true, 1)
+	result, err := client.SearchKnowledge("拿铁", 5, 1, nil, true)
 	if err != nil {
 		t.Error(err)
 		return
@@ -38,61 +38,61 @@ func TestClient_SearchKnowledge(t *testing.T) {
 }
 
 func TestNew_NilConfig(t *testing.T) {
-    if _, err := New(nil); err == nil {
-        t.Fatal("expected error for nil config")
-    }
+	if _, err := New(nil); err == nil {
+		t.Fatal("expected error for nil config")
+	}
 }
 
 func TestNew_MissingResourceAndIndexProject(t *testing.T) {
-    t.Setenv(common.DATABASE_VIKING_PROJECT, "default")
-    t.Setenv(common.DATABASE_VIKING_REGION, "cn-beijing")
-    _, err := New(&Client{})
-    if err == nil {
-        t.Fatal("expected error when ResourceID and Index/Project missing")
-    }
+	t.Setenv(common.DATABASE_VIKING_PROJECT, "default")
+	t.Setenv(common.DATABASE_VIKING_REGION, "cn-beijing")
+	_, err := New(&Client{})
+	if err == nil {
+		t.Fatal("expected error when ResourceID and Index/Project missing")
+	}
 }
 
 func TestNew_InvalidIndexNaming(t *testing.T) {
-    _, err := New(&Client{Index: "1bad", Project: "default"})
-    if err == nil {
-        t.Fatal("expected invalid index naming error")
-    }
-    _, err = New(&Client{Index: "bad-name", Project: "default"})
-    if err == nil {
-        t.Fatal("expected invalid index naming error")
-    }
+	_, err := New(&Client{Index: "1bad", Project: "default"})
+	if err == nil {
+		t.Fatal("expected invalid index naming error")
+	}
+	_, err = New(&Client{Index: "bad-name", Project: "default"})
+	if err == nil {
+		t.Fatal("expected invalid index naming error")
+	}
 }
 
 func TestNew_DefaultsFromEnv(t *testing.T) {
-    t.Setenv(common.DATABASE_VIKING_PROJECT, "default")
-    t.Setenv(common.DATABASE_VIKING_REGION, "cn-beijing")
-    ak := os.Getenv(common.VOLCENGINE_ACCESS_KEY)
-    sk := os.Getenv(common.VOLCENGINE_SECRET_KEY)
-    if ak == "" || sk == "" {
-        t.Skip("missing VOLCENGINE_ACCESS_KEY or VOLCENGINE_SECRET_KEY")
-    }
-    t.Setenv(common.VOLCENGINE_ACCESS_KEY, ak)
-    t.Setenv(common.VOLCENGINE_SECRET_KEY, sk)
-    cfg := &Client{Index: "ValidIndex", Project: ""}
-    cli, err := New(cfg)
-    if err != nil {
-        t.Fatal(err)
-    }
-    if cli.Project == "" || cli.Region == "" || cli.AK == "" || cli.SK == "" {
-        t.Fatal("expected defaults populated from env")
-    }
+	t.Setenv(common.DATABASE_VIKING_PROJECT, "default")
+	t.Setenv(common.DATABASE_VIKING_REGION, "cn-beijing")
+	ak := os.Getenv(common.VOLCENGINE_ACCESS_KEY)
+	sk := os.Getenv(common.VOLCENGINE_SECRET_KEY)
+	if ak == "" || sk == "" {
+		t.Skip("missing VOLCENGINE_ACCESS_KEY or VOLCENGINE_SECRET_KEY")
+	}
+	t.Setenv(common.VOLCENGINE_ACCESS_KEY, ak)
+	t.Setenv(common.VOLCENGINE_SECRET_KEY, sk)
+	cfg := &Client{Index: "ValidIndex", Project: ""}
+	cli, err := New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cli.Project == "" || cli.Region == "" || cli.AK == "" || cli.SK == "" {
+		t.Fatal("expected defaults populated from env")
+	}
 }
 
 func TestNew_WithResourceOnly(t *testing.T) {
-    t.Setenv(common.DATABASE_VIKING_PROJECT, "default")
-    t.Setenv(common.DATABASE_VIKING_REGION, "cn-beijing")
-    cli, err := New(&Client{ResourceID: "kb-xxxx"})
-    if err != nil {
-        t.Fatal(err)
-    }
-    if cli.ResourceID == "" {
-        t.Fatal("expected ResourceID retained")
-    }
+	t.Setenv(common.DATABASE_VIKING_PROJECT, "default")
+	t.Setenv(common.DATABASE_VIKING_REGION, "cn-beijing")
+	cli, err := New(&Client{ResourceID: "kb-xxxx"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cli.ResourceID == "" {
+		t.Fatal("expected ResourceID retained")
+	}
 }
 
 func getClientOrSkip(t *testing.T, index string) Client {

@@ -21,7 +21,7 @@ func getClientOrSkip(t *testing.T) Client {
 	if ak == "" || sk == "" {
 		t.Skip("missing required env: VOLCENGINE_ACCESS_KEY/VOLCENGINE_SECRET_KEY")
 	}
-	client, err := New(&Config{AK: ak, SK: sk, Region: "cn-beijing"})
+	client, err := New(&Config{AK: ak, SK: sk, Region: "cn-beijing", Bucket: bucket})
 	if err != nil {
 		t.Fatal(err)
 		t.Skip("missing required env: VOLCENGINE_ACCESS_KEY/VOLCENGINE_SECRET_KEY")
@@ -54,7 +54,7 @@ func uniqueKey(suffix string) string {
 
 func TestBucketExist_NotFound(t *testing.T) {
 	c := getClientOrSkip(t)
-	exist, err := c.BucketExist(t.Context(), bucket)
+	exist, err := c.BucketExist(t.Context())
 	if err != nil {
 		t.Fatalf("BucketExist returned error: %v", err)
 	}
@@ -67,13 +67,13 @@ func TestCreateAndDeleteBucket(t *testing.T) {
 	c := getClientOrSkip(t)
 	t.Log("creating bucket:", bucket)
 
-	if err := c.CreateBucket(t.Context(), bucket); err != nil {
+	if err := c.CreateBucket(t.Context()); err != nil {
 		t.Fatalf("CreateBucket error: %v", err)
 	}
 	// ensure cleanup
-	defer func() { _ = c.DeleteBucket(t.Context(), bucket) }()
+	defer func() { _ = c.DeleteBucket(t.Context()) }()
 
-	exist, err := c.BucketExist(t.Context(), bucket)
+	exist, err := c.BucketExist(t.Context())
 	if err != nil {
 		t.Fatalf("BucketExist after create returned error: %v", err)
 	}
@@ -81,13 +81,13 @@ func TestCreateAndDeleteBucket(t *testing.T) {
 		t.Fatalf("expected bucket exist after create, got not exist: %s", bucket)
 	}
 
-	if err := c.DeleteBucket(t.Context(), bucket); err != nil {
+	if err := c.DeleteBucket(t.Context()); err != nil {
 		t.Fatalf("DeleteBucket error: %v", err)
 	}
 
 	// eventual consistency guard
 	for i := 0; i < 5; i++ {
-		exist, err = c.BucketExist(t.Context(), bucket)
+		exist, err = c.BucketExist(t.Context())
 		if err != nil {
 			t.Fatalf("BucketExist after delete returned error: %v", err)
 		}
@@ -104,11 +104,11 @@ func TestUploadTextAndDownload(t *testing.T) {
 
 	key := uniqueKey("text.txt")
 	text := "hello world"
-	if err := c.UploadText(text, bucket, key, nil); err != nil {
+	if err := c.UploadText(text, key, nil); err != nil {
 		t.Fatalf("UploadText error: %v", err)
 	}
 	dst := filepath.Join(os.TempDir(), uniqueKey("dl.txt"))
-	if err := c.Download(bucket, key, dst); err != nil {
+	if err := c.Download(key, dst); err != nil {
 		t.Fatalf("Download error: %v", err)
 	}
 	b, err := os.ReadFile(dst)
@@ -124,12 +124,12 @@ func TestAsyncUploadText(t *testing.T) {
 	c := getClientOrSkip(t)
 
 	key := uniqueKey("async-text.txt")
-	ch := c.AsyncUploadText("abc", bucket, key, nil)
+	ch := c.AsyncUploadText("abc", key, nil)
 	if err := <-ch; err != nil {
 		t.Fatalf("AsyncUploadText error: %v", err)
 	}
 	dst := filepath.Join(os.TempDir(), uniqueKey("dl.txt"))
-	if err := c.Download(bucket, key, dst); err != nil {
+	if err := c.Download(key, dst); err != nil {
 		t.Fatalf("Download error: %v", err)
 	}
 	b, err := os.ReadFile(dst)
@@ -146,11 +146,11 @@ func TestUploadBytesAndDownload(t *testing.T) {
 
 	key := uniqueKey("bytes.bin")
 	data := []byte{0x61, 0x62, 0x63}
-	if err := c.UploadBytes(data, bucket, key, nil); err != nil {
+	if err := c.UploadBytes(data, key, nil); err != nil {
 		t.Fatalf("UploadBytes error: %v", err)
 	}
 	dst := filepath.Join(os.TempDir(), uniqueKey("dl.bin"))
-	if err := c.Download(bucket, key, dst); err != nil {
+	if err := c.Download(key, dst); err != nil {
 		t.Fatalf("Download error: %v", err)
 	}
 	b, err := os.ReadFile(dst)
@@ -167,12 +167,12 @@ func TestAsyncUploadBytes(t *testing.T) {
 
 	key := uniqueKey("async-bytes.bin")
 	data := []byte("xyz")
-	ch := c.AsyncUploadBytes(data, bucket, key, nil)
+	ch := c.AsyncUploadBytes(data, key, nil)
 	if err := <-ch; err != nil {
 		t.Fatalf("AsyncUploadBytes error: %v", err)
 	}
 	dst := filepath.Join(os.TempDir(), uniqueKey("dl.bin"))
-	if err := c.Download(bucket, key, dst); err != nil {
+	if err := c.Download(key, dst); err != nil {
 		t.Fatalf("Download error: %v", err)
 	}
 	b, err := os.ReadFile(dst)
@@ -192,11 +192,11 @@ func TestUploadFileAndDownload(t *testing.T) {
 	if err := os.WriteFile(src, []byte("file-content"), 0o644); err != nil {
 		t.Fatalf("WriteFile error: %v", err)
 	}
-	if err := c.UploadFile(src, bucket, key, nil); err != nil {
+	if err := c.UploadFile(src, key, nil); err != nil {
 		t.Fatalf("UploadFile error: %v", err)
 	}
 	dst := filepath.Join(os.TempDir(), uniqueKey("dl.txt"))
-	if err := c.Download(bucket, key, dst); err != nil {
+	if err := c.Download(key, dst); err != nil {
 		t.Fatalf("Download error: %v", err)
 	}
 	b, err := os.ReadFile(dst)
@@ -216,12 +216,12 @@ func TestAsyncUploadFile(t *testing.T) {
 	if err := os.WriteFile(src, []byte("af"), 0o644); err != nil {
 		t.Fatalf("WriteFile error: %v", err)
 	}
-	ch := c.AsyncUploadFile(src, bucket, key, nil)
+	ch := c.AsyncUploadFile(src, key, nil)
 	if err := <-ch; err != nil {
 		t.Fatalf("AsyncUploadFile error: %v", err)
 	}
 	dst := filepath.Join(os.TempDir(), uniqueKey("dl.txt"))
-	if err := c.Download(bucket, key, dst); err != nil {
+	if err := c.Download(key, dst); err != nil {
 		t.Fatalf("Download error: %v", err)
 	}
 	b, err := os.ReadFile(dst)
@@ -246,15 +246,15 @@ func TestUploadFilesAndDownload(t *testing.T) {
 	}
 	k1 := uniqueKey("k1.txt")
 	k2 := uniqueKey("k2.txt")
-	if err := c.UploadFiles([]string{src1, src2}, bucket, []string{k1, k2}, nil); err != nil {
+	if err := c.UploadFiles([]string{src1, src2}, []string{k1, k2}, nil); err != nil {
 		t.Fatalf("UploadFiles error: %v", err)
 	}
 	d1 := filepath.Join(os.TempDir(), uniqueKey("d1.txt"))
 	d2 := filepath.Join(os.TempDir(), uniqueKey("d2.txt"))
-	if err := c.Download(bucket, k1, d1); err != nil {
+	if err := c.Download(k1, d1); err != nil {
 		t.Fatalf("Download k1 error: %v", err)
 	}
-	if err := c.Download(bucket, k2, d2); err != nil {
+	if err := c.Download(k2, d2); err != nil {
 		t.Fatalf("Download k2 error: %v", err)
 	}
 	b1, _ := os.ReadFile(d1)
@@ -274,14 +274,14 @@ func TestAsyncUploadFiles(t *testing.T) {
 	_ = os.WriteFile(src2, []byte("BB"), 0o644)
 	k1 := uniqueKey("ak1.txt")
 	k2 := uniqueKey("ak2.txt")
-	ch := c.AsyncUploadFiles([]string{src1, src2}, bucket, []string{k1, k2}, nil)
+	ch := c.AsyncUploadFiles([]string{src1, src2}, []string{k1, k2}, nil)
 	if err := <-ch; err != nil {
 		t.Fatalf("AsyncUploadFiles error: %v", err)
 	}
 	d1 := filepath.Join(os.TempDir(), uniqueKey("d1.txt"))
 	d2 := filepath.Join(os.TempDir(), uniqueKey("d2.txt"))
-	_ = c.Download(bucket, k1, d1)
-	_ = c.Download(bucket, k2, d2)
+	_ = c.Download(k1, d1)
+	_ = c.Download(k2, d2)
 	b1, _ := os.ReadFile(d1)
 	b2, _ := os.ReadFile(d2)
 	if string(b1) != "AA" || string(b2) != "BB" {
@@ -302,15 +302,15 @@ func TestUploadDirectoryAndDownload(t *testing.T) {
 	p2f := filepath.Join(p, "b.txt")
 	_ = os.WriteFile(p1f, []byte("a"), 0o644)
 	_ = os.WriteFile(p2f, []byte("b"), 0o644)
-	if err := c.UploadDirectory(dir, bucket, nil); err != nil {
+	if err := c.UploadDirectory(dir, nil); err != nil {
 		t.Fatalf("UploadDirectory error: %v", err)
 	}
 	d1 := filepath.Join(os.TempDir(), uniqueKey("da.txt"))
 	d2 := filepath.Join(os.TempDir(), uniqueKey("db.txt"))
-	if err := c.Download(bucket, "a.txt", d1); err != nil {
+	if err := c.Download("a.txt", d1); err != nil {
 		t.Fatalf("Download a.txt error: %v", err)
 	}
-	if err := c.Download(bucket, filepath.ToSlash(filepath.Join("nested", "b.txt")), d2); err != nil {
+	if err := c.Download(filepath.ToSlash(filepath.Join("nested", "b.txt")), d2); err != nil {
 		t.Fatalf("Download nested/b.txt error: %v", err)
 	}
 	b1, _ := os.ReadFile(d1)
@@ -325,12 +325,12 @@ func TestAsyncUploadDirectory(t *testing.T) {
 
 	dir, _ := os.MkdirTemp(os.TempDir(), "veadk-ut-")
 	_ = os.WriteFile(filepath.Join(dir, "x.txt"), []byte("x"), 0o644)
-	ch := c.AsyncUploadDirectory(dir, bucket, nil)
+	ch := c.AsyncUploadDirectory(dir, nil)
 	if err := <-ch; err != nil {
 		t.Fatalf("AsyncUploadDirectory error: %v", err)
 	}
 	dst := filepath.Join(os.TempDir(), uniqueKey("dx.txt"))
-	if err := c.Download(bucket, "x.txt", dst); err != nil {
+	if err := c.Download("x.txt", dst); err != nil {
 		t.Fatalf("Download x.txt error: %v", err)
 	}
 	b, _ := os.ReadFile(dst)

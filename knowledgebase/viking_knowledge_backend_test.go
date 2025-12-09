@@ -15,11 +15,15 @@
 package knowledgebase
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"testing"
+	"time"
+
+	"github.com/volcengine/veadk-go/common"
 )
 
 func writeFile(t *testing.T, dir string, rel string) string {
@@ -109,4 +113,99 @@ func TestGetFilesInDirectory_SymlinkIgnored(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	assertEqualPaths(t, files, []string{target})
+}
+
+func newBackendOrSkip(t *testing.T, idx string) *VikingKnowledgeBackend {
+	t.Helper()
+	ak := os.Getenv(common.VOLCENGINE_ACCESS_KEY)
+	sk := os.Getenv(common.VOLCENGINE_SECRET_KEY)
+	if ak == "" || sk == "" {
+		t.Skip("missing VOLCENGINE_ACCESS_KEY/VOLCENGINE_SECRET_KEY")
+	}
+	region := os.Getenv(common.DATABASE_VIKING_REGION)
+	if region == "" {
+		region = "cn-beijing"
+	}
+	bucket := "veadk-ut-20251208152204"
+
+	cfg := &Config{
+		AK:                  ak,
+		SK:                  sk,
+		Index:               idx,
+		Project:             "default",
+		Region:              region,
+		CreateIfNotExist:    true,
+		TopK:                5,
+		ChunkDiffusionCount: 1,
+		TOSBucket:           bucket,
+	}
+	kb, err := NewVikingKnowledgeBackend(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return kb.(*VikingKnowledgeBackend)
+}
+
+func TestVikingKnowledgeBackend_Search(t *testing.T) {
+	idx := "sjy_test_coffee_kg"
+	kb := newBackendOrSkip(t, idx)
+	entries, err := kb.Search("拿铁")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("viking kg search result: ", entries)
+	if len(entries) > 0 && entries[0].Content == "" {
+		t.Fatalf("empty content")
+	}
+}
+
+func TestVikingKnowledgeBackend_AddFromText(t *testing.T) {
+	idx := fmt.Sprintf("veadk_kb_text_%d", time.Now().UnixNano())
+	kb := newBackendOrSkip(t, idx)
+	defer func() {
+		_, err := kb.viking.CollectionDelete()
+		if err != nil {
+			t.Fatal("CollectionDelete ", idx, "failed:", err)
+		}
+
+	}()
+	err := kb.AddFromText([]string{"hello", "world"})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestVikingKnowledgeBackend_AddFromFiles(t *testing.T) {
+	idx := fmt.Sprintf("veadk_kb_files_%d", time.Now().UnixNano())
+	kb := newBackendOrSkip(t, idx)
+	defer func() {
+		_, err := kb.viking.CollectionDelete()
+		if err != nil {
+			t.Fatal("CollectionDelete ", idx, "failed:", err)
+		}
+
+	}()
+	dir := t.TempDir()
+	f1 := writeFile(t, dir, "a.txt")
+	f2 := writeFile(t, dir, "b.md")
+	err := kb.AddFromFiles([]string{f1, f2})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestVikingKnowledgeBackend_AddFromDirectory(t *testing.T) {
+	idx := fmt.Sprintf("veadk_kb_dir_%d", time.Now().UnixNano())
+	kb := newBackendOrSkip(t, idx)
+	defer func() {
+		_, err := kb.viking.CollectionDelete()
+		if err != nil {
+			t.Fatal("CollectionDelete ", idx, "failed:", err)
+		}
+	}()
+	dir := "/Users/bytedance/Desktop/files"
+	err := kb.AddFromDirectory(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
