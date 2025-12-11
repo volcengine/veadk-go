@@ -59,7 +59,7 @@ func TestNewShortTermMemory(t *testing.T) {
 		mockey.PatchConvey(tt.name, t, func() {
 			t.Run(tt.name, func(t *testing.T) {
 				mockey.Mock(short_term_memory_backends.NewPostgreSqlSTMBackend).Return(&mockSessionServiceImpl{}, nil).Build()
-				sessionService, err := NewShortTermMemory(tt.backend, nil)
+				sessionService, err := NewShortTermMemoryService(tt.backend, nil)
 				assert.True(t, tt.wantErr == (err != nil))
 				if err == nil {
 					assert.NotNil(t, sessionService)

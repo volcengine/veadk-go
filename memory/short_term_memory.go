@@ -29,11 +29,11 @@ const (
 	BackendShortTermPostgreSQL ShortTermBackendType = "postgresql"
 )
 
-// NewShortTermMemory creates a new short term memory service.
+// NewShortTermMemoryService creates a new short term memory service.
 // If backend is empty, it will use the default backend.
 // If config is nil, it will use the default config with backend
 // If config is not nil, it will use the config.
-func NewShortTermMemory(backend ShortTermBackendType, config interface{}) (session.Service, error) {
+func NewShortTermMemoryService(backend ShortTermBackendType, config interface{}) (session.Service, error) {
 	if backend == "" {
 		backend = BackendShortTermLocal
 	}

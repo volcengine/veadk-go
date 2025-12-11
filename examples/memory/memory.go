@@ -22,10 +22,10 @@ import (
 
 	veagent "github.com/volcengine/veadk-go/agent"
 	"github.com/volcengine/veadk-go/common"
+	vem "github.com/volcengine/veadk-go/memory"
 	"github.com/volcengine/veadk-go/utils"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/memory"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 	"google.golang.org/adk/tool"
@@ -81,8 +81,17 @@ func main() {
 		return
 	}
 
-	sessionService := session.InMemoryService()
-	memoryService := memory.InMemoryService()
+	// Use all default config
+	sessionService, err := vem.NewShortTermMemoryService(vem.BackendShortTermPostgreSQL, nil)
+	if err != nil {
+		log.Printf("NewShortTermMemoryService failed: %v", err)
+		return
+	}
+	memoryService, err := vem.NewLongTermMemoryService(vem.BackendLongTermViking, nil)
+	if err != nil {
+		log.Printf("NewLongTermMemoryService failed: %v", err)
+		return
+	}
 
 	runner1, err := runner.New(runner.Config{
 		AppName:        appName,
