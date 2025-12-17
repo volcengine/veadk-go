@@ -42,7 +42,7 @@ func NewShortTermMemoryService(backend ShortTermBackendType, config interface{})
 	case BackendShortTermLocal:
 		return session.InMemoryService(), nil
 	case BackendShortTermPostgreSQL:
-		pgCfg := &short_term_memory_backends.PostgresqlBackendConfig{}
+		var pgCfg *short_term_memory_backends.PostgresqlBackendConfig
 		if config == nil {
 			pgCfg = &short_term_memory_backends.PostgresqlBackendConfig{
 				CommonDatabaseConfig: configs.GetGlobalConfig().Database.Postgresql,

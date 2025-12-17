@@ -142,13 +142,13 @@ type VideoGenerateConfig struct {
 }
 
 type VideoGenerateToolRequest struct {
-	Params    []GenerateVideosRequest `json:"params,required"`
+	Params    []GenerateVideosRequest `json:"params"`
 	BatchSize int                     `json:"batch_size,omitempty"`
 }
 
 type GenerateVideosRequest struct {
-	VideoName  string  `json:"video_name,required"`
-	Prompt     string  `json:"prompt,required"`
+	VideoName  string  `json:"video_name"`
+	Prompt     string  `json:"prompt"`
 	FirstFrame *string `json:"first_frame,omitempty"`
 	LastFrame  *string `json:"last_frame,omitempty"`
 }

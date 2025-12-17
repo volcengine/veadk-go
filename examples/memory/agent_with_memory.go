@@ -117,8 +117,8 @@ func main() {
 			log.Printf("Agent 1 Error: %v", err)
 			continue
 		}
-		if event.Content != nil && !event.LLMResponse.Partial {
-			finalResponseText = strings.Join(textParts(event.LLMResponse.Content), "")
+		if event.Content != nil && !event.Partial {
+			finalResponseText = strings.Join(textParts(event.Content), "")
 		}
 	}
 	log.Printf("Agent 1 Response: %s\n", finalResponseText)
@@ -160,7 +160,7 @@ func main() {
 			log.Printf("Agent 2 Error: %v", err)
 			continue
 		}
-		if event.Content != nil && !event.LLMResponse.Partial {
+		if event.Content != nil && !event.Partial {
 			for _, part := range event.Content.Parts {
 				finalResponseText2 = append(finalResponseText2, part.Text)
 			}

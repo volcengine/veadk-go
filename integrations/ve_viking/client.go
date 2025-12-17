@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	VikingKnowledgeConfigErr = errors.New("viking Knowledge Config Error")
+	ErrVikingKnowledgeConfig = errors.New("viking Knowledge Config Error")
 )
 
 type ClientConfig struct {
@@ -57,7 +57,7 @@ func (c *ClientConfig) validate() error {
 		}
 	}
 	if c.ResourceID == "" && (c.Project == "" || c.Index == "") {
-		return fmt.Errorf("%w: knowledge ResourceID or Index and Project is nil", VikingKnowledgeConfigErr)
+		return fmt.Errorf("%w: knowledge ResourceID or Index and Project is nil", ErrVikingKnowledgeConfig)
 	}
 	if c.Index != "" {
 		if err := precheckIndexNaming(c.Index); err != nil {
@@ -69,7 +69,7 @@ func (c *ClientConfig) validate() error {
 
 func NewConfig(cfg *ClientConfig) (*ClientConfig, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("%w: viking config is nil", VikingKnowledgeConfigErr)
+		return nil, fmt.Errorf("%w: viking config is nil", ErrVikingKnowledgeConfig)
 	}
 	if cfg.AK == "" {
 		cfg.AK = utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
@@ -80,7 +80,7 @@ func NewConfig(cfg *ClientConfig) (*ClientConfig, error) {
 	if cfg.AK == "" || cfg.SK == "" {
 		iam, err := veauth.GetCredentialFromVeFaaSIAM()
 		if err != nil {
-			return nil, fmt.Errorf("%w : GetCredential error: %w, VOLCENGINE_ACCESS_KEY/VOLCENGINE_SECRET_KEY not found. Please set via environment variables or config file", VikingKnowledgeConfigErr, err)
+			return nil, fmt.Errorf("%w : GetCredential error: %w, VOLCENGINE_ACCESS_KEY/VOLCENGINE_SECRET_KEY not found. Please set via environment variables or config file", ErrVikingKnowledgeConfig, err)
 		}
 		cfg.AK = iam.AccessKeyID
 		cfg.SK = iam.SecretAccessKey
@@ -95,7 +95,7 @@ func NewConfig(cfg *ClientConfig) (*ClientConfig, error) {
 	}
 
 	if err := cfg.validate(); err != nil {
-		return nil, fmt.Errorf("%w : %w", VikingKnowledgeConfigErr, err)
+		return nil, fmt.Errorf("%w : %w", ErrVikingKnowledgeConfig, err)
 	}
 	return cfg, nil
 }
@@ -135,11 +135,11 @@ func ParseJsonUseNumber(input []byte, target interface{}) error {
 
 func precheckIndexNaming(index string) error {
 	var indexNameRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_]*$`)
-	if l := len(index); !(l > 0 && l <= 128) {
-		return fmt.Errorf("%w: index length out of range (must be 1–128)", VikingKnowledgeConfigErr)
+	if l := len(index); l < 0 || l > 128 {
+		return fmt.Errorf("%w: index length out of range (must be 1–128)", ErrVikingKnowledgeConfig)
 	}
 	if !indexNameRe.MatchString(index) {
-		return fmt.Errorf("%w: index contains characters other than letters、numbers and _", VikingKnowledgeConfigErr)
+		return fmt.Errorf("%w: index contains characters other than letters、numbers and _", ErrVikingKnowledgeConfig)
 	}
 	return nil
 }

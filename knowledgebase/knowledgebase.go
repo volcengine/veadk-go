@@ -24,8 +24,8 @@ import (
 )
 
 var (
-	InvalidKnowledgeBackendErr       = errors.New("invalid knowledge backend type")
-	InvalidKnowledgeBackendConfigErr = errors.New("invalid knowledge backend config type")
+	ErrInvalidKnowledgeBackend       = errors.New("invalid knowledge backend type")
+	ErrInvalidKnowledgeBackendConfig = errors.New("invalid knowledge backend config type")
 )
 
 const (
@@ -43,16 +43,14 @@ type KnowledgeBase struct {
 func getKnowledgeBackend(backend string, backendConfig any) (_interface.KnowledgeBackend, error) {
 	switch backend {
 	case ktypes.VikingBackend:
-		switch backendConfig.(type) {
-		case *viking_knowledge_backend.Config:
-			return viking_knowledge_backend.NewVikingKnowledgeBackend(backendConfig.(*viking_knowledge_backend.Config))
-		default:
-			return nil, InvalidKnowledgeBackendConfigErr
+		if config, ok := backendConfig.(*viking_knowledge_backend.Config); ok {
+			return viking_knowledge_backend.NewVikingKnowledgeBackend(config)
 		}
+		return nil, ErrInvalidKnowledgeBackendConfig
 	case ktypes.RedisBackend, ktypes.LocalBackend, ktypes.OpensearchBackend:
-		return nil, fmt.Errorf("%w: %s", InvalidKnowledgeBackendErr, backend)
+		return nil, fmt.Errorf("%w: %s", ErrInvalidKnowledgeBackend, backend)
 	default:
-		return nil, fmt.Errorf("%w: %s", InvalidKnowledgeBackendErr, backend)
+		return nil, fmt.Errorf("%w: %s", ErrInvalidKnowledgeBackend, backend)
 	}
 }
 
@@ -69,16 +67,16 @@ func NewKnowledgeBase(backend any, opts ...Option) (*KnowledgeBase, error) {
 	if knowledge.Description == "" {
 		knowledge.Description = DefaultDescription
 	}
-	switch backend.(type) {
+	switch b := backend.(type) {
 	case _interface.KnowledgeBackend:
-		knowledge.Backend = backend.(_interface.KnowledgeBackend)
+		knowledge.Backend = b
 	case string:
-		knowledge.Backend, err = getKnowledgeBackend(backend.(string), knowledge.BackendConfig)
+		knowledge.Backend, err = getKnowledgeBackend(b, knowledge.BackendConfig)
 		if err != nil {
 			return nil, err
 		}
 	default:
-		return nil, InvalidKnowledgeBackendErr
+		return nil, ErrInvalidKnowledgeBackend
 	}
 	return knowledge, nil
 }

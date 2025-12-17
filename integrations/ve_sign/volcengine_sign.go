@@ -30,7 +30,7 @@ import (
 
 const HttpClientTimeoutTime = 10
 
-var VeRequestParamErr = errors.New("VeRequest Param Invalid Error")
+var ErrVeRequestParam = errors.New("VeRequest Param Invalid Error")
 
 type VeRequest struct {
 	AK      string
@@ -47,25 +47,25 @@ type VeRequest struct {
 
 func (v VeRequest) validate() error {
 	if v.AK == "" || v.SK == "" {
-		return VeRequestParamErr
+		return ErrVeRequestParam
 	}
 	m := strings.ToUpper(v.Method)
 	switch m {
 	case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodHead, http.MethodOptions:
 	default:
-		return VeRequestParamErr
+		return ErrVeRequestParam
 	}
 	if v.Host == "" || strings.Contains(v.Host, "/") {
-		return VeRequestParamErr
+		return ErrVeRequestParam
 	}
 	if v.Path == "" || !strings.HasPrefix(v.Path, "/") {
-		return VeRequestParamErr
+		return ErrVeRequestParam
 	}
 	if v.Service == "" || v.Region == "" {
-		return VeRequestParamErr
+		return ErrVeRequestParam
 	}
 	if (m == http.MethodPost || m == http.MethodPut || m == http.MethodPatch) && v.Body == nil {
-		return VeRequestParamErr
+		return ErrVeRequestParam
 	}
 	return nil
 }
@@ -82,7 +82,9 @@ func (v VeRequest) DoRequest() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

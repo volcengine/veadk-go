@@ -524,7 +524,9 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 			yield(nil, err)
 			return
 		}
-		defer httpResp.Body.Close()
+		defer func() {
+			_ = httpResp.Body.Close()
+		}()
 
 		scanner := bufio.NewScanner(httpResp.Body)
 		var textBuffer strings.Builder
@@ -641,7 +643,9 @@ func (m *openAIModel) sendRequest(ctx context.Context, openaiReq *openAIRequest)
 
 	if httpResp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(httpResp.Body)
-		httpResp.Body.Close()
+		if err = httpResp.Body.Close(); err != nil {
+			return nil, fmt.Errorf("API failed to close response body: %w", err)
+		}
 		return nil, fmt.Errorf("API error (status %d): %s", httpResp.StatusCode, string(body))
 	}
 
@@ -653,7 +657,9 @@ func (m *openAIModel) doRequest(ctx context.Context, openaiReq *openAIRequest) (
 	if err != nil {
 		return nil, err
 	}
-	defer httpResp.Body.Close()
+	defer func() {
+		_ = httpResp.Body.Close()
+	}()
 
 	var resp response
 	if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {

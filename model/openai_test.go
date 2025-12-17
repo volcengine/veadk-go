@@ -100,7 +100,7 @@ func newTestServer(t *testing.T, response any) *httptest.Server {
 			t.Errorf("expected /chat/completions, got %s", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
 }
 
@@ -129,7 +129,7 @@ func newStreamingTestServer(t *testing.T, chunks []string, finalContent string) 
 				},
 			}
 			jsonData, _ := json.Marshal(data)
-			fmt.Fprintf(w, "data: %s\n\n", jsonData)
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 			flusher.Flush()
 
 			// Last chunk includes finish_reason
@@ -151,11 +151,11 @@ func newStreamingTestServer(t *testing.T, chunks []string, finalContent string) 
 					},
 				}
 				jsonData, _ := json.Marshal(finalData)
-				fmt.Fprintf(w, "data: %s\n\n", jsonData)
+				_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 				flusher.Flush()
 			}
 		}
-		fmt.Fprintf(w, "data: [DONE]\n\n")
+		_, _ = fmt.Fprintf(w, "data: [DONE]\n\n")
 		flusher.Flush()
 	}))
 }
@@ -362,12 +362,15 @@ func TestModel_FunctionCalling(t *testing.T) {
 
 				if foundCall == nil {
 					t.Fatal("expected function call in response")
+					return
 				}
 				if foundCall.Name != tt.wantFuncName {
 					t.Errorf("FunctionCall.Name = %q, want %q", foundCall.Name, tt.wantFuncName)
+					return
 				}
 				if diff := cmp.Diff(tt.wantArgs, foundCall.Args); diff != "" {
 					t.Errorf("FunctionCall.Args mismatch (-want +got):\n%s", diff)
+					return
 				}
 			}
 		})
@@ -545,7 +548,7 @@ func TestModel_ErrorHandling(t *testing.T) {
 	// Test server that returns an error
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(`{"error": {"message": "Invalid request"}}`))
+		_, _ = w.Write([]byte(`{"error": {"message": "Invalid request"}}`))
 	}))
 	defer server.Close()
 
@@ -558,6 +561,7 @@ func TestModel_ErrorHandling(t *testing.T) {
 	for _, err := range llm.GenerateContent(t.Context(), req, false) {
 		if err == nil {
 			t.Error("expected error, got nil")
+			break
 		}
 		if !strings.Contains(err.Error(), "400") {
 			t.Errorf("expected error to contain '400', got %v", err)
@@ -907,10 +911,10 @@ func TestModel_StreamingToolCalls(t *testing.T) {
 
 		for _, chunk := range chunks {
 			jsonData, _ := json.Marshal(chunk)
-			fmt.Fprintf(w, "data: %s\n\n", jsonData)
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 			flusher.Flush()
 		}
-		fmt.Fprintf(w, "data: [DONE]\n\n")
+		_, _ = fmt.Fprintf(w, "data: [DONE]\n\n")
 		flusher.Flush()
 	}))
 	defer server.Close()
@@ -1052,10 +1056,10 @@ func TestModel_StreamingMultipleToolCalls(t *testing.T) {
 
 		for _, chunk := range chunks {
 			jsonData, _ := json.Marshal(chunk)
-			fmt.Fprintf(w, "data: %s\n\n", jsonData)
+			_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 			flusher.Flush()
 		}
-		fmt.Fprintf(w, "data: [DONE]\n\n")
+		_, _ = fmt.Fprintf(w, "data: [DONE]\n\n")
 		flusher.Flush()
 	}))
 	defer server.Close()
@@ -1771,7 +1775,7 @@ func TestModel_StreamingWithReasoningContent(t *testing.T) {
 			},
 		}
 		jsonData, _ := json.Marshal(chunk1)
-		fmt.Fprintf(w, "data: %s\n\n", jsonData)
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 		flusher.Flush()
 
 		chunk2 := response{
@@ -1787,7 +1791,7 @@ func TestModel_StreamingWithReasoningContent(t *testing.T) {
 			},
 		}
 		jsonData, _ = json.Marshal(chunk2)
-		fmt.Fprintf(w, "data: %s\n\n", jsonData)
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 		flusher.Flush()
 
 		finalChunk := response{
@@ -1807,10 +1811,10 @@ func TestModel_StreamingWithReasoningContent(t *testing.T) {
 			},
 		}
 		jsonData, _ = json.Marshal(finalChunk)
-		fmt.Fprintf(w, "data: %s\n\n", jsonData)
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 		flusher.Flush()
 
-		fmt.Fprintf(w, "data: [DONE]\n\n")
+		_, _ = fmt.Fprintf(w, "data: [DONE]\n\n")
 		flusher.Flush()
 	}))
 	defer server.Close()
@@ -1869,7 +1873,7 @@ func TestModel_StreamingNoFinishReason(t *testing.T) {
 			},
 		}
 		jsonData, _ := json.Marshal(chunk)
-		fmt.Fprintf(w, "data: %s\n\n", jsonData)
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 		flusher.Flush()
 	}))
 	defer server.Close()

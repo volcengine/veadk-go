@@ -38,14 +38,14 @@ import (
 
 var bucketRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`)
 var (
-	TosConfigInvalidErr = errors.New("tos client config is invalid")
-	TosBucketInvalidErr = errors.New("tos bucket invalid, bucket names must be 3-63 characters long, contain only lowercase letters, numbers , and hyphens (-), start and end with a letter or number")
-	TosClientInvalidErr = errors.New("TOS client is not initialized")
+	ErrTosConfigInvalid = errors.New("tos client config is invalid")
+	ErrTosBucketInvalid = errors.New("tos bucket invalid, bucket names must be 3-63 characters long, contain only lowercase letters, numbers , and hyphens (-), start and end with a letter or number")
+	ErrTosClientInvalid = errors.New("TOS client is not initialized")
 )
 
 func preCheckBucket(bucket string) error {
 	if !bucketRe.MatchString(bucket) {
-		return TosBucketInvalidErr
+		return ErrTosBucketInvalid
 	}
 	return nil
 }
@@ -81,7 +81,7 @@ type Client struct {
 
 func New(cfg *Config) (*Client, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("%w: tos config is nil", TosConfigInvalidErr)
+		return nil, fmt.Errorf("%w: tos config is nil", ErrTosConfigInvalid)
 	}
 	if cfg.AK == "" {
 		cfg.AK = utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
@@ -92,7 +92,7 @@ func New(cfg *Config) (*Client, error) {
 	if cfg.AK == "" || cfg.SK == "" {
 		iam, err := veauth.GetCredentialFromVeFaaSIAM()
 		if err != nil {
-			return nil, fmt.Errorf("%w : GetCredential error: %w", TosConfigInvalidErr, err)
+			return nil, fmt.Errorf("%w : GetCredential error: %w", ErrTosConfigInvalid, err)
 		}
 		cfg.AK = iam.AccessKeyID
 		cfg.SK = iam.SecretAccessKey
@@ -213,9 +213,9 @@ func (c *Client) BuildObjectKeyForFile(dataPath string, bucketPath ...string) st
 	} else {
 		objectKey = filepath.Base(dataPath)
 	}
-	if strings.HasPrefix(objectKey, "/") {
-		objectKey = objectKey[1:]
-	}
+
+	objectKey = strings.TrimPrefix(objectKey, "/")
+
 	if objectKey == "" ||
 		strings.Contains(objectKey, "../") ||
 		strings.Contains(objectKey, `..\`) ||
@@ -223,21 +223,21 @@ func (c *Client) BuildObjectKeyForFile(dataPath string, bucketPath ...string) st
 		strings.Contains(objectKey, `.\`) {
 		objectKey = filepath.Base(dataPath)
 	}
-	if bucketPath != nil && len(bucketPath) > 0 {
+	if len(bucketPath) > 0 {
 		return fmt.Sprintf("%s/%s", bucketPath[0], objectKey)
 	}
 	return objectKey
 }
 
 func (c *Client) BuildObjectKeyForText(bucketPath ...string) string {
-	if bucketPath != nil && len(bucketPath) > 0 {
+	if len(bucketPath) > 0 {
 		return fmt.Sprintf("%s/%s.%s", bucketPath[0], time.Now().Format("20060102150405.000"), "txt")
 	}
 	return fmt.Sprintf("%s.%s", time.Now().Format("20060102150405.000"), "txt")
 }
 
 func (c *Client) BuildObjectKeyForBytes(bucketPath ...string) string {
-	if bucketPath != nil && len(bucketPath) > 0 {
+	if len(bucketPath) > 0 {
 		return fmt.Sprintf("%s/%s", bucketPath[0], time.Now().Format("20060102150405.000"))
 	}
 	return time.Now().Format("20060102150405.000")
@@ -247,26 +247,26 @@ func (c *Client) BuildTOSURL(objectKey string) string {
 	return fmt.Sprintf("%s/%s", c.config.Bucket, objectKey)
 }
 
-func (c *Client) buildTOSSignedURL(objectKey string) (string, error) {
-	if err := preCheckBucket(c.config.Bucket); err != nil {
-		return "", err
-	}
-	out, err := c.client.PreSignedURL(&tos.PreSignedURLInput{
-		HTTPMethod: http.MethodGet,
-		Bucket:     c.config.Bucket,
-		Key:        objectKey,
-		Expires:    604800,
-	})
-	if err != nil {
-		return "", err
-	}
-	return out.SignedUrl, nil
-}
+//func (c *Client) buildTOSSignedURL(objectKey string) (string, error) {
+//	if err := preCheckBucket(c.config.Bucket); err != nil {
+//		return "", err
+//	}
+//	out, err := c.client.PreSignedURL(&tos.PreSignedURLInput{
+//		HTTPMethod: http.MethodGet,
+//		Bucket:     c.config.Bucket,
+//		Key:        objectKey,
+//		Expires:    604800,
+//	})
+//	if err != nil {
+//		return "", err
+//	}
+//	return out.SignedUrl, nil
+//}
 
 func (c *Client) ensureClientAndBucket() error {
 	// todo refreshClient
 	if c.client == nil {
-		return TosClientInvalidErr
+		return ErrTosClientInvalid
 	}
 	if exist, err := c.BucketExist(context.Background()); err != nil || !exist {
 		if err := c.CreateBucket(context.Background()); err != nil {
@@ -469,7 +469,9 @@ func (c *Client) Download(objectKey string, savePath string) error {
 	if err != nil {
 		return err
 	}
-	defer rc.Content.Close()
+	defer func() {
+		_ = rc.Content.Close()
+	}()
 
 	if dir := filepath.Dir(savePath); dir != "" && dir != "." {
 		_ = os.MkdirAll(dir, 0o755)
@@ -478,7 +480,9 @@ func (c *Client) Download(objectKey string, savePath string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 	if _, err = io.Copy(f, rc.Content); err != nil {
 		return err
 	}
