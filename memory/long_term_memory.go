@@ -44,7 +44,7 @@ func NewLongTermMemoryService(backend LongTermBackendType, config interface{}) (
 	case BackendLongTermLocal:
 		memoryService = memory.InMemoryService()
 	case BackendLongTermViking:
-		vikingDBMemoryConfig := &long_term_memory_backends.VikingDbMemoryConfig{}
+		var vikingDBMemoryConfig *long_term_memory_backends.VikingDbMemoryConfig
 		if config == nil {
 			// use all default config in VikingDbMemoryBackend
 			vikingDBMemoryConfig = &long_term_memory_backends.VikingDbMemoryConfig{}

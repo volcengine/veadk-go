@@ -34,7 +34,7 @@ import (
 // WebSearchTool is a built-in tools that is automatically invoked by Agents
 // models to retrieve search results from websites.
 
-var WebSearchConfigErr = errors.New("web search config error")
+var ErrWebSearchConfig = errors.New("web search config error")
 
 type Config struct {
 	AK           string
@@ -64,7 +64,7 @@ func NewWebSearchTool(cfg *Config) (tool.Tool, error) {
 	if cfg.AK == "" || cfg.SK == "" {
 		iam, err := veauth.GetCredentialFromVeFaaSIAM()
 		if err != nil {
-			log.Warn(fmt.Sprintf("%s : GetCredential error: %s", WebSearchConfigErr.Error(), err.Error()))
+			log.Warn(fmt.Sprintf("%s : GetCredential error: %s", ErrWebSearchConfig.Error(), err.Error()))
 		} else {
 			cfg.AK = iam.AccessKeyID
 			cfg.SK = iam.SecretAccessKey

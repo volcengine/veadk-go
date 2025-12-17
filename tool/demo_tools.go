@@ -16,9 +16,7 @@ package tool
 
 import (
 	"fmt"
-	"math/rand"
 	"strings"
-	"time"
 
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
@@ -45,25 +43,6 @@ func GetCityWeather(city string) (map[string]any, error) {
 		return map[string]any{"result": fmt.Sprintf("%s, %d°C", info.condition, info.temperature)}, nil
 	}
 	return nil, fmt.Errorf("weather information not found for %s", c)
-}
-
-func GetLocationWeather(city string) map[string]string {
-	rand.Seed(time.Now().UnixNano())
-	conditions := []string{
-		"Sunny",
-		"Cloudy",
-		"Rainy",
-		"Partly cloudy",
-		"Windy",
-		"Snowy",
-		"Humid",
-		"Hazy",
-		"Cool",
-		"Hot",
-	}
-	condition := conditions[rand.Intn(len(conditions))]
-	temperature := -10 + rand.Intn(51)
-	return map[string]string{"result": fmt.Sprintf("%s, %d°C", condition, temperature)}
 }
 
 type GetCityWeatherArgs struct {

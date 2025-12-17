@@ -19,44 +19,46 @@ import (
 )
 
 var (
-	OptsNIlErr        = errors.New("opts is nil")
-	OptsInvalidKeyErr = errors.New("the key not in opts")
-	OptsAssertTypeErr = errors.New("opts assert type error")
+	ErrOptsNil        = errors.New("opts is nil")
+	ErrOptsInvalidKey = errors.New("the key not in opts")
+	ErrOptsAssertType = errors.New("opts assert type error")
 )
 
 func ExtractOptsValue[T any](key string, opts ...map[string]any) (T, error) {
 	var t T
-	if opts == nil || len(opts) == 0 {
-		return t, OptsNIlErr
+	if len(opts) == 0 {
+		return t, ErrOptsNil
 	}
 	for _, opt := range opts {
 		val, ok := opt[key]
 		if !ok {
-			return t, OptsInvalidKeyErr
+			continue
 		}
 		res, ok := val.(T)
 		if !ok {
-			return t, OptsAssertTypeErr
+			return t, ErrOptsAssertType
+		} else {
+			return res, nil
 		}
-		return res, nil
 	}
-	return t, OptsInvalidKeyErr
+	return t, ErrOptsInvalidKey
 }
 
 func ExtractOptsValueWithDefault[T any](key string, defaultVal T, opts ...map[string]any) T {
-	if opts == nil {
+	if len(opts) == 0 {
 		return defaultVal
 	}
 	for _, opt := range opts {
 		val, ok := opt[key]
 		if !ok {
-			return defaultVal
+			continue
 		}
 		res, ok := val.(T)
 		if !ok {
 			return defaultVal
+		} else {
+			return res
 		}
-		return res
 	}
 	return defaultVal
 }

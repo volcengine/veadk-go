@@ -35,8 +35,8 @@ const (
 	DefaultSearchLimit = 5
 )
 
-var CollectionInfoError = errors.New("collection info error")
-var CollectionCreateErr = errors.New("collection create error")
+var ErrCollectionInfo = errors.New("collection info error")
+var ErrCollectionCreate = errors.New("collection create error")
 
 type VikingDbMemoryConfig struct {
 	AK               string
@@ -94,14 +94,14 @@ func NewVikingDbMemoryBackend(config *VikingDbMemoryConfig) (memory.Service, err
 					BuiltinEventTypes: config.MemoryTypes,
 				})
 				if err != nil {
-					return nil, fmt.Errorf("%w : create viking memory index error: %w", CollectionCreateErr, err)
+					return nil, fmt.Errorf("%w : create viking memory index error: %w", ErrCollectionCreate, err)
 				}
 				log.Info("Create viking knowledge index", config.Index, "successfully", "MemoryTypes", config.MemoryTypes)
 			} else {
-				return nil, fmt.Errorf("%w : viking memory index not exist", CollectionCreateErr)
+				return nil, fmt.Errorf("%w : viking memory index not exist", ErrCollectionCreate)
 			}
 		} else {
-			return nil, fmt.Errorf("%w : get viking collection info error: %w", CollectionInfoError, err)
+			return nil, fmt.Errorf("%w : get viking collection info error: %w", ErrCollectionInfo, err)
 		}
 	}
 

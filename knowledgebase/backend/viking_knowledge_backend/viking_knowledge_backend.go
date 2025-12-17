@@ -37,9 +37,9 @@ const (
 	DefaultChunkDiffusionCount = 1
 )
 
-var NewVikingKnowledgeBaseErr = errors.New("NewVikingKnowledgeBase error")
-var VikingKnowledgeBaseSearchErr = errors.New("VikingKnowledgeBase search error")
-var VikingKnowledgeBaseAddDocsErr = errors.New("VikingKnowledgeBase add docs error")
+var ErrNewVikingKnowledgeBase = errors.New("NewVikingKnowledgeBase error")
+var ErrVikingKnowledgeBaseSearch = errors.New("VikingKnowledgeBase search error")
+var ErrVikingKnowledgeBaseAddDocs = errors.New("VikingKnowledgeBase add docs error")
 
 type Config struct {
 	AK                  string
@@ -70,23 +70,23 @@ func NewVikingKnowledgeBackend(cfg *Config) (_interface.KnowledgeBackend, error)
 		SessionToken: cfg.SessionToken,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w : %w", NewVikingKnowledgeBaseErr, err)
+		return nil, fmt.Errorf("%w : %w", ErrNewVikingKnowledgeBase, err)
 	}
 
 	collectionInfo, err := client.CollectionInfo()
 	if err != nil {
-		return nil, fmt.Errorf("%w : get viking collection info error: %w", NewVikingKnowledgeBaseErr, err)
+		return nil, fmt.Errorf("%w : get viking collection info error: %w", ErrNewVikingKnowledgeBase, err)
 	}
 
 	if collectionInfo.Code == ve_viking.VikingKnowledgeBaseIndexNotExistCode {
 		if cfg.CreateIfNotExist {
 			_, err := client.CollectionCreate("")
 			if err != nil {
-				return nil, fmt.Errorf("%w : create viking knowledge index error: %w", NewVikingKnowledgeBaseErr, err)
+				return nil, fmt.Errorf("%w : create viking knowledge index error: %w", ErrNewVikingKnowledgeBase, err)
 			}
 			log.Info("Create viking knowledge index", cfg.Index, "successfully")
 		} else {
-			return nil, fmt.Errorf("%w : viking index not exist", NewVikingKnowledgeBaseErr)
+			return nil, fmt.Errorf("%w : viking index not exist", ErrNewVikingKnowledgeBase)
 		}
 	}
 
@@ -107,7 +107,7 @@ func NewVikingKnowledgeBackend(cfg *Config) (_interface.KnowledgeBackend, error)
 
 	tosClient, err := ve_tos.New(cfg.TosConfig)
 	if err != nil {
-		return nil, fmt.Errorf("%w : new tos client error: %w", NewVikingKnowledgeBaseErr, err)
+		return nil, fmt.Errorf("%w : new tos client error: %w", ErrNewVikingKnowledgeBase, err)
 	}
 	return &VikingKnowledgeBackend{
 		viking: client,
@@ -125,11 +125,11 @@ func (v *VikingKnowledgeBackend) Search(query string, opts ...map[string]any) ([
 		true,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w : %w", VikingKnowledgeBaseSearchErr, err)
+		return nil, fmt.Errorf("%w : %w", ErrVikingKnowledgeBaseSearch, err)
 	}
 
 	if chunks.Code != ve_viking.VikingKnowledgeBaseSuccessCode {
-		return nil, fmt.Errorf("%w : with bad code %d, message:%s", VikingKnowledgeBaseSearchErr, chunks.Code, chunks.Message)
+		return nil, fmt.Errorf("%w : with bad code %d, message:%s", ErrVikingKnowledgeBaseSearch, chunks.Code, chunks.Message)
 	}
 
 	var entries []ktypes.KnowledgeEntry
@@ -138,7 +138,7 @@ func (v *VikingKnowledgeBackend) Search(query string, opts ...map[string]any) ([
 		if item.DocInfo.DocMeta != "" {
 			err = json.Unmarshal([]byte(item.DocInfo.DocMeta), &metadata)
 			if err != nil {
-				return nil, fmt.Errorf("%w : Unmarshal DocMeta error:%w", VikingKnowledgeBaseSearchErr, err)
+				return nil, fmt.Errorf("%w : Unmarshal DocMeta error:%w", ErrVikingKnowledgeBaseSearch, err)
 			}
 		}
 		entries = append(entries, ktypes.KnowledgeEntry{
@@ -159,12 +159,12 @@ func (v *VikingKnowledgeBackend) AddFromText(text []string, opts ...map[string]a
 		objectKey := v.tos.BuildObjectKeyForText(TosBucketPath)
 		err := v.tos.UploadText(t, objectKey, nil)
 		if err != nil {
-			return fmt.Errorf("%w :UploadText error: %w", VikingKnowledgeBaseAddDocsErr, err)
+			return fmt.Errorf("%w :UploadText error: %w", ErrVikingKnowledgeBaseAddDocs, err)
 		}
 		tosUrl := v.tos.BuildTOSURL(objectKey)
 		_, err = v.viking.DocumentAddTOS(tosUrl)
 		if err != nil {
-			return fmt.Errorf("%w : DocumentAddTOS from %s error: %w", VikingKnowledgeBaseAddDocsErr, tosUrl, err)
+			return fmt.Errorf("%w : DocumentAddTOS from %s error: %w", ErrVikingKnowledgeBaseAddDocs, tosUrl, err)
 		}
 	}
 	return nil
@@ -175,12 +175,12 @@ func (v *VikingKnowledgeBackend) AddFromFiles(files []string, opts ...map[string
 		objectKey := v.tos.BuildObjectKeyForFile(f, TosBucketPath)
 		err := v.tos.UploadFile(f, objectKey, nil)
 		if err != nil {
-			return fmt.Errorf("%w :UploadFile error: %w", VikingKnowledgeBaseAddDocsErr, err)
+			return fmt.Errorf("%w :UploadFile error: %w", ErrVikingKnowledgeBaseAddDocs, err)
 		}
 		tosUrl := v.tos.BuildTOSURL(objectKey)
 		_, err = v.viking.DocumentAddTOS(tosUrl)
 		if err != nil {
-			return fmt.Errorf("%w : DocumentAddTOS from %s error: %w", VikingKnowledgeBaseAddDocsErr, tosUrl, err)
+			return fmt.Errorf("%w : DocumentAddTOS from %s error: %w", ErrVikingKnowledgeBaseAddDocs, tosUrl, err)
 		}
 	}
 	return nil
@@ -189,7 +189,7 @@ func (v *VikingKnowledgeBackend) AddFromFiles(files []string, opts ...map[string
 func (v *VikingKnowledgeBackend) AddFromDirectory(directory string, opts ...map[string]any) error {
 	files, err := getFilesInDirectory(directory)
 	if err != nil {
-		return fmt.Errorf("%w : AddFromDirectory error: %w", VikingKnowledgeBaseAddDocsErr, err)
+		return fmt.Errorf("%w : AddFromDirectory error: %w", ErrVikingKnowledgeBaseAddDocs, err)
 	}
 	log.Info(fmt.Sprintf("Add from files: %+v", files))
 	return v.AddFromFiles(files, opts...)

@@ -77,13 +77,11 @@ func (c *Client) DoRequest(ak, sk string, header map[string]string, body []byte)
 	payload := hex.EncodeToString(hashSHA256(body))
 	request.Header.Set("X-Content-Sha256", payload)
 	request.Header.Set("Content-Type", "application/json")
-	if header != nil {
-		for k, v := range header {
-			request.Header.Set(k, v)
-		}
+	for k, v := range header {
+		request.Header.Set(k, v)
 	}
 
-	queryString := strings.Replace(queries.Encode(), "+", "%20", -1)
+	queryString := strings.ReplaceAll(queries.Encode(), "+", "%20")
 	signedHeaders := []string{"host", "x-date", "x-content-sha256", "content-type"}
 	var headerList []string
 	for _, h := range signedHeaders {

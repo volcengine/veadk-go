@@ -137,11 +137,11 @@ func setYamlToEnv(data map[string]interface{}, prefix string) {
 		case string:
 			// 仅在环境变量不存在时设置
 			if os.Getenv(fullKey) == "" {
-				os.Setenv(fullKey, v)
+				_ = os.Setenv(fullKey, v)
 			}
 		case int:
 			if os.Getenv(fullKey) == "" {
-				os.Setenv(fullKey, strconv.Itoa(v))
+				_ = os.Setenv(fullKey, strconv.Itoa(v))
 			}
 		}
 	}

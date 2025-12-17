@@ -24,44 +24,54 @@ import (
 
 func Test_loadConfigFromProjectEnv(t *testing.T) {
 	fd, _ := os.Create(".env")
-	fd.WriteString("MODEL_AGENT_NAME=doubao-seed-1-6-250615")
-	fd.Close()
-	defer os.Remove(".env")
+	_, _ = fd.WriteString("MODEL_AGENT_NAME=doubao-seed-1-6-250615")
+	_ = fd.Close()
+	defer func() {
+		_ = os.Remove(".env")
+	}()
 
 	_ = loadConfigFromProjectEnv()
 	assert.Equal(t, "doubao-seed-1-6-250615", os.Getenv(common.MODEL_AGENT_NAME))
 
-	os.Setenv(common.MODEL_AGENT_NAME, "test")
-	defer os.Unsetenv(common.MODEL_AGENT_NAME)
+	_ = os.Setenv(common.MODEL_AGENT_NAME, "test")
+	defer func() {
+		_ = os.Unsetenv(common.MODEL_AGENT_NAME)
+	}()
 	_ = loadConfigFromProjectEnv()
 	assert.Equal(t, "test", os.Getenv(common.MODEL_AGENT_NAME))
 }
 
 func Test_loadConfigFromProjectYaml(t *testing.T) {
 	fd, _ := os.Create("config.yaml")
-	fd.WriteString(`model:
+	_, _ = fd.WriteString(`model:
   agent:
     name: "doubao-seed-1-6-250615"
     api_base: "test"`)
-	fd.Close()
-	defer os.Remove("config.yaml")
+	_ = fd.Close()
+	defer func() {
+		_ = os.Remove("config.yaml")
+	}()
 	_ = loadConfigFromProjectYaml()
 	assert.Equal(t, "doubao-seed-1-6-250615", os.Getenv(common.MODEL_AGENT_NAME))
 
-	os.Setenv(common.MODEL_AGENT_NAME, "test")
-	defer os.Unsetenv(common.MODEL_AGENT_NAME)
+	_ = os.Setenv(common.MODEL_AGENT_NAME, "test")
+	defer func() {
+		_ = os.Unsetenv(common.MODEL_AGENT_NAME)
+	}()
 	_ = loadConfigFromProjectYaml()
 	assert.Equal(t, "test", os.Getenv(common.MODEL_AGENT_NAME))
 }
 
 func Test_getEnv(t *testing.T) {
 	fd, _ := os.Create("config.yaml")
-	fd.WriteString(`model:
+	_, _ = fd.WriteString(`model:
   agent:
     name: "doubao-seed-1-6-250615"
     api_base: "test"`)
-	fd.Close()
-	defer os.Remove("config.yaml")
+	_ = fd.Close()
+	defer func() {
+		_ = os.Remove("config.yaml")
+	}()
 	_ = loadConfigFromProjectYaml()
 	assert.Equal(t, "doubao-seed-1-6-250615", getEnv(common.MODEL_AGENT_NAME, "", false))
 	assert.Equal(t, "test", getEnv("test_key", "test", false))
@@ -69,12 +79,14 @@ func Test_getEnv(t *testing.T) {
 
 func TestSetupVeADKConfig(t *testing.T) {
 	fd, _ := os.Create("config.yaml")
-	fd.WriteString(`model:
+	_, _ = fd.WriteString(`model:
   agent:
     name: "doubao-seed-1-6-250615"
     api_base: "test"`)
-	fd.Close()
-	defer os.Remove("config.yaml")
+	_ = fd.Close()
+	defer func() {
+		_ = os.Remove("config.yaml")
+	}()
 	_ = SetupVeADKConfig()
 	assert.Equal(t, "doubao-seed-1-6-250615", os.Getenv(common.MODEL_AGENT_NAME))
 }

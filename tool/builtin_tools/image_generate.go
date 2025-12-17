@@ -122,8 +122,8 @@ type ImageGenerateToolRequest struct {
 }
 
 type GenerateImagesRequest struct {
-	TaskType                  string      `json:"task_type,required"`
-	Prompt                    string      `json:"prompt,required"`
+	TaskType                  string      `json:"task_type"`
+	Prompt                    string      `json:"prompt"`
 	Size                      string      `json:"size,omitempty"`
 	ResponseFormat            string      `json:"response_format,omitempty"`
 	Watermark                 *bool       `json:"watermark,omitempty"`
@@ -229,11 +229,11 @@ func NewImageGenerateTool(config *ImageGenerateConfig) (tool.Tool, error) {
 				resp, err := client.GenerateImages(ctx, modelReq)
 				if err != nil {
 					log.Error("Failed to generate images", "error", err)
-					ch <- &ImageGenerateToolChanelMessage{Status: ImageGenerateErrorStatus, ErrorMessage: err.Error(), Result: &ImageResult{ImageName: fmt.Sprintf("task_image")}}
+					ch <- &ImageGenerateToolChanelMessage{Status: ImageGenerateErrorStatus, ErrorMessage: err.Error(), Result: &ImageResult{ImageName: "task_image"}}
 					return
 				}
 				if resp.Error != nil {
-					ch <- &ImageGenerateToolChanelMessage{Status: ImageGenerateErrorStatus, ErrorMessage: resp.Error.Message, Result: &ImageResult{ImageName: fmt.Sprintf("task_image")}}
+					ch <- &ImageGenerateToolChanelMessage{Status: ImageGenerateErrorStatus, ErrorMessage: resp.Error.Message, Result: &ImageResult{ImageName: "task_image"}}
 					return
 				}
 

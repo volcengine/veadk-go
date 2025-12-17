@@ -41,22 +41,22 @@ func TestExtractOptsValue_Success(t *testing.T) {
 
 func TestExtractOptsValue_Errors(t *testing.T) {
 	_, err := ExtractOptsValue[int]("a")
-	if !errors.Is(err, OptsNIlErr) {
+	if !errors.Is(err, ErrOptsNil) {
 		t.Fatalf("want OptsNIlErr got=%v", err)
 	}
 
 	_, err = ExtractOptsValue[int]("a", nil)
-	if !errors.Is(err, OptsInvalidKeyErr) {
+	if !errors.Is(err, ErrOptsInvalidKey) {
 		t.Fatalf("want OptsInvalidKeyErr got=%v", err)
 	}
 
 	_, err = ExtractOptsValue[int]("a", map[string]any{})
-	if !errors.Is(err, OptsInvalidKeyErr) {
+	if !errors.Is(err, ErrOptsInvalidKey) {
 		t.Fatalf("want OptsInvalidKeyErr got=%v", err)
 	}
 
 	_, err = ExtractOptsValue[int]("a", map[string]any{"a": "x"})
-	if !errors.Is(err, OptsAssertTypeErr) {
+	if !errors.Is(err, ErrOptsAssertType) {
 		t.Fatalf("want OptsAssertTypeErr got=%v", err)
 	}
 }
