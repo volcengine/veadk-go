@@ -16,20 +16,19 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/common"
 	vem "github.com/volcengine/veadk-go/memory"
+	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"github.com/volcengine/veadk-go/utils"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
 	"google.golang.org/genai"
 )
 
@@ -39,13 +38,7 @@ func main() {
 	userID := "user1111"
 
 	// Define a tools that can search memory.
-	memorySearchTool, err := functiontool.New(
-		functiontool.Config{
-			Name:        "search_past_conversations",
-			Description: "Searches past conversations for relevant information.",
-		},
-		memorySearchToolFunc,
-	)
+	memorySearchTool, err := builtin_tools.LoadLongMemoryTool()
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -82,12 +75,12 @@ func main() {
 	}
 
 	// Use all default config
-	sessionService, err := vem.NewShortTermMemoryService(vem.BackendShortTermPostgreSQL, nil)
-	if err != nil {
-		log.Printf("NewShortTermMemoryService failed: %v", err)
-		return
-	}
-	//sessionService := session.InMemoryService()
+	//sessionService, err := vem.NewShortTermMemoryService(vem.BackendShortTermPostgreSQL, nil)
+	//if err != nil {
+	//	log.Printf("NewShortTermMemoryService failed: %v", err)
+	//	return
+	//}
+	sessionService := session.InMemoryService()
 	memoryService, err := vem.NewLongTermMemoryService(vem.BackendLongTermViking, nil)
 	if err != nil {
 		log.Printf("NewLongTermMemoryService failed: %v", err)
@@ -161,48 +154,20 @@ func main() {
 
 	userInput2 := genai.NewContentFromText("What is my favorite project?", "user")
 
-	var finalResponseText2 string
+	var finalResponseText2 []string
 	for event, err := range runner2.Run(ctx, s.Session.UserID(), s.Session.ID(), userInput2, agent.RunConfig{}) {
 		if err != nil {
 			log.Printf("Agent 2 Error: %v", err)
 			continue
 		}
 		if event.Content != nil && !event.LLMResponse.Partial {
-			finalResponseText2 = strings.Join(textParts(event.LLMResponse.Content), "")
+			for _, part := range event.Content.Parts {
+				finalResponseText2 = append(finalResponseText2, part.Text)
+			}
 		}
 	}
-	log.Printf("Agent 2 Response: %s\n", finalResponseText2)
+	log.Printf("Agent 2 Response: %s\n", strings.Join(finalResponseText2, ""))
 
-}
-
-// Args defines the input structure for the memory search tools.
-type Args struct {
-	Query string `json:"query" jsonschema:"The query to search for in the memory."`
-}
-
-// Result defines the output structure for the memory search tools.
-type Result struct {
-	Results []string `json:"results"`
-}
-
-// memorySearchToolFunc is the implementation of the memory search tools.
-// This function demonstrates accessing memory via tool.Context.
-func memorySearchToolFunc(tctx tool.Context, args Args) (Result, error) {
-	fmt.Printf("Tool: Searching memory for query: '%s'\n", args.Query)
-	// The SearchMemory function is available on the context.
-	searchResults, err := tctx.SearchMemory(context.Background(), args.Query)
-	if err != nil {
-		log.Printf("Error searching memory: %v", err)
-		return Result{}, fmt.Errorf("failed memory search")
-	}
-
-	var results []string
-	for _, res := range searchResults.Memories {
-		if res.Content != nil {
-			results = append(results, textParts(res.Content)...)
-		}
-	}
-	return Result{Results: results}, nil
 }
 
 func textParts(Content *genai.Content) []string {
