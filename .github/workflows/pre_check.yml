@@ -23,10 +23,10 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9
+        uses: golangci/golangci-lint-action@v6
         with:
           install-mode: goinstall
-          version: 5256574b81bcedfbcae9099f745f6aee9335da10
+          version: latest
           args: --timeout=10m
 
   unit-test:
