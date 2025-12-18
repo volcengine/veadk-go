@@ -83,25 +83,5 @@ func New(cfg *Config) (agent.Agent, error) {
 		}
 		cfg.Tools = append(cfg.Tools, knowledgeTool)
 	}
-	llmAgent, err := llmagent.New(cfg.Config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &veAgent{
-		Agent:  llmAgent,
-		config: cfg,
-	}, nil
+	return llmagent.New(cfg.Config)
 }
-
-type veAgent struct {
-	agent.Agent
-	config *Config
-}
-
-// Run overwrite llmagent run
-//func (va *veAgent) Run(agent.InvocationContext) iter.Seq2[*session.Event, error] {
-//	return func(yield func(*session.Event, error) bool) {
-//		fmt.Println("veAgent Run...")
-//	}
-//}
