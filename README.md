@@ -107,6 +107,32 @@ func main() {
 
 ```
 
+## Run your agent
+
+1、Run with command-line interface
+
+Run your agent using the following Go command:
+
+```shell
+go run agent.go
+```
+
+2、Run with web interface
+
+Run your agent with the ADK web interface using the following Go command:
+
+```shell
+go run agent.go web api webui
+```
+
+If a large agent takes a long time to run, you can increase the timeout parameter.
+
+```shell
+go run agent.go web -read-timeout 3m -write-timeout 3m api 
+```
+
+
+
 ## License
 
 This project is licensed under the Apache 2.0 License.
