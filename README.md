@@ -42,17 +42,16 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 
-	"github.com/google/uuid"
 	_ "github.com/volcengine/veadk-go/agent"
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"google.golang.org/adk/agent"
-	"google.golang.org/adk/runner"
+	"google.golang.org/adk/cmd/launcher"
+	"google.golang.org/adk/cmd/launcher/full"
 	"google.golang.org/adk/session"
-	"google.golang.org/genai"
 )
 
 func main() {
@@ -71,40 +70,16 @@ func main() {
 		return
 	}
 
-	appName := "veAgent_app"
-	userID := "user-1234"
-	sessionId := fmt.Sprintf("%s-%s", session.KeyPrefixTemp, uuid.NewString())
-	sessionService := session.InMemoryService()
-	agentRunner, err := runner.New(runner.Config{
-		AppName:        appName,
-		Agent:          veAgent,
-		SessionService: sessionService,
-	})
-	if err != nil {
-		log.Printf("New runner error:%v", err)
-		return
+	config := &launcher.Config{
+		AgentLoader:    agent.NewSingleLoader(veAgent),
+		SessionService: session.InMemoryService(),
 	}
 
-	_, err = sessionService.Create(ctx, &session.CreateRequest{
-		AppName:   appName,
-		UserID:    userID,
-		SessionID: sessionId,
-	})
-	if err != nil {
-		log.Printf("Create session error:%v", err)
-		return
-	}
-
-	for event, err := range agentRunner.Run(ctx, userID, sessionId, genai.NewContentFromText("你好", genai.RoleUser), agent.RunConfig{StreamingMode: agent.StreamingModeNone}) {
-		if err != nil {
-			log.Printf("got unexpected error: %v", err)
-		}
-
-		eventStr, _ := json.Marshal(event)
-		log.Printf("got event: %s\n", string(eventStr))
+	l := full.NewLauncher()
+	if err = l.Execute(ctx, config, os.Args[1:]); err != nil {
+		log.Fatalf("Run failed: %v\n\n%s", err, l.CommandLineSyntax())
 	}
 }
-
 ```
 
 ## Run your agent
