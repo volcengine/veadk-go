@@ -48,7 +48,7 @@ func main() {
 		APIKey:    os.Getenv(common.MODEL_IMAGE_API_KEY),
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent failed: %v", err)
+		fmt.Printf("NewImageGenerateTool failed: %v", err)
 		return
 	}
 

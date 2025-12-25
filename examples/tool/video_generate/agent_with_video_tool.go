@@ -44,7 +44,7 @@ func main() {
 		APIKey:    os.Getenv(common.MODEL_VIDEO_API_KEY),
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent failed: %v", err)
+		fmt.Printf("NewVideoGenerateTool failed: %v", err)
 		return
 	}
 

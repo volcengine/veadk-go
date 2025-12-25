@@ -21,9 +21,10 @@ import (
 	"os"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"github.com/volcengine/veadk-go/tool/builtin_tools/web_search"
 	"google.golang.org/adk/agent"
+	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/cmd/launcher"
 	"google.golang.org/adk/cmd/launcher/full"
 	"google.golang.org/adk/session"
@@ -33,9 +34,25 @@ import (
 func main() {
 	ctx := context.Background()
 	cfg := veagent.Config{
-		ModelName:    common.DEFAULT_MODEL_AGENT_NAME,
-		ModelAPIBase: common.DEFAULT_MODEL_AGENT_API_BASE,
-		ModelAPIKey:  os.Getenv("MODEL_API_KEY"),
+		Config: llmagent.Config{
+			Name:        "data_analysis_agent",
+			Description: "A data analysis for stock marketing",
+			Instruction: `你是一个资深软件工程师，在沙箱里执行生产的代码, 可以使用 import subprocess
+import sys
+subprocess.check_call([sys.executable, "-m", "pip", "install", "akshare", "ipywidgets"])
+import akshare as ak
+realtime_df = ak.stock_zh_a_spot_em()
+target_df = realtime_df[realtime_df['代码'] == stock_code]
+print(target_df) 下载相关的股票数据，#只需在上述代码中增加真实stock_code赋值，禁止修改其他代码#，超时时间设为5分钟。可以通过web_search工具搜索相关公司的经营数据。`,
+		},
+		ModelExtraConfig: map[string]any{
+			"extra_body": map[string]any{
+				"thinking": map[string]string{
+					"type": "disabled",
+				},
+			},
+		},
+		ModelName: "deepseek-v3-2-251201",
 	}
 
 	webSearch, err := web_search.NewWebSearchTool(&web_search.Config{})
@@ -44,7 +61,13 @@ func main() {
 		return
 	}
 
-	cfg.Tools = []tool.Tool{webSearch}
+	runCode, err := builtin_tools.NewRunCodeSandboxTool()
+	if err != nil {
+		fmt.Printf("NewRunCodeSandboxTool failed: %v", err)
+		return
+	}
+
+	cfg.Tools = []tool.Tool{webSearch, runCode}
 
 	a, err := veagent.New(&cfg)
 	if err != nil {

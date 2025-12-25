@@ -16,19 +16,24 @@ package ve_sign
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/volcengine/volc-sdk-golang/base"
 )
 
-const HttpClientTimeoutTime = 10
+const (
+	HttpsSchema = "https"
+	HttpSchema  = "http"
+)
 
 var ErrVeRequestParam = errors.New("VeRequest Param Invalid Error")
 
@@ -36,51 +41,141 @@ type VeRequest struct {
 	AK      string
 	SK      string
 	Method  string
+	Scheme  string
 	Host    string
 	Path    string
 	Service string
 	Region  string
+	Action  string
+	Version string
 	Header  map[string]string
 	Queries map[string]string
 	Body    interface{}
+	Timeout uint
 }
 
-func (v VeRequest) validate() error {
-	if v.AK == "" || v.SK == "" {
-		return ErrVeRequestParam
+func (vr VeRequest) validate() error {
+	if vr.AK == "" || vr.SK == "" {
+		return fmt.Errorf("%w: VOLCENGINE_ACCESS_KEY or VOLCENGINE_SECRET_KEY not set", ErrVeRequestParam)
 	}
-	m := strings.ToUpper(v.Method)
+	m := strings.ToUpper(vr.Method)
 	switch m {
 	case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch, http.MethodHead, http.MethodOptions:
 	default:
-		return ErrVeRequestParam
+		return fmt.Errorf("%w: %s method is invalid", ErrVeRequestParam, vr.Method)
 	}
-	if v.Host == "" || strings.Contains(v.Host, "/") {
-		return ErrVeRequestParam
+	if vr.Host == "" || strings.Contains(vr.Host, "/") {
+		return fmt.Errorf("%w: Host {%s} is invalid", ErrVeRequestParam, vr.Host)
 	}
-	if v.Path == "" || !strings.HasPrefix(v.Path, "/") {
-		return ErrVeRequestParam
+	if vr.Path != "" && !strings.HasPrefix(vr.Path, "/") {
+		return fmt.Errorf("%w: Ptah {%s} is invalid", ErrVeRequestParam, vr.Path)
 	}
-	if v.Service == "" || v.Region == "" {
-		return ErrVeRequestParam
+	if vr.Service == "" || vr.Region == "" {
+		return fmt.Errorf("%w: Service or Region is empty", ErrVeRequestParam)
 	}
-	if (m == http.MethodPost || m == http.MethodPut || m == http.MethodPatch) && v.Body == nil {
-		return ErrVeRequestParam
+	if (m == http.MethodPost || m == http.MethodPut || m == http.MethodPatch) && vr.Body == nil {
+		return fmt.Errorf("%w: body can not be nil", ErrVeRequestParam)
+	}
+	if vr.Scheme != HttpsSchema && vr.Scheme != HttpSchema {
+		return fmt.Errorf("%w: %s Scheme invalid", ErrVeRequestParam, vr.Scheme)
 	}
 	return nil
 }
 
-func (v VeRequest) DoRequest() ([]byte, error) {
-	req, err := v.buildSignRequest()
+func (vr VeRequest) buildSignRequest() (*http.Request, error) {
+	if vr.Scheme != HttpsSchema && vr.Scheme != HttpSchema {
+		vr.Scheme = HttpsSchema
+	}
+
+	err := vr.validate()
 	if err != nil {
 		return nil, err
 	}
-	client := &http.Client{
-		Timeout: HttpClientTimeoutTime * time.Second,
+
+	queries := make(url.Values)
+	queries.Set("Action", vr.Action)
+	queries.Set("Version", vr.Version)
+	if len(vr.Queries) > 0 {
+		for key, value := range vr.Queries {
+			queries.Set(key, value)
+		}
 	}
+	requestAddr := fmt.Sprintf("%s://%s%s?%s", vr.Scheme, vr.Host, vr.Path, queries.Encode())
+	bodyBytes, _ := json.Marshal(vr.Body)
+
+	request, err := http.NewRequest(vr.Method, requestAddr, bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("VeRequest.v2 NewRequest bad request: %w", err)
+	}
+
+	now := time.Now()
+	date := now.UTC().Format("20060102T150405Z")
+	authDate := date[:8]
+	request.Header.Set("X-Date", date)
+
+	payload := hex.EncodeToString(hashSHA256(bodyBytes))
+	request.Header.Set("X-Content-Sha256", payload)
+	request.Header.Set("Content-Type", "application/json")
+	for k, v := range vr.Header {
+		request.Header.Set(k, v)
+	}
+
+	queryString := strings.ReplaceAll(queries.Encode(), "+", "%20")
+	signedHeaders := []string{"host", "x-date", "x-content-sha256", "content-type"}
+	var headerList []string
+	for _, h := range signedHeaders {
+		if h == "host" {
+			headerList = append(headerList, h+":"+request.Host)
+		} else {
+			v := request.Header.Get(h)
+			headerList = append(headerList, h+":"+strings.TrimSpace(v))
+		}
+	}
+	headerString := strings.Join(headerList, "\n")
+
+	canonicalString := strings.Join([]string{
+		vr.Method,
+		vr.Path,
+		queryString,
+		headerString + "\n",
+		strings.Join(signedHeaders, ";"),
+		payload,
+	}, "\n")
+
+	hashedCanonicalString := hex.EncodeToString(hashSHA256([]byte(canonicalString)))
+
+	credentialScope := authDate + "/" + vr.Region + "/" + vr.Service + "/request"
+	signString := strings.Join([]string{
+		"HMAC-SHA256",
+		date,
+		credentialScope,
+		hashedCanonicalString,
+	}, "\n")
+
+	signedKey := getSignedKey(vr.SK, authDate, vr.Region, vr.Service)
+	signature := hex.EncodeToString(hmacSHA256(signedKey, signString))
+
+	authorization := "HMAC-SHA256" +
+		" Credential=" + vr.AK + "/" + credentialScope +
+		", SignedHeaders=" + strings.Join(signedHeaders, ";") +
+		", Signature=" + signature
+	request.Header.Set("Authorization", authorization)
+	return request, nil
+}
+
+func (vr VeRequest) DoRequest() ([]byte, error) {
+	req, err := vr.buildSignRequest()
+	if err != nil {
+		return nil, err
+	}
+	var client = http.DefaultClient
+	if vr.Timeout > 0 {
+		client = &http.Client{Timeout: time.Duration(vr.Timeout) * time.Second}
+	}
+
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
+		return nil, fmt.Errorf("VeRequest.v2 do request err: %w", err)
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -92,61 +187,31 @@ func (v VeRequest) DoRequest() ([]byte, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		//Try to parse error response
 		return respBody, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
 	}
 	return respBody, nil
-
 }
 
-func (v VeRequest) buildSignRequest() (*http.Request, error) {
-	err := v.validate()
-	if err != nil {
-		return nil, err
-	}
-
-	paramsBytes, err := serializeToJsonBytes(v.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	u := url.URL{
-		Scheme: "https",
-		Host:   v.Host,
-		Path:   v.Path,
-	}
-
-	if len(v.Queries) > 0 {
-		queries := make(url.Values)
-		for key, value := range v.Header {
-			queries.Set(key, value)
-		}
-		v.Host = fmt.Sprintf("%s/?%s", v.Host, queries.Encode())
-	}
-
-	req, _ := http.NewRequest(strings.ToUpper(v.Method), u.String(), bytes.NewReader(paramsBytes))
-	req.Header.Add("Host", v.Host)
-	if len(v.Header) > 0 {
-		for key, value := range v.Header {
-			req.Header.Add(key, value)
-		}
-	}
-	credential := base.Credentials{
-		AccessKeyID:     v.AK,
-		SecretAccessKey: v.SK,
-		Service:         v.Service,
-		Region:          v.Region,
-	}
-	req = credential.Sign(req)
-	return req, nil
+func hmacSHA256(key []byte, content string) []byte {
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(content))
+	return mac.Sum(nil)
 }
 
-func serializeToJsonBytes(source interface{}) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	encoder := json.NewEncoder(buf)
-	err := encoder.Encode(source)
-	if err != nil {
-		return nil, err
+func getSignedKey(secretKey, date, region, service string) []byte {
+	kDate := hmacSHA256([]byte(secretKey), date)
+	kRegion := hmacSHA256(kDate, region)
+	kService := hmacSHA256(kRegion, service)
+	kSigning := hmacSHA256(kService, "request")
+
+	return kSigning
+}
+
+func hashSHA256(data []byte) []byte {
+	hash := sha256.New()
+	if _, err := hash.Write(data); err != nil {
+		log.Printf("input hash err:%s", err.Error())
 	}
-	return buf.Bytes(), nil
+
+	return hash.Sum(nil)
 }

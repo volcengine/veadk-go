@@ -15,7 +15,6 @@
 package web_search
 
 import (
-	"encoding/json"
 	"log"
 	"testing"
 
@@ -31,20 +30,10 @@ func TestClient_DoRequest(t *testing.T) {
 		t.Skip()
 	}
 
-	body := map[string]any{
-		"Query":       "How to create a LLMAgent?",
-		"SearchType":  "web",
-		"Count":       5,
-		"NeedSummary": true,
-	}
-
-	bodyBytes, _ := json.Marshal(body)
-
-	//headers := map[string]string{
-	//	"X-Security-Token": "123456",
-	//}
-	client := NewClient("cn-beijing")
-	result, err := client.DoRequest(ak, sk, nil, bodyBytes)
+	cfg := Config{}
+	result, err := cfg.webSearchHandler(nil, WebSearchArgs{
+		Query: "How to create a LLMAgent?",
+	})
 	if err != nil {
 		log.Printf("web search client DoRequest error: %v", err)
 		return

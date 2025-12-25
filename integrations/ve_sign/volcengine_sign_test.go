@@ -7,6 +7,7 @@ func TestValidateOK(t *testing.T) {
 		AK:      "ak",
 		SK:      "sk",
 		Method:  "POST",
+		Scheme:  HttpsSchema,
 		Host:    "open.volcengineapi.com",
 		Path:    "/v1/test",
 		Service: "open",

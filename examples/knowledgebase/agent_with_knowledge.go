@@ -117,7 +117,7 @@ func CalculateDateDifferenceTool() (tool.Tool, error) {
 	}
 	return functiontool.New(
 		functiontool.Config{
-			Name:        "calculate date difference",
+			Name:        "calculate_date_difference",
 			Description: "计算两个日期之间的天数差异\nArgs:\n\tdate1: 第一个日期，格式为YYYY-MM-DD\n\tdate2: 第二个日期，格式为YYYY-MM-DD\nReturns:\n\t两个日期之间的天数差异（绝对值）",
 		},
 		handler,

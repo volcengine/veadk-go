@@ -53,8 +53,13 @@ const (
 	DEFAULT_DATABASE_TOS_BUCKET = "veadk-go-bucket"
 )
 
-//web_search
-
+// WebSearch
 const (
 	DEFAULT_WEB_SEARCH_REGION = "cn-beijing"
+)
+
+// AGENTKIT TOOL
+const (
+	DEFAULT_AGENTKIT_TOOL_REGION       = "cn-beijing"
+	DEFAULT_AGENTKIT_TOOL_SERVICE_CODE = "agentkit"
 )
