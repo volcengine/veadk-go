@@ -11,7 +11,7 @@ require (
 	github.com/volcengine/ve-tos-golang-sdk/v2 v2.7.26
 	github.com/volcengine/volcengine-go-sdk v1.1.53
 	go.uber.org/zap v1.27.1
-	google.golang.org/adk v0.3.0
+	google.golang.org/adk v0.3.1-0.20251223085414-415e39855752
 	google.golang.org/genai v1.40.0
 	gopkg.in/go-playground/validator.v8 v8.18.2
 	gopkg.in/yaml.v3 v3.0.1
