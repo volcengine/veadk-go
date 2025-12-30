@@ -7,10 +7,12 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/modelcontextprotocol/go-sdk v0.7.0
 	github.com/stretchr/testify v1.11.1
 	github.com/volcengine/ve-tos-golang-sdk/v2 v2.7.26
 	github.com/volcengine/volcengine-go-sdk v1.1.53
 	go.uber.org/zap v1.27.1
+	golang.org/x/oauth2 v0.32.0
 	google.golang.org/adk v0.3.1-0.20251223085414-415e39855752
 	google.golang.org/genai v1.40.0
 	gopkg.in/go-playground/validator.v8 v8.18.2
@@ -55,6 +57,7 @@ require (
 	github.com/smartystreets/goconvey v1.8.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.23 // indirect
+	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.mongodb.org/mongo-driver v1.17.6 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0 // indirect
