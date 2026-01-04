@@ -1268,7 +1268,7 @@ func TestBuildFinalResponse_EmptyToolCallFiltering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp := m.buildFinalResponse("", "", tt.toolCalls, nil, "stop")
+			resp := m.buildFinalResponse("", tt.toolCalls, nil, "stop")
 
 			var functionCalls []*genai.FunctionCall
 			for _, part := range resp.Content.Parts {
