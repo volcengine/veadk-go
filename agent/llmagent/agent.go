@@ -17,6 +17,7 @@ package llmagent
 import (
 	"context"
 
+	"github.com/volcengine/veadk-go/auth/veauth"
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/knowledgebase"
@@ -55,7 +56,7 @@ func New(cfg *Config) (agent.Agent, error) {
 			cfg.ModelName = utils.GetEnvWithDefault(common.MODEL_AGENT_NAME, configs.GetGlobalConfig().Model.Agent.Name, common.DEFAULT_MODEL_AGENT_NAME)
 		}
 		if cfg.ModelAPIKey == "" {
-			cfg.ModelAPIKey = utils.GetEnvWithDefault(common.MODEL_AGENT_API_KEY, configs.GetGlobalConfig().Model.Agent.ApiKey)
+			cfg.ModelAPIKey = utils.GetEnvWithDefault(common.MODEL_AGENT_API_KEY, configs.GetGlobalConfig().Model.Agent.ApiKey, utils.Must(veauth.GetArkToken(common.DEFAULT_MODEL_REGION)))
 		}
 		if cfg.ModelAPIBase == "" {
 			cfg.ModelAPIBase = utils.GetEnvWithDefault(common.MODEL_AGENT_API_BASE, configs.GetGlobalConfig().Model.Agent.ApiBase, common.DEFAULT_MODEL_AGENT_API_BASE)

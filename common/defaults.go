@@ -16,6 +16,7 @@ package common
 
 const (
 	// Agent
+	DEFAULT_MODEL_REGION         = "cn-beijing"
 	DEFAULT_MODEL_AGENT_NAME     = "doubao-seed-1-6-250615"
 	DEFAULT_MODEL_AGENT_PROVIDER = "openai"
 	DEFAULT_MODEL_AGENT_API_BASE = "https://ark.cn-beijing.volces.com/api/v3/"
