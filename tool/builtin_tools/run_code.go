@@ -61,13 +61,13 @@ type RunCodeArgs struct {
 func runCodeHandler(ctx tool.Context, args RunCodeArgs) (map[string]any, error) {
 	var result = make(map[string]any)
 
-	toolID := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_ID)
+	toolID := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_ID, configs.GetGlobalConfig().Tool.RunCode.ToolID)
 	if toolID == "" {
 		return result, ErrInvalidToolID
 	}
-	service := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_SERVICE_CODE, common.DEFAULT_AGENTKIT_TOOL_SERVICE_CODE)
-	region := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_REGION, common.DEFAULT_AGENTKIT_TOOL_REGION)
-	host := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_HOST, fmt.Sprintf("%s.%s.volces.com", service, region))
+	service := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_SERVICE_CODE, configs.GetGlobalConfig().Tool.RunCode.ServiceCode, common.DEFAULT_AGENTKIT_TOOL_SERVICE_CODE)
+	region := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_REGION, configs.GetGlobalConfig().Tool.RunCode.Region, common.DEFAULT_AGENTKIT_TOOL_REGION)
+	host := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_HOST, configs.GetGlobalConfig().Tool.RunCode.Host, fmt.Sprintf("%s.%s.volces.com", service, region))
 
 	var ak string
 	var sk string

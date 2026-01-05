@@ -66,7 +66,10 @@ func SetupVeADKConfig() error {
 			Image: &CommonModelConfig{},
 			Video: &CommonModelConfig{},
 		},
-		Tool:        &BuiltinToolConfigs{},
+		Tool: &BuiltinToolConfigs{
+			MCPRouter: &MCPRouter{},
+			RunCode:   &RunCode{},
+		},
 		PromptPilot: &PromptPilotConfig{},
 		TlsConfig:   &TLSConfig{},
 		Veidentity:  &VeIdentityConfig{},
@@ -78,6 +81,7 @@ func SetupVeADKConfig() error {
 		},
 	}
 	globalConfig.Model.MapEnvToConfig()
+	globalConfig.Tool.MapEnvToConfig()
 	globalConfig.LOGGING.MapEnvToConfig()
 	globalConfig.Database.MapEnvToConfig()
 	globalConfig.Volcengine.MapEnvToConfig()

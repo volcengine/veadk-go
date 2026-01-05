@@ -19,6 +19,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/utils"
 	"golang.org/x/oauth2"
 	"google.golang.org/adk/tool"
@@ -27,10 +28,10 @@ import (
 
 func agentkitMCPTransport(ctx context.Context) mcp.Transport {
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: utils.GetEnvWithDefault(common.TOOL_MCP_ROUTER_API_KEY)},
+		&oauth2.Token{AccessToken: utils.GetEnvWithDefault(common.TOOL_MCP_ROUTER_API_KEY, configs.GetGlobalConfig().Tool.MCPRouter.ApiKey)},
 	)
 	return &mcp.StreamableClientTransport{
-		Endpoint:   utils.GetEnvWithDefault(common.TOOL_MCP_ROUTER_URL),
+		Endpoint:   utils.GetEnvWithDefault(common.TOOL_MCP_ROUTER_URL, configs.GetGlobalConfig().Tool.MCPRouter.Url),
 		HTTPClient: oauth2.NewClient(ctx, ts),
 	}
 }

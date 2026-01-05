@@ -14,6 +14,41 @@
 
 package configs
 
+import (
+	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/utils"
+)
+
 type BuiltinToolConfigs struct {
-	// 根据实际字段补充
+	MCPRouter *MCPRouter `yaml:"mcp_router"`
+	RunCode   *RunCode   `yaml:"run_code"`
+}
+
+func (b *BuiltinToolConfigs) MapEnvToConfig() {
+	b.MCPRouter.MapEnvToConfig()
+	b.RunCode.MapEnvToConfig()
+}
+
+type MCPRouter struct {
+	Url    string `yaml:"url"`
+	ApiKey string `yaml:"api_key"`
+}
+
+func (m *MCPRouter) MapEnvToConfig() {
+	m.Url = utils.GetEnvWithDefault(common.TOOL_MCP_ROUTER_URL)
+	m.ApiKey = utils.GetEnvWithDefault(common.TOOL_MCP_ROUTER_API_KEY)
+}
+
+type RunCode struct {
+	ToolID      string `yaml:"tool_id"`
+	Host        string `yaml:"host"`
+	ServiceCode string `yaml:"service_code"`
+	Region      string `yaml:"region"`
+}
+
+func (r *RunCode) MapEnvToConfig() {
+	r.ToolID = utils.GetEnvWithDefault(common.AGENTKIT_TOOL_ID)
+	r.Host = utils.GetEnvWithDefault(common.AGENTKIT_TOOL_HOST)
+	r.ServiceCode = utils.GetEnvWithDefault(common.AGENTKIT_TOOL_SERVICE_CODE)
+	r.Region = utils.GetEnvWithDefault(common.AGENTKIT_TOOL_REGION)
 }
