@@ -16,6 +16,7 @@ package configs
 
 import (
 	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/utils"
 )
 
 type CommonModelConfig struct {
@@ -37,18 +38,18 @@ type ModelConfig struct {
 
 func (c *ModelConfig) MapEnvToConfig() {
 	// Agent
-	c.Agent.Name = getEnv(common.MODEL_AGENT_NAME, common.DEFAULT_MODEL_AGENT_NAME, false)
-	c.Agent.Provider = getEnv(common.MODEL_AGENT_PROVIDER, common.DEFAULT_MODEL_AGENT_PROVIDER, false)
-	c.Agent.ApiBase = getEnv(common.MODEL_AGENT_API_BASE, common.DEFAULT_MODEL_AGENT_API_BASE, false)
-	c.Agent.ApiKey = getEnv(common.MODEL_AGENT_API_KEY, "", false)
+	c.Agent.Name = utils.GetEnvWithDefault(common.MODEL_AGENT_NAME, common.DEFAULT_MODEL_AGENT_NAME)
+	c.Agent.Provider = utils.GetEnvWithDefault(common.MODEL_AGENT_PROVIDER, common.DEFAULT_MODEL_AGENT_PROVIDER)
+	c.Agent.ApiBase = utils.GetEnvWithDefault(common.MODEL_AGENT_API_BASE, common.DEFAULT_MODEL_AGENT_API_BASE)
+	c.Agent.ApiKey = utils.GetEnvWithDefault(common.MODEL_AGENT_API_KEY)
 
 	// Image
-	c.Image.Name = getEnv(common.MODEL_IMAGE_NAME, common.DEFAULT_MODEL_IMAGE_NAME, false)
-	c.Image.ApiBase = getEnv(common.MODEL_IMAGE_API_BASE, common.DEFAULT_MODEL_IMAGE_API_BASE, false)
-	c.Image.ApiKey = getEnv(common.MODEL_IMAGE_API_KEY, "", false)
+	c.Image.Name = utils.GetEnvWithDefault(common.MODEL_IMAGE_NAME, common.DEFAULT_MODEL_IMAGE_NAME)
+	c.Image.ApiBase = utils.GetEnvWithDefault(common.MODEL_IMAGE_API_BASE, common.DEFAULT_MODEL_IMAGE_API_BASE)
+	c.Image.ApiKey = utils.GetEnvWithDefault(common.MODEL_IMAGE_API_KEY)
 
 	// Video
-	c.Video.Name = getEnv(common.MODEL_VIDEO_NAME, common.DEFAULT_MODEL_VIDEO_NAME, false)
-	c.Video.ApiBase = getEnv(common.MODEL_VIDEO_API_BASE, common.DEFAULT_MODEL_VIDEO_API_BASE, false)
-	c.Video.ApiKey = getEnv(common.MODEL_VIDEO_API_KEY, "", false)
+	c.Video.Name = utils.GetEnvWithDefault(common.MODEL_VIDEO_NAME, common.DEFAULT_MODEL_VIDEO_NAME)
+	c.Video.ApiBase = utils.GetEnvWithDefault(common.MODEL_VIDEO_API_BASE, common.DEFAULT_MODEL_VIDEO_API_BASE)
+	c.Video.ApiKey = utils.GetEnvWithDefault(common.MODEL_VIDEO_API_KEY)
 }

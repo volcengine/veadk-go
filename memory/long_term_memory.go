@@ -26,20 +26,24 @@ type LongTermBackendType string
 const (
 	BackendLongTermLocal  LongTermBackendType = "local"
 	BackendLongTermViking LongTermBackendType = "viking"
+	BackendLongTermMem0   LongTermBackendType = "mem0"
+	DefaultTopK                               = 5
 )
 
 // NewLongTermMemoryService creates a new long term memory service.
 // If backend is empty, it will use the default backend.
 // If config is nil, it will use the default config with backend
 // If config is not nil, it will use the config.
-func NewLongTermMemoryService(backend LongTermBackendType, config interface{}) (memory.Service, error) {
+func NewLongTermMemoryService(backend LongTermBackendType, config interface{}, topK ...int) (memory.Service, error) {
+	var memoryService memory.Service
+
 	if backend == "" {
 		backend = BackendLongTermLocal
 	}
-	var (
-		err           error
-		memoryService memory.Service
-	)
+	if len(topK) == 0 {
+		topK = append(topK, DefaultTopK)
+	}
+
 	switch backend {
 	case BackendLongTermLocal:
 		memoryService = memory.InMemoryService()
@@ -55,10 +59,27 @@ func NewLongTermMemoryService(backend LongTermBackendType, config interface{}) (
 				return nil, fmt.Errorf("viking backend requires *VikingDbMemoryConfig, got %T", config)
 			}
 		}
-		memoryService, err = long_term_memory_backends.NewVikingDbMemoryBackend(vikingDBMemoryConfig)
+		vikingBackend, err := long_term_memory_backends.NewVikingDbMemoryBackend(vikingDBMemoryConfig)
 		if err != nil {
 			return nil, err
 		}
+		return long_term_memory_backends.LongTermMemoryFactory(vikingBackend, topK[0]), nil
+	case BackendLongTermMem0:
+		var mem0MemoryConfig *long_term_memory_backends.Mem0MemoryConfig
+		if config == nil {
+			mem0MemoryConfig = long_term_memory_backends.NewDefaultMem0MemoryConfig()
+		} else {
+			var ok bool
+			mem0MemoryConfig, ok = config.(*long_term_memory_backends.Mem0MemoryConfig)
+			if !ok {
+				return nil, fmt.Errorf("mem0 backend requires *Mem0MemoryConfig, got %T", config)
+			}
+		}
+		mem0Backend, err := long_term_memory_backends.NewMem0MemoryBackend(mem0MemoryConfig)
+		if err != nil {
+			return nil, err
+		}
+		return long_term_memory_backends.LongTermMemoryFactory(mem0Backend, topK[0]), nil
 	default:
 		return nil, fmt.Errorf("unsupported backend type: %s", backend)
 	}

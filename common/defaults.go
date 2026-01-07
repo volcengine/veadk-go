@@ -35,10 +35,14 @@ const (
 	DEFAULT_LOGGING_LEVER = "info"
 )
 
-const DEFAULT_LLMAGENT_NAME = "veAgent"
-const DEFAULT_LOOPAGENT_NAME = "veLoopAgent"
-const DEFAULT_PARALLELAGENT_NAME = "veParallelAgent"
-const DEFAULT_SEQUENTIALAGENT_NAME = "veSequentialAgent"
+const (
+	DEFAULT_LLMAGENT_NAME        = "veAgent"
+	DEFAULT_LOOPAGENT_NAME       = "veLoopAgent"
+	DEFAULT_PARALLELAGENT_NAME   = "veParallelAgent"
+	DEFAULT_SEQUENTIALAGENT_NAME = "veSequentialAgent"
+)
+
+const DEFAULT_REGION = "cn-beijing"
 
 const VEFAAS_IAM_CRIDENTIAL_PATH = "/var/run/secrets/iam/credential"
 

@@ -17,7 +17,6 @@ package long_term_memory_backends
 import (
 	"context"
 	"errors"
-	"iter"
 	"testing"
 	"time"
 
@@ -26,10 +25,6 @@ import (
 	"github.com/volcengine/veadk-go/integrations/ve_viking"
 	"github.com/volcengine/veadk-go/integrations/ve_viking/viking_memory"
 	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/memory"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/session"
-	"google.golang.org/genai"
 )
 
 func TestNewVikingDbMemoryBackend(t *testing.T) {
@@ -75,27 +70,7 @@ func TestNewVikingDbMemoryBackend(t *testing.T) {
 	})
 }
 
-type TestSession struct {
-	session.Session
-}
-
-type TestEvents struct {
-	Events []*session.Event
-}
-
-func (t *TestEvents) All() iter.Seq[*session.Event] {
-	return nil
-}
-
-func (t *TestEvents) Len() int {
-	return len(t.Events)
-}
-
-func (t *TestEvents) At(i int) *session.Event {
-	return t.Events[i]
-}
-
-func TestVikingDbMemoryBackend_AddSession(t *testing.T) {
+func TestVikingDbMemoryBackend_SaveMemory(t *testing.T) {
 	v := &VikingDBMemoryBackend{
 		client: &viking_memory.Client{},
 		config: &VikingDbMemoryConfig{
@@ -103,64 +78,14 @@ func TestVikingDbMemoryBackend_AddSession(t *testing.T) {
 		},
 	}
 	ctx := context.Background()
-	mockey.PatchConvey("TestVikingDbMemoryBackend_AddSession", t, func() {
-		mockey.Mock((*TestSession).Events).Return(&TestEvents{
-			Events: []*session.Event{
-				{
-					LLMResponse: model.LLMResponse{
-						Content: &genai.Content{
-							Parts: []*genai.Part{},
-							Role:  "user",
-						},
-					},
-				},
-				{
-					LLMResponse: model.LLMResponse{
-						Content: &genai.Content{
-							Parts: []*genai.Part{
-								{
-									Text: "",
-								},
-							},
-							Role: "user",
-						},
-					},
-				},
-				{
-					LLMResponse: model.LLMResponse{
-						Content: &genai.Content{
-							Parts: []*genai.Part{
-								{
-									Text: "I am model",
-								},
-							},
-							Role: "model",
-						},
-					},
-				},
-				{
-					LLMResponse: model.LLMResponse{
-						Content: &genai.Content{
-							Parts: []*genai.Part{
-								{
-									Text: "I am user",
-								},
-							},
-							Role: "user",
-						},
-					},
-				},
-			},
-		}).Build()
-		mockey.Mock((*TestSession).UserID).Return("test").Build()
-		mockey.Mock((*TestSession).LastUpdateTime).Return(time.Now()).Build()
+	mockey.PatchConvey("TestVikingDbMemoryBackend_SaveMemory", t, func() {
 		mockey.Mock((*viking_memory.Client).AddSession).Return(&ve_viking.CommonResponse{Code: ve_viking.VikingKnowledgeBaseSuccessCode}, nil).Build()
-		err := v.AddSession(ctx, &TestSession{})
+		err := v.SaveMemory(ctx, "test", []string{"test1", "test2"})
 		assert.Nil(t, err)
 	})
 }
 
-func TestVikingDbMemoryBackend_Search(t *testing.T) {
+func TestVikingDbMemoryBackend_SearchMemory(t *testing.T) {
 	v := &VikingDBMemoryBackend{
 		client: &viking_memory.Client{},
 		config: &VikingDbMemoryConfig{
@@ -170,7 +95,7 @@ func TestVikingDbMemoryBackend_Search(t *testing.T) {
 	ctx := context.Background()
 	nowUnix := time.Now().UnixMilli()
 	now := utils.ConvertTimeMillToTime(nowUnix)
-	mockey.PatchConvey("TestVikingDbMemoryBackend_Search", t, func() {
+	mockey.PatchConvey("TestVikingDbMemoryBackend_SearchMemory", t, func() {
 		mockey.Mock((*viking_memory.Client).CollectionSearchMemory).Return(&viking_memory.CollectionSearchMemoryResponse{
 			Code: ve_viking.VikingKnowledgeBaseSuccessCode,
 			Data: &viking_memory.CollectionSearchMemoryResponseData{
@@ -190,21 +115,16 @@ func TestVikingDbMemoryBackend_Search(t *testing.T) {
 				},
 			},
 		}, nil).Build()
-		resp, err := v.Search(ctx, &memory.SearchRequest{
-			UserID: "test",
-			Query:  "test",
-		})
+		resp, err := v.SearchMemory(ctx, "test", "test", 2)
 		assert.Nil(t, err)
-		assert.Equal(t, 2, len(resp.Memories))
-		for i, v := range resp.Memories {
+		assert.Equal(t, 2, len(resp))
+		for i, v := range resp {
 			assert.Equal(t, now, v.Timestamp)
-			assert.Equal(t, "user", v.Author)
 			if i == 0 {
-				assert.Equal(t, "test1", v.Content.Parts[0].Text)
+				assert.Equal(t, "test1", v.Content)
 			} else {
-				assert.Equal(t, "test2", v.Content.Parts[0].Text)
+				assert.Equal(t, "test2", v.Content)
 			}
-			assert.Equal(t, "user", v.Content.Role)
 		}
 	})
 }

@@ -15,6 +15,7 @@
 package memory
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/bytedance/mockey"
@@ -29,19 +30,94 @@ type mockMemoryServiceImpl struct {
 
 func TestNewLongTermMemory(t *testing.T) {
 	tests := []struct {
-		name    string
-		backend LongTermBackendType
-		wantErr bool
+		name        string
+		backend     LongTermBackendType
+		config      interface{}
+		setupMock   func()
+		wantErr     bool
+		expectedErr string
 	}{
 		{
-			name:    "has user config",
-			backend: "viking",
+			name:    "default config (local)",
+			backend: "",
+			config:  nil,
 			wantErr: false,
 		},
 		{
-			name:    "default config",
-			backend: "",
+			name:    "local backend explicit",
+			backend: BackendLongTermLocal,
+			config:  nil,
 			wantErr: false,
+		},
+		{
+			name:    "viking backend default config",
+			backend: BackendLongTermViking,
+			config:  nil,
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewVikingDbMemoryBackend).Return(nil, nil).Build()
+				mockey.Mock(long_term_memory_backends.LongTermMemoryFactory).Return(&mockMemoryServiceImpl{}).Build()
+			},
+			wantErr: false,
+		},
+		{
+			name:    "viking backend valid config",
+			backend: BackendLongTermViking,
+			config:  &long_term_memory_backends.VikingDbMemoryConfig{},
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewVikingDbMemoryBackend).Return(nil, nil).Build()
+				mockey.Mock(long_term_memory_backends.LongTermMemoryFactory).Return(&mockMemoryServiceImpl{}).Build()
+			},
+			wantErr: false,
+		},
+		{
+			name:    "viking backend invalid config type",
+			backend: BackendLongTermViking,
+			config:  "invalid",
+			wantErr: true,
+		},
+		{
+			name:    "viking backend constructor error",
+			backend: BackendLongTermViking,
+			config:  nil,
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewVikingDbMemoryBackend).Return(nil, errors.New("init error")).Build()
+			},
+			wantErr: true,
+		},
+		{
+			name:    "mem0 backend default config",
+			backend: BackendLongTermMem0,
+			config:  nil,
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewMem0MemoryBackend).Return(nil, nil).Build()
+				mockey.Mock(long_term_memory_backends.LongTermMemoryFactory).Return(&mockMemoryServiceImpl{}).Build()
+			},
+			wantErr: false,
+		},
+		{
+			name:    "mem0 backend valid config",
+			backend: BackendLongTermMem0,
+			config:  &long_term_memory_backends.Mem0MemoryConfig{},
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewMem0MemoryBackend).Return(nil, nil).Build()
+				mockey.Mock(long_term_memory_backends.LongTermMemoryFactory).Return(&mockMemoryServiceImpl{}).Build()
+			},
+			wantErr: false,
+		},
+		{
+			name:    "mem0 backend invalid config type",
+			backend: BackendLongTermMem0,
+			config:  "invalid",
+			wantErr: true,
+		},
+		{
+			name:    "mem0 backend constructor error",
+			backend: BackendLongTermMem0,
+			config:  nil,
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewMem0MemoryBackend).Return(nil, errors.New("init error")).Build()
+			},
+			wantErr: true,
 		},
 		{
 			name:    "unsupported backend",
@@ -52,14 +128,16 @@ func TestNewLongTermMemory(t *testing.T) {
 
 	for _, tt := range tests {
 		mockey.PatchConvey(tt.name, t, func() {
-			t.Run(tt.name, func(t *testing.T) {
-				mockey.Mock(long_term_memory_backends.NewVikingDbMemoryBackend).Return(&mockMemoryServiceImpl{}, nil).Build()
-				memoryService, err := NewLongTermMemoryService(tt.backend, nil)
-				assert.True(t, tt.wantErr == (err != nil))
-				if err == nil {
-					assert.NotNil(t, memoryService)
-				}
-			})
+			if tt.setupMock != nil {
+				tt.setupMock()
+			}
+			memoryService, err := NewLongTermMemoryService(tt.backend, tt.config)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, memoryService)
+			}
 		})
 	}
 }

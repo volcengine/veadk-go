@@ -14,12 +14,15 @@
 
 package configs
 
-import "github.com/volcengine/veadk-go/common"
+import (
+	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/utils"
+)
 
 type Logging struct {
 	Level string
 }
 
 func (c *Logging) MapEnvToConfig() {
-	c.Level = getEnv(common.LOGGING_LEVEL, common.DEFAULT_LOGGING_LEVER, true)
+	c.Level = utils.GetEnvWithDefault(common.LOGGING_LEVEL, common.DEFAULT_LOGGING_LEVER)
 }

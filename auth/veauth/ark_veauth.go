@@ -21,17 +21,18 @@ import (
 	"net/http"
 
 	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/integrations/ve_sign"
 	"github.com/volcengine/veadk-go/utils"
 )
 
-type GetRawApiKeyResponse struct {
+type getRawApiKeyResponse struct {
 	Result struct {
 		ApiKey string `json:"ApiKey"`
 	} `json:"Result"`
 }
 
-type ListApiKeysResponse struct {
+type listApiKeysResponse struct {
 	Result struct {
 		Items []struct {
 			ID   int    `json:"Id"`
@@ -46,8 +47,8 @@ func GetArkToken(region string) (string, error) {
 	}
 	log.Println("Fetching ARK token...")
 
-	accessKey := utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY)
-	secretKey := utils.GetEnvWithDefault(common.VOLCENGINE_SECRET_KEY)
+	accessKey := utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
+	secretKey := utils.GetEnvWithDefault(common.VOLCENGINE_SECRET_KEY, configs.GetGlobalConfig().Volcengine.SK)
 	sessionToken := ""
 
 	if accessKey == "" || secretKey == "" {
@@ -91,7 +92,7 @@ func GetArkToken(region string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to list api keys: %w", err)
 	}
-	var listResp ListApiKeysResponse
+	var listResp listApiKeysResponse
 	if err := json.Unmarshal(resp1Body, &listResp); err != nil {
 		return "", fmt.Errorf("failed to unmarshal list api keys response: %w", err)
 	}
@@ -127,7 +128,7 @@ func GetArkToken(region string) (string, error) {
 		return "", fmt.Errorf("failed to get raw api key: %w", err)
 	}
 
-	var getResp GetRawApiKeyResponse
+	var getResp getRawApiKeyResponse
 	if err := json.Unmarshal(resp2Body, &getResp); err != nil {
 		return "", fmt.Errorf("failed to unmarshal get raw api key response: %w", err)
 	}

@@ -35,7 +35,7 @@ import (
 func main() {
 	ctx := context.Background()
 	appName := "ve_agent"
-	userID := "user1111"
+	userID := "user4567"
 
 	// Define a tools that can search memory.
 	memorySearchTool, err := builtin_tools.LoadLongMemoryTool()

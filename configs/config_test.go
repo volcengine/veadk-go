@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/utils"
 )
 
 func Test_loadConfigFromProjectEnv(t *testing.T) {
@@ -73,8 +74,8 @@ func Test_getEnv(t *testing.T) {
 		_ = os.Remove("config.yaml")
 	}()
 	_ = loadConfigFromProjectYaml()
-	assert.Equal(t, "doubao-seed-1-6-250615", getEnv(common.MODEL_AGENT_NAME, "", false))
-	assert.Equal(t, "test", getEnv("test_key", "test", false))
+	assert.Equal(t, "doubao-seed-1-6-250615", utils.GetEnvWithDefault(common.MODEL_AGENT_NAME))
+	assert.Equal(t, "test", utils.GetEnvWithDefault("test_key", "test"))
 }
 
 func TestSetupVeADKConfig(t *testing.T) {

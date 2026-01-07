@@ -14,7 +14,10 @@
 
 package configs
 
-import "github.com/volcengine/veadk-go/common"
+import (
+	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/utils"
+)
 
 type Volcengine struct {
 	AK string `yaml:"access_key"`
@@ -22,6 +25,6 @@ type Volcengine struct {
 }
 
 func (v *Volcengine) MapEnvToConfig() {
-	v.AK = getEnv(common.VOLCENGINE_ACCESS_KEY, "", true)
-	v.SK = getEnv(common.VOLCENGINE_SECRET_KEY, "", true)
+	v.AK = utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY)
+	v.SK = utils.GetEnvWithDefault(common.VOLCENGINE_SECRET_KEY)
 }

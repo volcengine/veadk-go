@@ -16,6 +16,7 @@ package configs
 
 import (
 	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/utils"
 )
 
 type CommonDatabaseConfig struct {
@@ -30,16 +31,32 @@ type DatabaseConfig struct {
 	Postgresql *CommonDatabaseConfig
 	Viking     *VikingConfig  `yaml:"viking"`
 	TOS        *TosClientConf `yaml:"tos"`
+	Mem0       *Mem0Config    `yaml:"mem0"`
 }
 
 func (c *DatabaseConfig) MapEnvToConfig() {
-	c.Postgresql.UserName = getEnv(common.DATABASE_POSTGRESQL_USERNAME, "", true)
-	c.Postgresql.Password = getEnv(common.DATABASE_POSTGRESQL_PASSWORD, "", true)
-	c.Postgresql.Host = getEnv(common.DATABASE_POSTGRESQL_HOST, "", true)
-	c.Postgresql.Port = getEnv(common.DATABASE_POSTGRESQL_PORT, "", true)
-	c.Postgresql.Schema = getEnv(common.DATABASE_POSTGRESQL_SCHEMA, "", true)
-	c.Postgresql.DBUrl = getEnv(common.DATABASE_POSTGRESQL_DBURL, "", true)
+	c.Postgresql.UserName = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_USERNAME)
+	c.Postgresql.Password = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_PASSWORD)
+	c.Postgresql.Host = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_HOST)
+	c.Postgresql.Port = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_PORT)
+	c.Postgresql.Schema = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_SCHEMA)
+	c.Postgresql.DBUrl = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_DBURL)
 
 	c.Viking.MapEnvToConfig()
 	c.TOS.MapEnvToConfig()
+	c.Mem0.MapEnvToConfig()
+}
+
+// Mem0Config
+type Mem0Config struct {
+	BaseUrl   string `yaml:"base_url"`
+	ApiKey    string `yaml:"api_key"`
+	ProjectId string `yaml:"project_id"`
+	Region    string `yaml:"region"`
+}
+
+func (v *Mem0Config) MapEnvToConfig() {
+	v.BaseUrl = utils.GetEnvWithDefault(common.DATABASE_MEM0_BASE_URL)
+	v.ApiKey = utils.GetEnvWithDefault(common.DATABASE_MEM0_API_KEY)
+	v.Region = utils.GetEnvWithDefault(common.DATABASE_MEM0_REGION)
 }

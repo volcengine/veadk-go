@@ -78,6 +78,7 @@ func SetupVeADKConfig() error {
 			Postgresql: &CommonDatabaseConfig{},
 			Viking:     &VikingConfig{},
 			TOS:        &TosClientConf{},
+			Mem0:       &Mem0Config{},
 		},
 	}
 	globalConfig.Model.MapEnvToConfig()
@@ -149,22 +150,4 @@ func setYamlToEnv(data map[string]interface{}, prefix string) {
 			}
 		}
 	}
-}
-
-// 获取环境变量（类似 Python 的 getenv 函数）
-func getEnv(envName string, defaultValue string, allowFalseValues bool) string {
-	value := os.Getenv(envName)
-	if value != "" {
-		return value
-	}
-
-	if allowFalseValues {
-		return defaultValue
-	}
-
-	if defaultValue != "" {
-		return defaultValue
-	}
-
-	return ""
 }
