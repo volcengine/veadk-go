@@ -87,18 +87,20 @@ func (app *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunC
 	router.NewRoute().Path("/invoke").Methods(http.MethodPost).HandlerFunc(app.newInvokeHandler())
 	router.NewRoute().Path("/health").Methods(http.MethodGet).HandlerFunc(app.newHealthHandler())
 
+	log.Printf("       invoke:  you can invoke agent using %s/invoke", app.GetWebUrl())
+	log.Printf("       health:  you can get health status using: %s/health", app.GetWebUrl())
+
 	return nil
 }
 
 func (app *agentkitSimpleApp) Run(ctx context.Context, config *apps.RunConfig) error {
 	router := web.BuildBaseRouter()
 
+	log.Printf("Web servers starts on %s", app.GetWebUrl())
 	err := app.SetupRouters(router, config)
 	if err != nil {
 		return fmt.Errorf("setup simple app router error: %w", err)
 	}
-
-	apps.RoutesLog(router)
 
 	srv := http.Server{
 		Addr:         fmt.Sprintf(":%s", fmt.Sprint(app.Port)),

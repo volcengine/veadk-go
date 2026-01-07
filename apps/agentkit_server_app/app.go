@@ -17,6 +17,7 @@ package agentkit_server_app
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -47,12 +48,11 @@ func (a *agentkitServerApp) Run(ctx context.Context, config *apps.RunConfig) err
 		config.SessionService = session.InMemoryService()
 	}
 
+	log.Printf("Web servers starts on %s", a.GetWebUrl())
 	err := a.SetupRouters(router, config)
 	if err != nil {
 		return fmt.Errorf("setup agentkit server routers failed: %w", err)
 	}
-
-	apps.RoutesLog(router)
 
 	srv := http.Server{
 		Addr:         fmt.Sprintf(":%v", fmt.Sprint(a.Port)),
@@ -128,6 +128,9 @@ func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 	if err != nil {
 		return fmt.Errorf("setup webui routers failed: %w", err)
 	}
+
+	apiLauncher.UserMessage(a.GetWebUrl(), log.Println)
+	webuiLauncher.UserMessage(a.GetWebUrl(), log.Println)
 
 	return nil
 }

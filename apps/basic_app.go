@@ -16,6 +16,7 @@ package apps
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/a2aproject/a2a-go/a2asrv"
@@ -69,4 +70,8 @@ func (a *ApiConfig) SetReadTimeout(t int64) {
 
 func (a *ApiConfig) SetIdleTimeout(t int64) {
 	a.IdleTimeout = time.Second * time.Duration(t)
+}
+
+func (a *ApiConfig) GetWebUrl() string {
+	return fmt.Sprintf("http://localhost:%d", a.Port)
 }

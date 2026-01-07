@@ -17,6 +17,7 @@ package a2a_app
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/volcengine/veadk-go/apps"
 	"google.golang.org/adk/cmd/launcher/web"
+	"google.golang.org/adk/cmd/launcher/web/a2a"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/server/adka2a"
 	"google.golang.org/adk/session"
@@ -44,12 +46,11 @@ func (a *agentkitA2AServerApp) Run(ctx context.Context, config *apps.RunConfig) 
 		config.SessionService = session.InMemoryService()
 	}
 
+	log.Printf("Web servers starts on %s", a.GetWebUrl())
 	err := a.SetupRouters(router, config)
 	if err != nil {
 		return fmt.Errorf("setup a2a routers failed: %w", err)
 	}
-
-	apps.RoutesLog(router)
 
 	srv := http.Server{
 		Addr:         fmt.Sprintf(":%v", fmt.Sprint(a.Port)),
@@ -99,12 +100,16 @@ func (a *agentkitA2AServerApp) SetupRouters(router *mux.Router, config *apps.Run
 	})
 	reqHandler := a2asrv.NewHandler(executor, config.A2AOptions...)
 	router.Handle(apiPath, a2asrv.NewJSONRPCHandler(reqHandler))
+
+	a2aLauncher := a2a.NewLauncher()
+	a2aLauncher.UserMessage(a.GetWebUrl()+apiPath, log.Println)
+
 	return nil
 }
 
 func NewAgentkitA2AServerApp(config apps.ApiConfig) apps.BasicApp {
 	return &agentkitA2AServerApp{
 		ApiConfig:   config,
-		a2aAgentUrl: fmt.Sprintf("http://localhost:%v", config.Port),
+		a2aAgentUrl: config.GetWebUrl(),
 	}
 }
