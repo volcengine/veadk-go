@@ -26,8 +26,8 @@ import (
 	"github.com/volcengine/veadk-go/apps/simple_app"
 	"google.golang.org/adk/cmd/launcher"
 	"google.golang.org/adk/cmd/launcher/web"
-	"google.golang.org/adk/cmd/launcher/web/api"
 	"google.golang.org/adk/cmd/launcher/web/webui"
+	"google.golang.org/adk/server/adkrest"
 	"google.golang.org/adk/session"
 )
 
@@ -86,27 +86,27 @@ func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 		return fmt.Errorf("setup simple app routers failed: %w", err)
 	}
 
-	// setup web api routers
-	apiLauncher := api.NewLauncher()
-	_, err = apiLauncher.Parse([]string{
-		"--webui_address", fmt.Sprintf("localhost:%v", fmt.Sprint(a.Port)),
-		"--sse-write-timeout", "5m",
-	})
-
-	if err != nil {
-		return fmt.Errorf("apiLauncher parse parames failed: %w", err)
-	}
-
-	err = apiLauncher.SetupSubrouters(router, &launcher.Config{
+	launchConfig := &launcher.Config{
 		SessionService:  config.SessionService,
 		ArtifactService: config.ArtifactService,
 		MemoryService:   config.MemoryService,
 		AgentLoader:     config.AgentLoader,
 		A2AOptions:      config.A2AOptions,
-	})
-	if err != nil {
-		return fmt.Errorf("setup api routers failed: %w", err)
 	}
+
+	// setup web api routers
+	// Create the ADK REST API handler
+	apiHandler := adkrest.NewHandler(launchConfig, a.SEEWriteTimeout)
+
+	// Wrap it with CORS middleware
+	corsHandler := corsWithArgs(fmt.Sprintf("localhost:%d", a.Port))(apiHandler)
+
+	// Register it at the /api/ path
+	router.Methods("GET", "POST", "DELETE", "OPTIONS").PathPrefix("/api/").Handler(
+		http.StripPrefix("/api", corsHandler),
+	)
+	log.Printf("       api:  you can access API using %s/api", a.GetWebUrl())
+	log.Printf("       api:      for instance: %s/api/list-apps", a.GetWebUrl())
 
 	// setup webui routers
 	webuiLauncher := webui.NewLauncher()
@@ -129,8 +129,22 @@ func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 		return fmt.Errorf("setup webui routers failed: %w", err)
 	}
 
-	apiLauncher.UserMessage(a.GetWebUrl(), log.Println)
 	webuiLauncher.UserMessage(a.GetWebUrl(), log.Println)
 
 	return nil
+}
+
+func corsWithArgs(frontendAddress string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", frontendAddress)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }

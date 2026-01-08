@@ -36,10 +36,11 @@ type RunConfig struct {
 }
 
 type ApiConfig struct {
-	Port         int
-	WriteTimeout time.Duration
-	ReadTimeout  time.Duration
-	IdleTimeout  time.Duration
+	Port            int
+	WriteTimeout    time.Duration
+	ReadTimeout     time.Duration
+	IdleTimeout     time.Duration
+	SEEWriteTimeout time.Duration
 }
 
 type BasicApp interface {
@@ -49,10 +50,11 @@ type BasicApp interface {
 
 func DefaultApiConfig() ApiConfig {
 	return ApiConfig{
-		Port:         8000,
-		WriteTimeout: time.Second * 15,
-		ReadTimeout:  time.Second * 15,
-		IdleTimeout:  time.Second * 60,
+		Port:            8000,
+		WriteTimeout:    time.Second * 15,
+		ReadTimeout:     time.Second * 15,
+		IdleTimeout:     time.Second * 60,
+		SEEWriteTimeout: time.Second * 300,
 	}
 }
 
@@ -70,6 +72,10 @@ func (a *ApiConfig) SetReadTimeout(t int64) {
 
 func (a *ApiConfig) SetIdleTimeout(t int64) {
 	a.IdleTimeout = time.Second * time.Duration(t)
+}
+
+func (a *ApiConfig) SetSEEWriteTimeout(t int64) {
+	a.SEEWriteTimeout = time.Second * time.Duration(t)
 }
 
 func (a *ApiConfig) GetWebUrl() string {
