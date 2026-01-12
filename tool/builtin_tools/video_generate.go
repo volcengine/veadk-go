@@ -19,8 +19,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/volcengine/veadk-go/auth/veauth"
+	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/utils"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 	"github.com/volcengine/volcengine-go-sdk/volcengine"
@@ -180,13 +183,13 @@ func NewVideoGenerateTool(config *VideoGenerateConfig) (tool.Tool, error) {
 		config = &VideoGenerateConfig{}
 	}
 	if config.ModelName == "" {
-		config.ModelName = configs.GetGlobalConfig().Model.Video.Name
+		config.ModelName = utils.GetEnvWithDefault(common.MODEL_VIDEO_NAME, configs.GetGlobalConfig().Model.Video.Name, common.DEFAULT_MODEL_VIDEO_NAME)
 	}
 	if config.APIKey == "" {
-		config.APIKey = configs.GetGlobalConfig().Model.Video.ApiKey
+		config.APIKey = utils.GetEnvWithDefault(common.MODEL_VIDEO_API_KEY, configs.GetGlobalConfig().Model.Video.ApiKey, utils.Must(veauth.GetArkToken(common.DEFAULT_MODEL_REGION)))
 	}
 	if config.BaseURL == "" {
-		config.BaseURL = configs.GetGlobalConfig().Model.Video.ApiBase
+		config.BaseURL = utils.GetEnvWithDefault(common.MODEL_VIDEO_API_BASE, configs.GetGlobalConfig().Model.Video.ApiBase, common.DEFAULT_MODEL_VIDEO_API_BASE)
 	}
 
 	log.Debug("Initializing video generation tool", "model", config.ModelName, "base_url", config.BaseURL)

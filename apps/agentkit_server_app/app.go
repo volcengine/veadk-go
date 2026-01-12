@@ -35,7 +35,7 @@ type agentkitServerApp struct {
 	apps.ApiConfig
 }
 
-func NewAgentkitA2AServerApp(config apps.ApiConfig) apps.BasicApp {
+func NewAgentkitServerApp(config apps.ApiConfig) apps.BasicApp {
 	return &agentkitServerApp{
 		ApiConfig: config,
 	}

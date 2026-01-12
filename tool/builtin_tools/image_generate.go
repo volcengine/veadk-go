@@ -19,8 +19,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/volcengine/veadk-go/auth/veauth"
+	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/utils"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 	"github.com/volcengine/volcengine-go-sdk/volcengine"
@@ -159,13 +162,13 @@ func NewImageGenerateTool(config *ImageGenerateConfig) (tool.Tool, error) {
 		config = &ImageGenerateConfig{}
 	}
 	if config.ModelName == "" {
-		config.ModelName = configs.GetGlobalConfig().Model.Image.Name
+		config.ModelName = utils.GetEnvWithDefault(common.MODEL_IMAGE_NAME, configs.GetGlobalConfig().Model.Image.Name, common.DEFAULT_MODEL_IMAGE_NAME)
 	}
 	if config.APIKey == "" {
-		config.APIKey = configs.GetGlobalConfig().Model.Image.ApiKey
+		config.APIKey = utils.GetEnvWithDefault(common.MODEL_IMAGE_API_KEY, configs.GetGlobalConfig().Model.Image.ApiKey, utils.Must(veauth.GetArkToken(common.DEFAULT_MODEL_REGION)))
 	}
 	if config.BaseURL == "" {
-		config.BaseURL = configs.GetGlobalConfig().Model.Image.ApiBase
+		config.BaseURL = utils.GetEnvWithDefault(common.MODEL_IMAGE_API_BASE, configs.GetGlobalConfig().Model.Image.ApiBase, common.DEFAULT_MODEL_IMAGE_API_BASE)
 	}
 
 	if strings.HasPrefix(config.ModelName, "doubao-seedream-3-0") {

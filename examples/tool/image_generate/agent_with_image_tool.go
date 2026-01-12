@@ -18,65 +18,44 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/apps"
+	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"google.golang.org/adk/agent"
-	"google.golang.org/adk/artifact"
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/full"
-	"google.golang.org/adk/session"
+	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/tool"
 )
 
 func main() {
 	ctx := context.Background()
-	cfg := &veagent.Config{
-		ModelName:    common.DEFAULT_MODEL_AGENT_NAME,
-		ModelAPIBase: common.DEFAULT_MODEL_AGENT_API_BASE,
-		ModelAPIKey:  os.Getenv(common.MODEL_AGENT_API_KEY),
-	}
-	cfg.Name = "image_generate_tool_agent"
-	cfg.Description = "Agent to generate images based on text descriptions or images."
-	cfg.Instruction = "I can generate images based on text descriptions or images."
 
-	imageGenerate, err := builtin_tools.NewImageGenerateTool(&builtin_tools.ImageGenerateConfig{
-		ModelName: common.DEFAULT_MODEL_IMAGE_NAME,
-		BaseURL:   common.DEFAULT_MODEL_IMAGE_API_BASE,
-		APIKey:    os.Getenv(common.MODEL_IMAGE_API_KEY),
-	})
+	imageGenerate, err := builtin_tools.NewImageGenerateTool(&builtin_tools.ImageGenerateConfig{})
 	if err != nil {
 		fmt.Printf("NewImageGenerateTool failed: %v", err)
 		return
 	}
 
-	cfg.Tools = []tool.Tool{imageGenerate}
-
-	sessionService := session.InMemoryService()
-	rootAgent, err := veagent.New(cfg)
+	rootAgent, err := veagent.New(&veagent.Config{
+		Config: llmagent.Config{
+			Name:        "image_generate_tool_agent",
+			Description: "Agent to generate images based on text descriptions or images.",
+			Instruction: "I can generate images based on text descriptions or images.",
+			Tools:       []tool.Tool{imageGenerate},
+		},
+	})
 
 	if err != nil {
 		log.Fatalf("Failed to create agent: %v", err)
 	}
 
-	agentLoader, err := agent.NewMultiLoader(
-		rootAgent,
-	)
+	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
+
+	err = app.Run(ctx, &apps.RunConfig{
+		AgentLoader: agent.NewSingleLoader(rootAgent),
+	})
 	if err != nil {
-		log.Fatalf("Failed to create agent loader: %v", err)
-	}
-
-	artifactservice := artifact.InMemoryService()
-	config := &launcher.Config{
-		ArtifactService: artifactservice,
-		SessionService:  sessionService,
-		AgentLoader:     agentLoader,
-	}
-
-	l := full.NewLauncher()
-	if err = l.Execute(ctx, config, os.Args[1:]); err != nil {
-		log.Fatalf("Run failed: %v\n\n%s", err, l.CommandLineSyntax())
+		fmt.Printf("Run failed: %v", err)
 	}
 }
