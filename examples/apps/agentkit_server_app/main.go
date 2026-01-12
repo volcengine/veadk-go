@@ -33,7 +33,7 @@ func main() {
 		return
 	}
 
-	app := agentkit_server_app.NewAgentkitA2AServerApp(apps.DefaultApiConfig())
+	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
 
 	err = app.Run(ctx, &apps.RunConfig{
 		AgentLoader: agent.NewSingleLoader(a),

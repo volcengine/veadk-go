@@ -17,16 +17,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/agent/workflowagents/loopagent"
+	"github.com/volcengine/veadk-go/apps"
+	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/full"
-	"google.golang.org/adk/session"
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
 )
@@ -92,14 +89,13 @@ func main() {
 		return
 	}
 
-	config := &launcher.Config{
-		AgentLoader:    agent.NewSingleLoader(rootAgent),
-		SessionService: session.InMemoryService(),
-	}
+	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
 
-	l := full.NewLauncher()
-	if err = l.Execute(ctx, config, os.Args[1:]); err != nil {
-		log.Fatalf("Run failed: %v\n\n%s", err, l.CommandLineSyntax())
+	err = app.Run(ctx, &apps.RunConfig{
+		AgentLoader: agent.NewSingleLoader(rootAgent),
+	})
+	if err != nil {
+		fmt.Printf("Run failed: %v", err)
 	}
 }
 
