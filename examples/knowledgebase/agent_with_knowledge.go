@@ -19,19 +19,18 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"strings"
 	"time"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
+	"github.com/volcengine/veadk-go/apps"
+	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
 	"github.com/volcengine/veadk-go/integrations/ve_tos"
 	"github.com/volcengine/veadk-go/knowledgebase"
 	"github.com/volcengine/veadk-go/knowledgebase/backend/viking_knowledge_backend"
 	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/full"
 	"google.golang.org/adk/session"
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
@@ -73,7 +72,7 @@ func main() {
 		return
 	}
 
-	cfg := veagent.Config{
+	veAgent, err := veagent.New(&veagent.Config{
 		Config: llmagent.Config{
 			Name:        "chat_agent",
 			Description: "你是一个优秀的助手，你可以和用户进行对话。",
@@ -83,22 +82,20 @@ func main() {
 		ModelName: "doubao-seed-1-6-250615",
 		//ModelName:     "deepseek-v3-2-251201",
 		KnowledgeBase: knowledgeBase,
-	}
-
-	veAgent, err := veagent.New(&cfg)
+	})
 	if err != nil {
 		fmt.Printf("NewLLMAgent failed: %v", err)
 		return
 	}
 
-	config := &launcher.Config{
+	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
+
+	err = app.Run(ctx, &apps.RunConfig{
 		AgentLoader:    agent.NewSingleLoader(veAgent),
 		SessionService: session.InMemoryService(),
-	}
-
-	l := full.NewLauncher()
-	if err = l.Execute(ctx, config, os.Args[1:]); err != nil {
-		log.Fatalf("Run failed: %v\n\n%s", err, l.CommandLineSyntax())
+	})
+	if err != nil {
+		fmt.Printf("Run failed: %v", err)
 	}
 }
 
