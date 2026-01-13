@@ -20,26 +20,26 @@ import (
 )
 
 type CommonDatabaseConfig struct {
-	UserName string
-	Password string
-	Host     string
-	Port     string
-	Schema   string
-	DBUrl    string
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	Host     string `yaml:"host"`
+	Port     string `yaml:"port"`
+	Database string `yaml:"database"`
+	DBUrl    string `yaml:"db_url"`
 }
 type DatabaseConfig struct {
-	Postgresql *CommonDatabaseConfig
-	Viking     *VikingConfig  `yaml:"viking"`
-	TOS        *TosClientConf `yaml:"tos"`
-	Mem0       *Mem0Config    `yaml:"mem0"`
+	Postgresql *CommonDatabaseConfig `yaml:"postgresql"`
+	Viking     *VikingConfig         `yaml:"viking"`
+	TOS        *TosClientConf        `yaml:"tos"`
+	Mem0       *Mem0Config           `yaml:"mem0"`
 }
 
 func (c *DatabaseConfig) MapEnvToConfig() {
-	c.Postgresql.UserName = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_USERNAME)
+	c.Postgresql.User = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_USER)
 	c.Postgresql.Password = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_PASSWORD)
 	c.Postgresql.Host = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_HOST)
 	c.Postgresql.Port = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_PORT)
-	c.Postgresql.Schema = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_SCHEMA)
+	c.Postgresql.Database = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_DATABASE)
 	c.Postgresql.DBUrl = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_DBURL)
 
 	c.Viking.MapEnvToConfig()
