@@ -39,11 +39,11 @@ func TestNewPostgreSqlSTMBackend(t *testing.T) {
 			name: "no db url",
 			config: &PostgresqlBackendConfig{
 				CommonDatabaseConfig: &configs.CommonDatabaseConfig{
-					UserName: "test@",
+					User:     "test@",
 					Password: "test@",
 					Host:     "127.0.0.1",
 					Port:     "5432",
-					Schema:   "test_veadk",
+					Database: "test_veadk",
 					DBUrl:    "",
 				},
 			},

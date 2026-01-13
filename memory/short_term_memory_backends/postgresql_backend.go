@@ -36,7 +36,6 @@ func NewPostgreSqlSTMBackend(config *PostgresqlBackendConfig) (session.Service, 
 	if config == nil {
 		return nil, fmt.Errorf("postgresql config is nil")
 	}
-
 	if config.DBUrl != "" {
 		log.Info("DbURL is set, ignore backend option")
 		if strings.Count(config.DBUrl, "@") > 1 || strings.Count(config.DBUrl, ":") > 3 {
@@ -47,13 +46,13 @@ func NewPostgreSqlSTMBackend(config *PostgresqlBackendConfig) (session.Service, 
 			)
 		}
 	} else {
-		encodedUsername := url.QueryEscape(config.UserName)
+		encodedUsername := url.QueryEscape(config.User)
 		encodedPassword := url.QueryEscape(config.Password)
 
 		config.DBUrl = fmt.Sprintf(
 			"postgresql://%s:%s@%s:%s/%s",
 			encodedUsername, encodedPassword,
-			config.Host, config.Port, config.Schema,
+			config.Host, config.Port, config.Database,
 		)
 	}
 
