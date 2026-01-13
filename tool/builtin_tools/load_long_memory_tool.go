@@ -42,6 +42,7 @@ type Result struct {
 }
 
 func memorySearchToolFunc(tctx tool.Context, args Args) (Result, error) {
+
 	searchResults, err := tctx.SearchMemory(context.Background(), args.Query)
 	if err != nil {
 		return Result{}, fmt.Errorf("failed memory search")

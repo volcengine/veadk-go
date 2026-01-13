@@ -16,16 +16,17 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/common"
 	vem "github.com/volcengine/veadk-go/memory"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"github.com/volcengine/veadk-go/utils"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
+	"google.golang.org/adk/memory"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 	"google.golang.org/adk/tool"
@@ -37,61 +38,46 @@ func main() {
 	appName := "ve_agent"
 	userID := "user4567"
 
-	// Define a tools that can search memory.
-	memorySearchTool, err := builtin_tools.LoadLongMemoryTool()
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	infoCaptureAgent, err := veagent.New(&veagent.Config{
-		Config: llmagent.Config{
-			Name:        "InfoCaptureAgent",
-			Instruction: "Acknowledge the user's statement.",
-		},
-		ModelName:    common.DEFAULT_MODEL_AGENT_NAME,
-		ModelAPIBase: common.DEFAULT_MODEL_AGENT_API_BASE,
-		ModelAPIKey:  utils.GetEnvWithDefault(common.MODEL_AGENT_API_KEY),
-	})
-	if err != nil {
-		log.Printf("NewLLMAgent failed: %v", err)
-		return
-	}
-
-	cfg := &veagent.Config{
-		ModelName:    common.DEFAULT_MODEL_AGENT_NAME,
-		ModelAPIBase: common.DEFAULT_MODEL_AGENT_API_BASE,
-		ModelAPIKey:  utils.GetEnvWithDefault(common.MODEL_AGENT_API_KEY),
-	}
-	cfg.Name = "MemoryRecallAgent"
-	cfg.Instruction = "Answer the user's question. Use the 'search_past_conversations' tools if the answer might be in past conversations."
-
-	cfg.Tools = []tool.Tool{memorySearchTool}
-
-	memorySearchAgent, err := veagent.New(cfg)
-	if err != nil {
-		log.Printf("NewLLMAgent failed: %v", err)
-		return
-	}
-
-	// Use all default config
-	//sessionService, err := vem.NewShortTermMemoryService(vem.BackendShortTermPostgreSQL, nil)
-	//if err != nil {
-	//	log.Printf("NewShortTermMemoryService failed: %v", err)
-	//	return
-	//}
-	sessionService := session.InMemoryService()
-	memoryService, err := vem.NewLongTermMemoryService(vem.BackendLongTermViking, nil)
+	sessionServer := session.InMemoryService()
+	memoryServer := memory.InMemoryService()
+	memoryServer, err := vem.NewLongTermMemoryService(vem.BackendLongTermViking, nil)
 	if err != nil {
 		log.Printf("NewLongTermMemoryService failed: %v", err)
 		return
 	}
 
+	onBeforeAgent := func(ctx agent.CallbackContext) (*genai.Content, error) {
+		resp, err := sessionServer.Get(ctx, &session.GetRequest{AppName: ctx.AppName(), UserID: ctx.UserID(), SessionID: ctx.SessionID()})
+		if err != nil {
+			log.Fatalf("Failed to get completed session: %v", err)
+		}
+		if err := memoryServer.AddSession(ctx, resp.Session); err != nil {
+			log.Fatalf("Failed to add session to memory: %v", err)
+		}
+		log.Println("")
+
+		log.Printf("[Callback] Session %s added to memory.", ctx.SessionID())
+		return nil, nil
+	}
+
+	a, err := veagent.New(&veagent.Config{
+		Config: llmagent.Config{
+			Name:                 "personal_assistant",
+			Instruction:          "You are a personal assistant with long-term memory capabilities. Before answering the user's questions, you must invoke the tool to retrieve memory information.",
+			Tools:                []tool.Tool{utils.Must(builtin_tools.LoadLongMemoryTool())},
+			BeforeAgentCallbacks: []agent.BeforeAgentCallback{onBeforeAgent},
+		},
+	})
+	if err != nil {
+		fmt.Printf("NewLLMAgent failed: %v", err)
+		return
+	}
+
 	runner1, err := runner.New(runner.Config{
 		AppName:        appName,
-		Agent:          infoCaptureAgent,
-		SessionService: sessionService,
-		MemoryService:  memoryService,
+		Agent:          a,
+		SessionService: sessionServer,
+		MemoryService:  memoryServer,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -99,7 +85,7 @@ func main() {
 
 	SessionID := "session123456789"
 
-	s, err := sessionService.Create(ctx, &session.CreateRequest{
+	s, err := sessionServer.Create(ctx, &session.CreateRequest{
 		AppName:   appName,
 		UserID:    userID,
 		SessionID: SessionID,
@@ -125,11 +111,11 @@ func main() {
 
 	// Add the completed session to the Memory Service
 	log.Println("\n--- Adding Session 1 to Memory ---")
-	resp, err := sessionService.Get(ctx, &session.GetRequest{AppName: s.Session.AppName(), UserID: s.Session.UserID(), SessionID: s.Session.ID()})
+	resp, err := sessionServer.Get(ctx, &session.GetRequest{AppName: s.Session.AppName(), UserID: s.Session.UserID(), SessionID: s.Session.ID()})
 	if err != nil {
 		log.Fatalf("Failed to get completed session: %v", err)
 	}
-	if err := memoryService.AddSession(ctx, resp.Session); err != nil {
+	if err := memoryServer.AddSession(ctx, resp.Session); err != nil {
 		log.Fatalf("Failed to add session to memory: %v", err)
 	}
 	log.Println("Session added to memory.")
@@ -138,15 +124,15 @@ func main() {
 
 	runner2, err := runner.New(runner.Config{
 		AppName:        appName,
-		Agent:          memorySearchAgent,
-		SessionService: sessionService,
-		MemoryService:  memoryService,
+		Agent:          a,
+		SessionService: sessionServer,
+		MemoryService:  memoryServer,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	s, _ = sessionService.Create(ctx, &session.CreateRequest{
+	s, _ = sessionServer.Create(ctx, &session.CreateRequest{
 		AppName:   appName,
 		UserID:    userID,
 		SessionID: "session2222",
@@ -167,7 +153,6 @@ func main() {
 		}
 	}
 	log.Printf("Agent 2 Response: %s\n", strings.Join(finalResponseText2, ""))
-
 }
 
 func textParts(Content *genai.Content) []string {
