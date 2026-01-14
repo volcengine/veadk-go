@@ -48,8 +48,8 @@ type BasicApp interface {
 	SetupRouters(router *mux.Router, config *RunConfig) error
 }
 
-func DefaultApiConfig() ApiConfig {
-	return ApiConfig{
+func DefaultApiConfig() *ApiConfig {
+	return &ApiConfig{
 		Port:            8000,
 		WriteTimeout:    time.Second * 15,
 		ReadTimeout:     time.Second * 15,
@@ -58,24 +58,29 @@ func DefaultApiConfig() ApiConfig {
 	}
 }
 
-func (a *ApiConfig) SetPort(port int) {
+func (a *ApiConfig) SetPort(port int) *ApiConfig {
 	a.Port = port
+	return a
 }
 
-func (a *ApiConfig) SetWriteTimeout(t int64) {
+func (a *ApiConfig) SetWriteTimeout(t int64) *ApiConfig {
 	a.WriteTimeout = time.Second * time.Duration(t)
+	return a
 }
 
-func (a *ApiConfig) SetReadTimeout(t int64) {
+func (a *ApiConfig) SetReadTimeout(t int64) *ApiConfig {
 	a.ReadTimeout = time.Second * time.Duration(t)
+	return a
 }
 
-func (a *ApiConfig) SetIdleTimeout(t int64) {
+func (a *ApiConfig) SetIdleTimeout(t int64) *ApiConfig {
 	a.IdleTimeout = time.Second * time.Duration(t)
+	return a
 }
 
-func (a *ApiConfig) SetSEEWriteTimeout(t int64) {
+func (a *ApiConfig) SetSEEWriteTimeout(t int64) *ApiConfig {
 	a.SEEWriteTimeout = time.Second * time.Duration(t)
+	return a
 }
 
 func (a *ApiConfig) GetWebUrl() string {

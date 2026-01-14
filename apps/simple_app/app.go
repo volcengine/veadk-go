@@ -33,14 +33,14 @@ import (
 )
 
 type agentkitSimpleApp struct {
-	apps.ApiConfig
+	*apps.ApiConfig
 	appName string
 	userID  string
 	session session.Session
 	runner  *runner.Runner
 }
 
-func NewAgentkitSimpleApp(config apps.ApiConfig) apps.BasicApp {
+func NewAgentkitSimpleApp(config *apps.ApiConfig) apps.BasicApp {
 	return &agentkitSimpleApp{
 		ApiConfig: config,
 		appName:   "agentkit_simple_app",

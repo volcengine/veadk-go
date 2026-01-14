@@ -32,10 +32,10 @@ import (
 )
 
 type agentkitServerApp struct {
-	apps.ApiConfig
+	*apps.ApiConfig
 }
 
-func NewAgentkitServerApp(config apps.ApiConfig) apps.BasicApp {
+func NewAgentkitServerApp(config *apps.ApiConfig) apps.BasicApp {
 	return &agentkitServerApp{
 		ApiConfig: config,
 	}

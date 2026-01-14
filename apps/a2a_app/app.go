@@ -35,7 +35,7 @@ import (
 const apiPath = "/"
 
 type agentkitA2AServerApp struct {
-	apps.ApiConfig
+	*apps.ApiConfig
 	a2aAgentUrl string
 }
 
@@ -107,7 +107,7 @@ func (a *agentkitA2AServerApp) SetupRouters(router *mux.Router, config *apps.Run
 	return nil
 }
 
-func NewAgentkitA2AServerApp(config apps.ApiConfig) apps.BasicApp {
+func NewAgentkitA2AServerApp(config *apps.ApiConfig) apps.BasicApp {
 	return &agentkitA2AServerApp{
 		ApiConfig:   config,
 		a2aAgentUrl: config.GetWebUrl(),
