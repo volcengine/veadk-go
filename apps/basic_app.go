@@ -41,6 +41,7 @@ type ApiConfig struct {
 	ReadTimeout     time.Duration
 	IdleTimeout     time.Duration
 	SEEWriteTimeout time.Duration
+	ApiPathPrefix   string
 }
 
 type BasicApp interface {
@@ -55,6 +56,7 @@ func DefaultApiConfig() *ApiConfig {
 		ReadTimeout:     time.Second * 15,
 		IdleTimeout:     time.Second * 60,
 		SEEWriteTimeout: time.Second * 300,
+		ApiPathPrefix:   "", // set /api same as ADK-Go
 	}
 }
 
@@ -83,6 +85,15 @@ func (a *ApiConfig) SetSEEWriteTimeout(t int64) *ApiConfig {
 	return a
 }
 
+func (a *ApiConfig) SetApiPathPrefix(p string) *ApiConfig {
+	a.ApiPathPrefix = p
+	return a
+}
+
 func (a *ApiConfig) GetWebUrl() string {
 	return fmt.Sprintf("http://localhost:%d", a.Port)
+}
+
+func (a *ApiConfig) GetAPIPath() string {
+	return fmt.Sprintf("http://localhost:%d%s", a.Port, a.ApiPathPrefix)
 }

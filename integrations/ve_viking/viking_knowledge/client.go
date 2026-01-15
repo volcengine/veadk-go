@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	VikingKnowledgeService = "air"
+	VikingKnowledgeService       = "air"
+	DefaultRetrieveCount   int32 = 25
 )
 
 var (
@@ -53,6 +54,10 @@ func New(cfg *ve_viking.ClientConfig) (*Client, error) {
 }
 
 func (c *Client) generateSearchKnowledgeReqParams(query string, topK int32, metadata map[string]any, rerank bool, chunkDiffusionCount int32) CollectionSearchKnowledgeRequest {
+	retrieveCount := DefaultRetrieveCount
+	if topK > DefaultRetrieveCount {
+		retrieveCount = DefaultRetrieveCount
+	}
 	reqObj := CollectionSearchKnowledgeRequest{
 		ResourceId:  c.ResourceID,
 		Name:        c.Index,
@@ -62,7 +67,7 @@ func (c *Client) generateSearchKnowledgeReqParams(query string, topK int32, meta
 		DenseWeight: 0.5,
 		Postprocessing: PostProcessing{
 			RerankSwitch:        rerank,
-			RetrieveCount:       topK * 3,
+			RetrieveCount:       retrieveCount,
 			GetAttachmentLink:   true,
 			ChunkGroup:          true,
 			ChunkDiffusionCount: chunkDiffusionCount,

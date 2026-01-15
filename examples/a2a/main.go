@@ -19,19 +19,21 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/volcengine/veadk-go/agent/remoteagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
 	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/remoteagent"
 )
 
 func main() {
 	ctx := context.Background()
 
-	remoteAgent, err := remoteagent.NewA2A(remoteagent.A2AConfig{
-		Name:            "A2A Weather agent",
-		AgentCardSource: "http://localhost:8000/",
-	})
+	remoteAgent, err := remoteagent.NewVeRemoteAgent(
+		remoteagent.NewDefaultConfig().
+			SetName("remoteAgent").
+			SetApiKey("your api key").
+			SetBaseUrl("you base url"),
+	)
 	if err != nil {
 		log.Fatalf("Failed to create a remote agent: %v", err)
 	}

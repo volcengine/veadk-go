@@ -72,14 +72,15 @@ func (a *agentkitServerApp) Run(ctx context.Context, config *apps.RunConfig) err
 
 func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunConfig) error {
 	var err error
-	// setup simple app routers
+
+	//setup simple app routers
 	simpleApp := simple_app.NewAgentkitSimpleApp(a.ApiConfig)
 	err = simpleApp.SetupRouters(router, config)
 	if err != nil {
 		return fmt.Errorf("setup simple app routers failed: %w", err)
 	}
 
-	// setup a2a routers
+	//setup a2a routers
 	a2aApp := a2a_app.NewAgentkitA2AServerApp(a.ApiConfig)
 	err = a2aApp.SetupRouters(router, config)
 	if err != nil {
@@ -94,42 +95,37 @@ func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 		A2AOptions:      config.A2AOptions,
 	}
 
-	// setup web api routers
-	// Create the ADK REST API handler
-	apiHandler := adkrest.NewHandler(launchConfig, a.SEEWriteTimeout)
-
-	// Wrap it with CORS middleware
-	corsHandler := corsWithArgs(fmt.Sprintf("localhost:%d", a.Port))(apiHandler)
-
-	// Register it at the /api/ path
-	router.Methods("GET", "POST", "DELETE", "OPTIONS").PathPrefix("/api/").Handler(
-		http.StripPrefix("/api", corsHandler),
-	)
-	log.Printf("       api:  you can access API using %s/api", a.GetWebUrl())
-	log.Printf("       api:      for instance: %s/api/list-apps", a.GetWebUrl())
-
 	// setup webui routers
 	webuiLauncher := webui.NewLauncher()
 	_, err = webuiLauncher.Parse([]string{
-		"--api_server_address", fmt.Sprintf("http://localhost:%v/api", fmt.Sprint(a.Port)),
+		"--api_server_address", a.GetAPIPath(),
 	})
 
 	if err != nil {
 		return fmt.Errorf("webuiLauncher parse parames failed: %w", err)
 	}
 
-	err = webuiLauncher.SetupSubrouters(router, &launcher.Config{
-		SessionService:  config.SessionService,
-		ArtifactService: config.ArtifactService,
-		MemoryService:   config.MemoryService,
-		AgentLoader:     config.AgentLoader,
-		A2AOptions:      config.A2AOptions,
-	})
+	//webuiLauncher.AddSubrouter(router, w.config.pathPrefix, w.config.backendAddress)
+	err = webuiLauncher.SetupSubrouters(router, launchConfig)
 	if err != nil {
 		return fmt.Errorf("setup webui routers failed: %w", err)
 	}
 
 	webuiLauncher.UserMessage(a.GetWebUrl(), log.Println)
+
+	// setup web api routers
+	// Create the ADK REST API handler
+	apiHandler := adkrest.NewHandler(launchConfig, a.SEEWriteTimeout)
+
+	// Wrap it with CORS middleware
+	corsHandler := corsWithArgs(a.GetWebUrl())(apiHandler)
+
+	router.Methods("GET", "POST", "DELETE", "OPTIONS").PathPrefix(fmt.Sprintf("%s/", a.ApiPathPrefix)).Handler(
+		http.StripPrefix(a.ApiPathPrefix, corsHandler),
+	)
+
+	log.Printf("       api:  you can access API using %s", a.GetAPIPath())
+	log.Printf("       api:      for instance: %s/list-apps", a.GetAPIPath())
 
 	return nil
 }
