@@ -91,7 +91,7 @@ func (c *Client) buildDocFilterQuery(metadata map[string]any) map[string]any {
 	}
 }
 
-func (c *Client) SearchKnowledge(query string, topK int32, chunkDiffusionCount int32, metadata map[string]any, rerank bool) (*CollectionSearchKnowledgeResponse, error) {
+func (c *Client) SearchKnowledge(query string, topK int32, rerank bool, chunkDiffusionCount int32, metadata map[string]any) (*CollectionSearchKnowledgeResponse, error) {
 	searchKnowledgeReqParams := c.generateSearchKnowledgeReqParams(query, topK, metadata, rerank, chunkDiffusionCount)
 
 	respBody, err := ve_sign.VeRequest{

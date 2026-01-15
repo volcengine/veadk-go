@@ -86,10 +86,12 @@ func TestNewVikingKnowledgeBackend(t *testing.T) {
 }
 
 func TestVikingKnowledgeBackend_Search(t *testing.T) {
+	var chunkDiffusionCount int32 = 1
+	var rerank = true
 	v := &VikingKnowledgeBackend{
 		viking: &viking_knowledge.Client{},
 		tos:    &ve_tos.Client{},
-		config: &Config{TopK: 3, ChunkDiffusionCount: 1},
+		config: &Config{TopK: 3, ChunkDiffusionCount: &chunkDiffusionCount, Rerank: &rerank},
 	}
 	mockey.PatchConvey("TestVikingKnowledgeBackend_Search", t, func() {
 		mockey.PatchConvey("search error", func() {

@@ -32,9 +32,13 @@ import (
 )
 
 const (
-	TosBucketPath              = "knowledgebase"
-	DefaultTopK                = 5
-	DefaultChunkDiffusionCount = 1
+	TosBucketPath = "knowledgebase"
+)
+
+var (
+	DefaultTopK                int32 = 5
+	DefaultChunkDiffusionCount int32 = 0
+	DefaultRerank              bool  = true
 )
 
 var ErrNewVikingKnowledgeBase = errors.New("NewVikingKnowledgeBase error")
@@ -50,7 +54,8 @@ type Config struct {
 	Region              string
 	CreateIfNotExist    bool
 	TopK                int32
-	ChunkDiffusionCount int32
+	ChunkDiffusionCount *int32
+	Rerank              *bool
 	TosConfig           *ve_tos.Config
 }
 
@@ -93,8 +98,11 @@ func NewVikingKnowledgeBackend(cfg *Config) (_interface.KnowledgeBackend, error)
 	if cfg.TopK <= 0 {
 		cfg.TopK = DefaultTopK
 	}
-	if cfg.ChunkDiffusionCount <= 0 {
-		cfg.ChunkDiffusionCount = DefaultChunkDiffusionCount
+	if cfg.ChunkDiffusionCount == nil {
+		cfg.ChunkDiffusionCount = &DefaultChunkDiffusionCount
+	}
+	if cfg.Rerank == nil {
+		cfg.Rerank = &DefaultRerank
 	}
 
 	// new tos client
@@ -120,9 +128,9 @@ func (v *VikingKnowledgeBackend) Search(query string, opts ...map[string]any) ([
 	chunks, err := v.viking.SearchKnowledge(
 		query,
 		utils.ExtractOptsValueWithDefault[int32]("topK", v.config.TopK, opts...),
-		utils.ExtractOptsValueWithDefault[int32]("chunkDiffusionCount", v.config.ChunkDiffusionCount, opts...),
+		utils.ExtractOptsValueWithDefault[bool]("rerank", *v.config.Rerank, opts...),
+		utils.ExtractOptsValueWithDefault[int32]("chunkDiffusionCount", *v.config.ChunkDiffusionCount, opts...),
 		nil,
-		true,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w : %w", ErrVikingKnowledgeBaseSearch, err)
