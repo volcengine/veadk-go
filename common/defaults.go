@@ -68,3 +68,7 @@ const (
 	DEFAULT_AGENTKIT_TOOL_REGION       = "cn-beijing"
 	DEFAULT_AGENTKIT_TOOL_SERVICE_CODE = "agentkit"
 )
+
+const (
+	DEFAULT_AGENTPILOT_API_URL = "https://prompt-pilot.cn-beijing.volces.com"
+)

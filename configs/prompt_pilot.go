@@ -14,6 +14,19 @@
 
 package configs
 
+import (
+	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/utils"
+)
+
 type PromptPilotConfig struct {
-	// 根据实际字段补充
+	Url         string `yaml:"url"`
+	ApiKey      string `yaml:"api_key"`
+	WorkspaceId string `yaml:"workspace_id"`
+}
+
+func (v *PromptPilotConfig) MapEnvToConfig() {
+	v.Url = utils.GetEnvWithDefault(common.AGENTPILOT_API_URL)
+	v.ApiKey = utils.GetEnvWithDefault(common.AGENTPILOT_API_KEY)
+	v.WorkspaceId = utils.GetEnvWithDefault(common.AGENTPILOT_WORKSPACE_ID)
 }

@@ -83,6 +83,7 @@ func SetupVeADKConfig() error {
 	}
 	globalConfig.Model.MapEnvToConfig()
 	globalConfig.Tool.MapEnvToConfig()
+	globalConfig.PromptPilot.MapEnvToConfig()
 	globalConfig.LOGGING.MapEnvToConfig()
 	globalConfig.Database.MapEnvToConfig()
 	globalConfig.Volcengine.MapEnvToConfig()
