@@ -132,6 +132,8 @@ func NewVeRemoteAgent(config *Config) (agent.Agent, error) {
 		return nil, ErrBaseUrlInvalid
 	}
 
+	config.SetAgentCardSource(config.BaseUrl)
+
 	if config.Name == "" {
 		return nil, ErrNameInvalid
 	}
