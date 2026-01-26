@@ -1,0 +1,11 @@
+observability:
+  opentelemetry:
+    enable_global_provider: true  # Enable global OTel provider (optional)
+    cozeloop:
+      endpoint: "https://api.coze.cn/v1/loop/opentelemetry/v1/traces"
+      api_key: "YOUR_COZE_API_KEY"
+      service_name: "YOUR_COZE_SPACE_ID"
+    apmplus:
+      endpoint: "https://apmplus-cn-beijing.volces.com:4318"
+      api_key: "YOUR_APMPLUS_API_KEY"
+      service_name: "YOUR_SERVICE_NAME"

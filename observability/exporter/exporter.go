@@ -157,19 +157,19 @@ func NewMultiExporter(ctx context.Context, cfg *configs.OpenTelemetryConfig) (tr
 	if cfg.CozeLoop != nil && cfg.CozeLoop.APIKey != "" {
 		if exp, err := NewCozeLoopExporter(ctx, cfg.CozeLoop); err == nil {
 			exporters = append(exporters, exp)
-			log.Info("Exporting spans to CozeLoop", "endpoint", cfg.CozeLoop.Endpoint)
+			log.Info("Exporting spans to CozeLoop", "endpoint", cfg.CozeLoop.Endpoint, "service_name", cfg.CozeLoop.ServiceName)
 		}
 	}
 	if cfg.ApmPlus != nil && cfg.ApmPlus.APIKey != "" {
 		if exp, err := NewAPMPlusExporter(ctx, cfg.ApmPlus); err == nil {
 			exporters = append(exporters, exp)
-			log.Info("Exporting spans to APMPlus", "endpoint", cfg.ApmPlus.Endpoint)
+			log.Info("Exporting spans to APMPlus", "endpoint", cfg.ApmPlus.Endpoint, "service_name", cfg.ApmPlus.ServiceName)
 		}
 	}
 	if cfg.TLS != nil && cfg.TLS.AccessKey != "" && cfg.TLS.SecretKey != "" {
 		if exp, err := NewTLSExporter(ctx, cfg.TLS); err == nil {
 			exporters = append(exporters, exp)
-			log.Info("Exporting spans to TLS", "endpoint", cfg.TLS.Endpoint)
+			log.Info("Exporting spans to TLS", "endpoint", cfg.TLS.Endpoint, "service_name", cfg.TLS.ServiceName)
 		}
 	}
 
@@ -215,28 +215,33 @@ func NewMetricReader(ctx context.Context, cfg *configs.OpenTelemetryConfig) ([]s
 	if cfg.Stdout != nil && cfg.Stdout.Enable {
 		if exp, err := stdoutmetric.New(stdoutmetric.WithPrettyPrint()); err == nil {
 			readers = append(readers, sdkmetric.NewPeriodicReader(exp))
+			log.Info("Exporting metrics to Stdout")
 		}
 	}
 
 	if cfg.File != nil && cfg.File.Path != "" {
 		if exp, err := NewFileMetricExporter(ctx, cfg.File); err == nil {
 			readers = append(readers, sdkmetric.NewPeriodicReader(exp))
+			log.Info(fmt.Sprintf("Exporting metrics to File: %s", cfg.File.Path))
 		}
 	}
 
 	if cfg.CozeLoop != nil && cfg.CozeLoop.APIKey != "" {
 		if exp, err := NewCozeLoopMetricExporter(ctx, cfg.CozeLoop); err == nil {
 			readers = append(readers, sdkmetric.NewPeriodicReader(exp))
+			log.Info("Exporting metrics to CozeLoop", "endpoint", cfg.CozeLoop.Endpoint, "service_name", cfg.CozeLoop.ServiceName)
 		}
 	}
 	if cfg.ApmPlus != nil && cfg.ApmPlus.APIKey != "" {
 		if exp, err := NewAPMPlusMetricExporter(ctx, cfg.ApmPlus); err == nil {
 			readers = append(readers, sdkmetric.NewPeriodicReader(exp))
+			log.Info("Exporting metrics to APMPlus", "endpoint", cfg.ApmPlus.Endpoint, "service_name", cfg.ApmPlus.ServiceName)
 		}
 	}
 	if cfg.TLS != nil && cfg.TLS.AccessKey != "" && cfg.TLS.SecretKey != "" {
 		if exp, err := NewTLSMetricExporter(ctx, cfg.TLS); err == nil {
 			readers = append(readers, sdkmetric.NewPeriodicReader(exp))
+			log.Info("Exporting metrics to TLS", "endpoint", cfg.TLS.Endpoint, "service_name", cfg.TLS.ServiceName)
 		}
 	}
 

@@ -24,6 +24,7 @@ import (
 
 const (
 	InstrumentationName = "github.com/volcengine/veadk-go"
+	DefaultVersion      = "0.5.14" // Aligned with Python ADK
 )
 
 var (
@@ -42,7 +43,7 @@ func getVersion() string {
 			return info.Main.Version
 		}
 	}
-	return "<unknown>"
+	return DefaultVersion
 }
 
 // Span names
@@ -70,15 +71,15 @@ const (
 	GenAIUserIdKey        = "gen_ai.user.id"
 	GenAISessionIdKey     = "gen_ai.session.id"
 	GenAIInvocationIdKey  = "gen_ai.invocation.id"
-	
+
 	// CozeLoop / TLS Platform Aliases
-	AgentNameKey          = "agent_name"     // Alias of 'gen_ai.agent.name' for CozeLoop platform
-	AgentNameDotKey       = "agent.name"     // Alias of 'gen_ai.agent.name' for TLS platform
-	AppNameUnderlineKey   = "app_name"       // Alias of gen_ai.app.name for CozeLoop platform
-	AppNameDotKey         = "app.name"       // Alias of gen_ai.app.name for TLS platform
-	UserIdDotKey          = "user.id"        // Alias of gen_ai.user.id for CozeLoop/TLS platforms
-	SessionIdDotKey       = "session.id"     // Alias of gen_ai.session.id for CozeLoop/TLS platforms
-	InvocationIdDotKey    = "invocation.id"  // Alias of gen_ai.invocation.id for CozeLoop platform
+	AgentNameKey        = "agent_name"    // Alias of 'gen_ai.agent.name' for CozeLoop platform
+	AgentNameDotKey     = "agent.name"    // Alias of 'gen_ai.agent.name' for TLS platform
+	AppNameUnderlineKey = "app_name"      // Alias of gen_ai.app.name for CozeLoop platform
+	AppNameDotKey       = "app.name"      // Alias of gen_ai.app.name for TLS platform
+	UserIdDotKey        = "user.id"       // Alias of gen_ai.user.id for CozeLoop/TLS platforms
+	SessionIdDotKey     = "session.id"    // Alias of gen_ai.session.id for CozeLoop/TLS platforms
+	InvocationIdDotKey  = "invocation.id" // Alias of gen_ai.invocation.id for CozeLoop platform
 
 	CozeloopReportSourceKey = "cozeloop.report.source" // Fixed value: veadk
 	CozeloopCallTypeKey     = "cozeloop.call_type"     // CozeLoop call type
@@ -88,15 +89,17 @@ const (
 	EnvUserId        = "VEADK_USER_ID"
 	EnvSessionId     = "VEADK_SESSION_ID"
 	EnvAppName       = "VEADK_APP_NAME"
+	EnvAgentName     = "VEADK_AGENT_NAME"
 	EnvCallType      = "VEADK_CALL_TYPE"
 
 	// Default and fallback values
-	DefaultCozeLoopCallType     = "None"  // fixed
+	DefaultCozeLoopCallType     = ""      // fixed, matches Python's None behavior
 	DefaultCozeLoopReportSource = "veadk" // fixed
 	FallbackAgentName           = "<unknown_agent_name>"
 	FallbackAppName             = "<unknown_app_name>"
 	FallbackUserID              = "<unknown_user_id>"
 	FallbackSessionID           = "<unknown_session_id>"
+	FallbackInvocationID        = "<unknown_invocation_id>"
 	FallbackModelProvider       = "<unknown_model_provider>"
 
 	// Span Kind values (GenAI semantic conventions)
@@ -157,6 +160,7 @@ const (
 	ContextKeySessionId     contextKey = "veadk.session_id"
 	ContextKeyUserId        contextKey = "veadk.user_id"
 	ContextKeyAppName       contextKey = "veadk.app_name"
+	ContextKeyAgentName     contextKey = "veadk.agent_name"
 	ContextKeyCallType      contextKey = "veadk.call_type"
 	ContextKeyModelProvider contextKey = "veadk.model_provider"
 	ContextKeyInvocationId  contextKey = "veadk.invocation_id"

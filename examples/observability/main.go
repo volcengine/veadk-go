@@ -23,7 +23,6 @@ import (
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/observability"
 	"github.com/volcengine/veadk-go/utils"
-	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/cmd/launcher"
 	"google.golang.org/adk/cmd/launcher/full"
@@ -31,15 +30,8 @@ import (
 )
 
 func main() {
-	stdExporter, err := stdouttrace.New(stdouttrace.WithPrettyPrint())
-	if err != nil {
-		log.Fatalf("Failed to create exporter: %v", err)
-	}
-
-	observability.Init(context.Background())
-	observability.AddSpanExporter(stdExporter)
-
 	ctx := context.Background()
+	observability.Init(ctx)
 
 	// Create agent configuration
 	cfg := &veagent.Config{

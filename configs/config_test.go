@@ -119,10 +119,10 @@ opentelemetry:
 
 func TestObservabilityConfig_EnvMapping(t *testing.T) {
 	os.Setenv("OBSERVABILITY_OPENTELEMETRY_APMPLUS_ENDPOINT", "http://env-endpoint")
-	os.Setenv("OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_TRACER", "true")
+	os.Setenv("OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_PROVIDER", "true")
 	defer func() {
 		os.Unsetenv("OBSERVABILITY_OPENTELEMETRY_APMPLUS_ENDPOINT")
-		os.Unsetenv("OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_TRACER")
+		os.Unsetenv("OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_PROVIDER")
 	}()
 
 	config := &ObservabilityConfig{}
@@ -131,17 +131,6 @@ func TestObservabilityConfig_EnvMapping(t *testing.T) {
 	assert.NotNil(t, config.OpenTelemetry)
 	assert.NotNil(t, config.OpenTelemetry.ApmPlus)
 	assert.Equal(t, "http://env-endpoint", config.OpenTelemetry.ApmPlus.Endpoint)
-	assert.True(t, config.OpenTelemetry.EnableGlobalProvider)
-}
-
-func TestObservabilityConfig_LegacyEnvMapping(t *testing.T) {
-	os.Setenv("OBSERVABILITY_ENABLE_GLOBAL_TRACER", "true")
-	defer os.Unsetenv("OBSERVABILITY_ENABLE_GLOBAL_TRACER")
-
-	config := &ObservabilityConfig{}
-	config.MapEnvToConfig()
-
-	assert.NotNil(t, config.OpenTelemetry)
 	assert.True(t, config.OpenTelemetry.EnableGlobalProvider)
 }
 

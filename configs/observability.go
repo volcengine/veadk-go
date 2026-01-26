@@ -20,13 +20,43 @@ import (
 	"github.com/volcengine/veadk-go/utils"
 )
 
+const (
+	// Global
+	EnvObservabilityEnableGlobalProvider = "OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_PROVIDER"
+	EnvOtelServiceName                   = "OTEL_SERVICE_NAME"
+
+	// APMPlus
+	EnvObservabilityOpenTelemetryApmPlusEndpoint    = "OBSERVABILITY_OPENTELEMETRY_APMPLUS_ENDPOINT"
+	EnvObservabilityOpenTelemetryApmPlusAPIKey      = "OBSERVABILITY_OPENTELEMETRY_APMPLUS_API_KEY"
+	EnvObservabilityOpenTelemetryApmPlusServiceName = "OBSERVABILITY_OPENTELEMETRY_APMPLUS_SERVICE_NAME"
+
+	// CozeLoop
+	EnvObservabilityOpenTelemetryCozeLoopEndpoint    = "OBSERVABILITY_OPENTELEMETRY_COZELOOP_ENDPOINT"
+	EnvObservabilityOpenTelemetryCozeLoopAPIKey      = "OBSERVABILITY_OPENTELEMETRY_COZELOOP_API_KEY"
+	EnvObservabilityOpenTelemetryCozeLoopServiceName = "OBSERVABILITY_OPENTELEMETRY_COZELOOP_SERVICE_NAME"
+
+	// TLS
+	EnvObservabilityOpenTelemetryTLSEndpoint    = "OBSERVABILITY_OPENTELEMETRY_TLS_ENDPOINT"
+	EnvObservabilityOpenTelemetryTLSServiceName = "OBSERVABILITY_OPENTELEMETRY_TLS_SERVICE_NAME"
+	EnvObservabilityOpenTelemetryTLSRegion      = "OBSERVABILITY_OPENTELEMETRY_TLS_REGION"
+	EnvObservabilityOpenTelemetryTLSTopicID     = "OBSERVABILITY_OPENTELEMETRY_TLS_TOPIC_ID"
+	EnvObservabilityOpenTelemetryTLSAccessKey   = "OBSERVABILITY_OPENTELEMETRY_TLS_ACCESS_KEY"
+	EnvObservabilityOpenTelemetryTLSSecretKey   = "OBSERVABILITY_OPENTELEMETRY_TLS_SECRET_KEY"
+
+	// File
+	EnvObservabilityOpenTelemetryFilePath = "OBSERVABILITY_OPENTELEMETRY_FILE_PATH"
+
+	// Stdout
+	EnvObservabilityOpenTelemetryStdoutEnable = "OBSERVABILITY_OPENTELEMETRY_STDOUT_ENABLE"
+)
+
 // ObservabilityConfig groups specific configurations for different platforms.
 type ObservabilityConfig struct {
 	OpenTelemetry *OpenTelemetryConfig `yaml:"opentelemetry"`
 }
 
 type OpenTelemetryConfig struct {
-	EnableGlobalProvider bool               `yaml:"enable_global_provider"`
+	EnableGlobalProvider bool               `yaml:"enable_global_tracer"`
 	ApmPlus              *ApmPlusConfig     `yaml:"apmplus"`
 	CozeLoop             *CozeLoopConfig    `yaml:"cozeloop"`
 	TLS                  *TLSExporterConfig `yaml:"tls"`
@@ -70,89 +100,89 @@ func (c *ObservabilityConfig) MapEnvToConfig() {
 	ot := c.OpenTelemetry
 
 	// APMPlus
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_APMPLUS_ENDPOINT"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryApmPlusEndpoint); v != "" {
 		if ot.ApmPlus == nil {
 			ot.ApmPlus = &ApmPlusConfig{}
 		}
 		ot.ApmPlus.Endpoint = v
 	}
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_APMPLUS_API_KEY"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryApmPlusAPIKey); v != "" {
 		if ot.ApmPlus == nil {
 			ot.ApmPlus = &ApmPlusConfig{}
 		}
 		ot.ApmPlus.APIKey = v
 	}
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_APMPLUS_SERVICE_NAME"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryApmPlusServiceName); v != "" {
 		if ot.ApmPlus == nil {
 			ot.ApmPlus = &ApmPlusConfig{}
 		}
 		ot.ApmPlus.ServiceName = v
-		if os.Getenv("OTEL_SERVICE_NAME") == "" {
-			os.Setenv("OTEL_SERVICE_NAME", v)
+		if os.Getenv(EnvOtelServiceName) == "" {
+			os.Setenv(EnvOtelServiceName, v)
 		}
 	}
 
 	// CozeLoop
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_COZELOOP_ENDPOINT"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryCozeLoopEndpoint); v != "" {
 		if ot.CozeLoop == nil {
 			ot.CozeLoop = &CozeLoopConfig{}
 		}
 		ot.CozeLoop.Endpoint = v
 	}
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_COZELOOP_API_KEY"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryCozeLoopAPIKey); v != "" {
 		if ot.CozeLoop == nil {
 			ot.CozeLoop = &CozeLoopConfig{}
 		}
 		ot.CozeLoop.APIKey = v
 	}
 
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_COZELOOP_SERVICE_NAME"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryCozeLoopServiceName); v != "" {
 		if ot.CozeLoop == nil {
 			ot.CozeLoop = &CozeLoopConfig{}
 		}
 		ot.CozeLoop.ServiceName = v
-		if os.Getenv("OTEL_SERVICE_NAME") == "" {
-			os.Setenv("OTEL_SERVICE_NAME", v)
+		if os.Getenv(EnvOtelServiceName) == "" {
+			os.Setenv(EnvOtelServiceName, v)
 		}
 	}
 
 	// TLS
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_TLS_ENDPOINT"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSEndpoint); v != "" {
 		if ot.TLS == nil {
 			ot.TLS = &TLSExporterConfig{}
 		}
 		ot.TLS.Endpoint = v
 	}
 
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_TLS_SERVICE_NAME"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSServiceName); v != "" {
 		if ot.TLS == nil {
 			ot.TLS = &TLSExporterConfig{}
 		}
 		ot.TLS.ServiceName = v
-		if os.Getenv("OTEL_SERVICE_NAME") == "" {
-			os.Setenv("OTEL_SERVICE_NAME", v)
+		if os.Getenv(EnvOtelServiceName) == "" {
+			os.Setenv(EnvOtelServiceName, v)
 		}
 	}
 
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_TLS_REGION"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSRegion); v != "" {
 		if ot.TLS == nil {
 			ot.TLS = &TLSExporterConfig{}
 		}
 		ot.TLS.Region = v
 	}
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_TLS_TOPIC_ID"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSTopicID); v != "" {
 		if ot.TLS == nil {
 			ot.TLS = &TLSExporterConfig{}
 		}
 		ot.TLS.TopicID = v
 	}
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_TLS_ACCESS_KEY"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSAccessKey); v != "" {
 		if ot.TLS == nil {
 			ot.TLS = &TLSExporterConfig{}
 		}
 		ot.TLS.AccessKey = v
 	}
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_TLS_SECRET_KEY"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSSecretKey); v != "" {
 		if ot.TLS == nil {
 			ot.TLS = &TLSExporterConfig{}
 		}
@@ -160,14 +190,14 @@ func (c *ObservabilityConfig) MapEnvToConfig() {
 	}
 
 	// File
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_FILE_PATH"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryFilePath); v != "" {
 		if ot.File == nil {
 			ot.File = &FileConfig{}
 		}
 		ot.File.Path = v
 	}
 
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_STDOUT_ENABLE"); v != "" {
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryStdoutEnable); v != "" {
 		if ot.Stdout == nil {
 			ot.Stdout = &StdoutConfig{}
 		}
@@ -175,10 +205,7 @@ func (c *ObservabilityConfig) MapEnvToConfig() {
 	}
 
 	// Global Tracer
-	if v := utils.GetEnvWithDefault("OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_TRACER"); v != "" {
-		ot.EnableGlobalProvider = v == "true"
-	} else if v := utils.GetEnvWithDefault("OBSERVABILITY_ENABLE_GLOBAL_TRACER"); v != "" {
-		// Fallback to legacy env var
+	if v := utils.GetEnvWithDefault(EnvObservabilityEnableGlobalProvider); v != "" {
 		ot.EnableGlobalProvider = v == "true"
 	}
 }

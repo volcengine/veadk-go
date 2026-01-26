@@ -35,7 +35,8 @@ func SetCommonAttributes(ctx context.Context, span trace.Span) {
 	setDynamicAttribute(span, GenAISessionIdKey, GetSessionId(ctx), FallbackSessionID, SessionIdDotKey)
 	setDynamicAttribute(span, GenAIUserIdKey, GetUserId(ctx), FallbackUserID, UserIdDotKey)
 	setDynamicAttribute(span, GenAIAppNameKey, GetAppName(ctx), FallbackAppName, AppNameUnderlineKey, AppNameDotKey)
-	setDynamicAttribute(span, GenAIInvocationIdKey, GetInvocationId(ctx), "", InvocationIdDotKey)
+	setDynamicAttribute(span, GenAIAgentNameKey, GetAgentName(ctx), FallbackAgentName, AgentNameKey, AgentNameDotKey)
+	setDynamicAttribute(span, GenAIInvocationIdKey, GetInvocationId(ctx), FallbackInvocationID, InvocationIdDotKey)
 }
 
 // setDynamicAttribute sets an attribute and its aliases if the value is not empty (or falls back to a default).
@@ -108,6 +109,14 @@ func WithAppName(ctx context.Context, name string) context.Context {
 
 func GetAppName(ctx context.Context) string {
 	return getContextString(ctx, ContextKeyAppName, EnvAppName)
+}
+
+func WithAgentName(ctx context.Context, name string) context.Context {
+	return context.WithValue(ctx, ContextKeyAgentName, name)
+}
+
+func GetAgentName(ctx context.Context) string {
+	return getContextString(ctx, ContextKeyAgentName, EnvAgentName)
 }
 
 func WithCallType(ctx context.Context, t string) context.Context {
