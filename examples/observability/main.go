@@ -37,7 +37,7 @@ func main() {
 	}
 
 	observability.Init(context.Background())
-	observability.RegisterSpanExporter(stdExporter)
+	observability.AddSpanExporter(stdExporter)
 
 	ctx := context.Background()
 

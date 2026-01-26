@@ -13,3 +13,95 @@
 // limitations under the License.
 
 package observability
+
+import (
+	"context"
+	"os"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/volcengine/veadk-go/configs"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+)
+
+func TestGetServiceName(t *testing.T) {
+	t.Run("EnvVar", func(t *testing.T) {
+		os.Setenv("OTEL_SERVICE_NAME", "env-service")
+		defer os.Unsetenv("OTEL_SERVICE_NAME")
+		assert.Equal(t, "env-service", getServiceName(&configs.OpenTelemetryConfig{}))
+	})
+
+	t.Run("ApmPlus", func(t *testing.T) {
+		cfg := &configs.OpenTelemetryConfig{
+			ApmPlus: &configs.ApmPlusConfig{ServiceName: "apm-service"},
+		}
+		assert.Equal(t, "apm-service", getServiceName(cfg))
+	})
+
+	t.Run("CozeLoop", func(t *testing.T) {
+		cfg := &configs.OpenTelemetryConfig{
+			CozeLoop: &configs.CozeLoopConfig{ServiceName: "coze-service"},
+		}
+		assert.Equal(t, "coze-service", getServiceName(cfg))
+	})
+
+	t.Run("TLS", func(t *testing.T) {
+		cfg := &configs.OpenTelemetryConfig{
+			TLS: &configs.TLSExporterConfig{ServiceName: "tls-service"},
+		}
+		assert.Equal(t, "tls-service", getServiceName(cfg))
+	})
+
+	t.Run("Unknown", func(t *testing.T) {
+		assert.Equal(t, "<unknown_service>", getServiceName(&configs.OpenTelemetryConfig{}))
+	})
+}
+
+func TestSetGlobalTracerProvider(t *testing.T) {
+	// Save original provider to restore
+	orig := otel.GetTracerProvider()
+	defer otel.SetTracerProvider(orig)
+
+	exporter := tracetest.NewInMemoryExporter()
+	// Just verifies no panic and provider is updated
+	SetGlobalTracerProvider(exporter)
+
+	// Ensure we can start a span
+	ctx := context.Background()
+	tr := otel.Tracer("test")
+	_, span := tr.Start(ctx, "test-span")
+	span.End()
+
+	// Force flush
+	if tp, ok := otel.GetTracerProvider().(*trace.TracerProvider); ok {
+		tp.ForceFlush(ctx)
+	}
+
+	spans := exporter.GetSpans()
+	assert.Len(t, spans, 1)
+}
+
+func TestInitializeWithConfig(t *testing.T) {
+	// Nil config should be fine
+	err := InitializeWithConfig(context.Background(), nil)
+	assert.NoError(t, err)
+
+	// Config with disabled global provider but valid exporter
+	cfg := &configs.OpenTelemetryConfig{
+		EnableGlobalProvider: false,
+		Stdout:               &configs.StdoutConfig{Enable: true},
+	}
+	err = InitializeWithConfig(context.Background(), cfg)
+	assert.NoError(t, err)
+
+	// Config with global provider enabled and stdout
+	cfgGlobal := &configs.OpenTelemetryConfig{
+		EnableGlobalProvider: true,
+		Stdout:               &configs.StdoutConfig{Enable: true},
+	}
+	err = InitializeWithConfig(context.Background(), cfgGlobal)
+	assert.NoError(t, err)
+
+}

@@ -20,7 +20,29 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
+
+// MockSpan is a minimal mock implementation of trace.Span for testing purposes.
+type MockSpan struct {
+	trace.Span // Embed default NoopSpan to satisfy interface
+	Attributes map[attribute.Key]attribute.Value
+}
+
+func NewMockSpan() *MockSpan {
+	return &MockSpan{
+		Span:       noop.Span{},
+		Attributes: make(map[attribute.Key]attribute.Value),
+	}
+}
+
+func (m *MockSpan) SetAttributes(kv ...attribute.KeyValue) {
+	for _, a := range kv {
+		m.Attributes[a.Key] = a.Value
+	}
+}
 
 func TestContextAttributes(t *testing.T) {
 	ctx := context.Background()
@@ -54,4 +76,63 @@ func TestEnvFallback(t *testing.T) {
 	// Context should still win
 	ctxWithApp := WithAppName(ctx, "ctx-app")
 	assert.Equal(t, "ctx-app", GetAppName(ctxWithApp))
+}
+
+func TestSetCommonAttributes(t *testing.T) {
+	ctx := context.Background()
+	ctx = WithAppName(ctx, "my-app")
+	ctx = WithUserId(ctx, "u123")
+	ctx = WithSessionId(ctx, "s456")
+	ctx = WithModelProvider(ctx, "doubao")
+	ctx = WithInvocationId(ctx, "inv789")
+
+	span := NewMockSpan()
+	SetCommonAttributes(ctx, span)
+
+	// Check fixed attributes
+	assert.Equal(t, DefaultCozeLoopReportSource, span.Attributes[attribute.Key(CozeloopReportSourceKey)].AsString())
+
+	// Check dynamic attributes
+	assert.Equal(t, "doubao", span.Attributes[attribute.Key(GenAISystemKey)].AsString())
+	assert.Equal(t, Version, span.Attributes[attribute.Key(GenAISystemVersionKey)].AsString())
+	assert.Equal(t, Version, span.Attributes[attribute.Key(InstrumentationKey)].AsString())
+
+	// Check aliases
+	assert.Equal(t, "my-app", span.Attributes[attribute.Key(GenAIAppNameKey)].AsString())
+	assert.Equal(t, "my-app", span.Attributes[attribute.Key(AppNameUnderlineKey)].AsString())
+	assert.Equal(t, "my-app", span.Attributes[attribute.Key(AppNameDotKey)].AsString())
+
+	assert.Equal(t, "u123", span.Attributes[attribute.Key(GenAIUserIdKey)].AsString())
+	assert.Equal(t, "u123", span.Attributes[attribute.Key(UserIdDotKey)].AsString())
+
+	assert.Equal(t, "s456", span.Attributes[attribute.Key(GenAISessionIdKey)].AsString())
+	assert.Equal(t, "s456", span.Attributes[attribute.Key(SessionIdDotKey)].AsString())
+
+	assert.Equal(t, "inv789", span.Attributes[attribute.Key(GenAIInvocationIdKey)].AsString())
+	assert.Equal(t, "inv789", span.Attributes[attribute.Key(InvocationIdDotKey)].AsString())
+}
+
+func TestSetSpecificAttributes(t *testing.T) {
+	t.Run("LLM", func(t *testing.T) {
+		span := NewMockSpan()
+		SetLLMAttributes(span)
+		assert.Equal(t, SpanKindLLM, span.Attributes[attribute.Key(GenAISpanKindKey)].AsString())
+		assert.Equal(t, "chat", span.Attributes[attribute.Key(GenAIOperationNameKey)].AsString())
+	})
+
+	t.Run("Tool", func(t *testing.T) {
+		span := NewMockSpan()
+		SetToolAttributes(span, "my-tool")
+		assert.Equal(t, SpanKindTool, span.Attributes[attribute.Key(GenAISpanKindKey)].AsString())
+		assert.Equal(t, "execute_tool", span.Attributes[attribute.Key(GenAIOperationNameKey)].AsString())
+		assert.Equal(t, "my-tool", span.Attributes[attribute.Key(GenAIToolNameKey)].AsString())
+	})
+
+	t.Run("Agent", func(t *testing.T) {
+		span := NewMockSpan()
+		SetAgentAttributes(span, "my-agent")
+		assert.Equal(t, "my-agent", span.Attributes[attribute.Key(GenAIAgentNameKey)].AsString())
+		assert.Equal(t, "my-agent", span.Attributes[attribute.Key(AgentNameKey)].AsString())
+		assert.Equal(t, "my-agent", span.Attributes[attribute.Key(AgentNameDotKey)].AsString())
+	})
 }

@@ -63,8 +63,8 @@ func (p *SpanEnrichmentProcessor) OnEnd(s sdktrace.ReadOnlySpan) {
 	var metricAttrs []attribute.KeyValue
 	for _, kv := range attrs {
 		// Map specific trace attributes to metric dimensions
-		if kv.Key == AttrGenAIRequestModel {
-			metricAttrs = append(metricAttrs, attribute.String(AttrGenAIRequestModel, kv.Value.AsString()))
+		if kv.Key == GenAIRequestModelKey {
+			metricAttrs = append(metricAttrs, attribute.String(GenAIRequestModelKey, kv.Value.AsString()))
 		}
 	}
 
@@ -75,9 +75,9 @@ func (p *SpanEnrichmentProcessor) OnEnd(s sdktrace.ReadOnlySpan) {
 		var input, output int64
 		for _, kv := range attrs {
 			switch kv.Key {
-			case AttrGenAIUsageInputTokens, AttrGenAIResponsePromptTokenCount:
+			case GenAIUsageInputTokensKey, GenAIResponsePromptTokenCountKey:
 				input = kv.Value.AsInt64()
-			case AttrGenAIUsageOutputTokens, AttrGenAIResponseCandidatesTokenCount:
+			case GenAIUsageOutputTokensKey, GenAIResponseCandidatesTokenCountKey:
 				output = kv.Value.AsInt64()
 			}
 		}

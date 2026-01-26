@@ -78,6 +78,10 @@ func setupLocalTracer(ctx context.Context, cfg *configs.OpenTelemetryConfig) err
 	log.Info("Registered SpanEnrichmentProcessor for ADK Local TracerProvider")
 	AddSpanProcessor(&SpanEnrichmentProcessor{})
 
+	if cfg == nil {
+		return nil
+	}
+
 	exp, err := exporter.NewMultiExporter(ctx, cfg)
 	if err != nil {
 		return err
@@ -118,13 +122,16 @@ func initializeTraceProvider(ctx context.Context, cfg *configs.OpenTelemetryConf
 }
 
 func initializeMeterProvider(ctx context.Context, cfg *configs.OpenTelemetryConfig) error {
+	if cfg == nil {
+		return nil
+	}
 	readers, err := exporter.NewMetricReader(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	RegisterLocalMetrics(readers)
 
-	if cfg != nil && cfg.EnableGlobalProvider {
+	if cfg.EnableGlobalProvider {
 		globalReaders, err := exporter.NewMetricReader(ctx, cfg)
 		if err != nil {
 			return err

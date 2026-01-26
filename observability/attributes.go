@@ -26,34 +26,28 @@ import (
 // SetCommonAttributes enriches the span with common attributes from context, config, or env.
 func SetCommonAttributes(ctx context.Context, span trace.Span) {
 	// 1. Fixed attributes
-	span.SetAttributes(attribute.String(AttrCozeloopReportSource, DefaultCozeLoopReportSource))
+	span.SetAttributes(attribute.String(CozeloopReportSourceKey, DefaultCozeLoopReportSource))
 
-	// 2. Dynamic attributes from context/config/env
-	attrs := []struct {
-		key      string
-		val      string
-		fallback string
-		aliases  []string // Platform-specific aliases for compatibility
-	}{
-		{AttrGenAISystem, GetModelProvider(ctx), FallbackModelProvider, nil},
-		{AttrGenAISystemVersion, Version, "", []string{AttrInstrumentation}},
-		{AttrCozeloopCallType, GetCallType(ctx), DefaultCozeLoopCallType, nil},
-		{AttrGenAISessionId, GetSessionId(ctx), FallbackSessionID, []string{AttrSessionId}},
-		{AttrGenAIUserId, GetUserId(ctx), FallbackUserID, []string{AttrUserId}},
-		{AttrGenAIAppName, GetAppName(ctx), FallbackAppName, []string{AttrAppNameUnderline, AttrAppNameDot}},
-		{AttrGenAIInvocationId, GetInvocationId(ctx), "", []string{AttrInvocationId}},
+	// 2. Dynamic attributes
+	setDynamicAttribute(span, GenAISystemKey, GetModelProvider(ctx), FallbackModelProvider)
+	setDynamicAttribute(span, GenAISystemVersionKey, Version, "", InstrumentationKey)
+	setDynamicAttribute(span, CozeloopCallTypeKey, GetCallType(ctx), DefaultCozeLoopCallType)
+	setDynamicAttribute(span, GenAISessionIdKey, GetSessionId(ctx), FallbackSessionID, SessionIdDotKey)
+	setDynamicAttribute(span, GenAIUserIdKey, GetUserId(ctx), FallbackUserID, UserIdDotKey)
+	setDynamicAttribute(span, GenAIAppNameKey, GetAppName(ctx), FallbackAppName, AppNameUnderlineKey, AppNameDotKey)
+	setDynamicAttribute(span, GenAIInvocationIdKey, GetInvocationId(ctx), "", InvocationIdDotKey)
+}
+
+// setDynamicAttribute sets an attribute and its aliases if the value is not empty (or falls back to a default).
+func setDynamicAttribute(span trace.Span, key string, val string, fallback string, aliases ...string) {
+	v := val
+	if v == "" {
+		v = fallback
 	}
-
-	for _, attr := range attrs {
-		v := attr.val
-		if v == "" {
-			v = attr.fallback
-		}
-		if v != "" {
-			span.SetAttributes(attribute.String(attr.key, v))
-			for _, alias := range attr.aliases {
-				span.SetAttributes(attribute.String(alias, v))
-			}
+	if v != "" {
+		span.SetAttributes(attribute.String(key, v))
+		for _, alias := range aliases {
+			span.SetAttributes(attribute.String(alias, v))
 		}
 	}
 }
@@ -61,34 +55,34 @@ func SetCommonAttributes(ctx context.Context, span trace.Span) {
 // SetLLMAttributes sets standard GenAI attributes for LLM spans.
 func SetLLMAttributes(span trace.Span) {
 	span.SetAttributes(
-		attribute.String(AttrGenAISpanKind, SpanKindLLM),
-		attribute.String(AttrGenAIOperationName, "chat"),
+		attribute.String(GenAISpanKindKey, SpanKindLLM),
+		attribute.String(GenAIOperationNameKey, "chat"),
 	)
 }
 
 // SetToolAttributes sets standard GenAI attributes for Tool spans.
 func SetToolAttributes(span trace.Span, name string) {
 	span.SetAttributes(
-		attribute.String(AttrGenAISpanKind, SpanKindTool),
-		attribute.String(AttrGenAIOperationName, "execute_tool"),
-		attribute.String(AttrGenAIToolName, name),
+		attribute.String(GenAISpanKindKey, SpanKindTool),
+		attribute.String(GenAIOperationNameKey, "execute_tool"),
+		attribute.String(GenAIToolNameKey, name),
 	)
 }
 
 // SetAgentAttributes sets standard GenAI attributes for Agent spans.
 func SetAgentAttributes(span trace.Span, name string) {
 	span.SetAttributes(
-		attribute.String(AttrGenAIAgentName, name),
-		attribute.String(AttrAgentName, name),    // Alias: agent_name
-		attribute.String(AttrAgentNameDot, name), // Alias: agent.name
+		attribute.String(GenAIAgentNameKey, name),
+		attribute.String(AgentNameKey, name),    // Alias: agent_name
+		attribute.String(AgentNameDotKey, name), // Alias: agent.name
 	)
 }
 
 // SetWorkflowAttributes sets standard GenAI attributes for Workflow/Root spans.
 func SetWorkflowAttributes(span trace.Span) {
 	span.SetAttributes(
-		attribute.String(AttrGenAISpanKind, SpanKindWorkflow),
-		attribute.String(AttrGenAIOperationName, "invocation"),
+		attribute.String(GenAISpanKindKey, SpanKindWorkflow),
+		attribute.String(GenAIOperationNameKey, "invocation"),
 	)
 }
 

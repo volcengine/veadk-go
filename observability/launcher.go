@@ -68,7 +68,7 @@ func TraceRun(ctx context.Context, userID, sessionID string, msg any, fn func(co
 	SetCommonAttributes(tracedCtx, span)
 
 	if jsonIn, err := json.Marshal(msg); err == nil {
-		span.SetAttributes(attribute.String(AttrGenAIInputValue, string(jsonIn)))
+		span.SetAttributes(attribute.String(GenAIInputValueKey, string(jsonIn)))
 	}
 
 	return func(yield func(*session.Event, error) bool) {
