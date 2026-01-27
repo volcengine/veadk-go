@@ -93,6 +93,7 @@ func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 		MemoryService:   config.MemoryService,
 		AgentLoader:     config.AgentLoader,
 		A2AOptions:      config.A2AOptions,
+		PluginConfig:    config.PluginConfig,
 	}
 
 	// setup webui routers

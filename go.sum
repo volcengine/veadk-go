@@ -220,8 +220,8 @@ golang.org/x/tools v0.38.0/go.mod h1:yEsQ/d/YK8cjh0L6rZlY8tgtlKiBNTL14pGDJPJpYQs
 golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
 gonum.org/v1/gonum v0.16.0 h1:5+ul4Swaf3ESvrOnidPp4GZbzf0mxVQpDCYUQE7OJfk=
 gonum.org/v1/gonum v0.16.0/go.mod h1:fef3am4MQ93R2HHpKnLk4/Tbh/s0+wqD5nfa6Pnwy4E=
-google.golang.org/adk v0.3.1-0.20260113130926-012d380e4056 h1:SfDR+nm6VdVjSsvKbHGAV/B6csmMge24nqQBSbJi5Go=
-google.golang.org/adk v0.3.1-0.20260113130926-012d380e4056/go.mod h1:iE1Kgc8JtYHiNxfdLa9dxcV4DqTn0D8q4eqhBi012Ak=
+google.golang.org/adk v0.3.1-0.20260123125504-aec89487da29 h1:xYzqSSpn/WhNVyiieXnvYLGKPRJk4cJFgImrhsA9Pi4=
+google.golang.org/adk v0.3.1-0.20260123125504-aec89487da29/go.mod h1:jVeb7Ir53+3XKTncdY7k3pVdPneKcm5+60sXpxHQnao=
 google.golang.org/appengine v1.1.0/go.mod h1:EbEs0AVv82hx2wNQdGPgUI5lhzA/G0D9YwlJXL52JkM=
 google.golang.org/appengine v1.4.0/go.mod h1:xpcJRLb0r/rnEns0DIKYYv+WjYCduHsrkT7/EB5XEv4=
 google.golang.org/genai v1.40.0 h1:kYxyQSH+vsib8dvsgyLJzsVEIv5k3ZmHJyVqdvGncmc=

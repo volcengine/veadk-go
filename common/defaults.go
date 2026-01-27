@@ -69,6 +69,12 @@ const (
 	DEFAULT_AGENTKIT_TOOL_SERVICE_CODE = "agentkit"
 )
 
+// prompt pilot
 const (
 	DEFAULT_AGENTPILOT_API_URL = "https://prompt-pilot.cn-beijing.volces.com"
+)
+
+// LLM Shield
+const (
+	DEFAULT_LLM_SHIELD_REGION = "cn-beijing"
 )

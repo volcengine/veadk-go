@@ -16,10 +16,13 @@ package veauth
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"strings"
 
 	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/configs"
+	"github.com/volcengine/veadk-go/utils"
 )
 
 type VeIAMCredential struct {
@@ -49,4 +52,21 @@ func RefreshAKSK(accessKey string, secretKey string) (VeIAMCredential, error) {
 		return VeIAMCredential{AccessKeyID: accessKey, SecretAccessKey: secretKey, SessionToken: ""}, nil
 	}
 	return GetCredentialFromVeFaaSIAM()
+}
+
+func GetAuthInfo() (ak, sk, sessionToken string) {
+	ak = utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
+	sk = utils.GetEnvWithDefault(common.VOLCENGINE_SECRET_KEY, configs.GetGlobalConfig().Volcengine.SK)
+
+	if strings.TrimSpace(ak) == "" || strings.TrimSpace(sk) == "" {
+		iam, err := GetCredentialFromVeFaaSIAM()
+		if err != nil {
+			log.Printf("GetAuthInfo error: %s\n", err.Error())
+		} else {
+			ak = iam.AccessKeyID
+			sk = iam.SecretAccessKey
+			sessionToken = iam.SessionToken
+		}
+	}
+	return
 }

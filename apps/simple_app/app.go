@@ -78,6 +78,7 @@ func (app *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunC
 		SessionService:  sessionService,
 		ArtifactService: config.ArtifactService,
 		MemoryService:   config.MemoryService,
+		PluginConfig:    config.PluginConfig,
 	})
 	if err != nil {
 		return fmt.Errorf("new runner error: %w", err)
