@@ -69,6 +69,7 @@ func SetupVeADKConfig() error {
 		Tool: &BuiltinToolConfigs{
 			MCPRouter: &MCPRouter{},
 			RunCode:   &RunCode{},
+			LLMShield: &LLMShield{},
 		},
 		PromptPilot: &PromptPilotConfig{},
 		TlsConfig:   &TLSConfig{},

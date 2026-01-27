@@ -22,11 +22,13 @@ import (
 type BuiltinToolConfigs struct {
 	MCPRouter *MCPRouter `yaml:"mcp_router"`
 	RunCode   *RunCode   `yaml:"run_code"`
+	LLMShield *LLMShield `yaml:"llm_shield"`
 }
 
 func (b *BuiltinToolConfigs) MapEnvToConfig() {
 	b.MCPRouter.MapEnvToConfig()
 	b.RunCode.MapEnvToConfig()
+	b.LLMShield.MapEnvToConfig()
 }
 
 type MCPRouter struct {
@@ -51,4 +53,18 @@ func (r *RunCode) MapEnvToConfig() {
 	r.Host = utils.GetEnvWithDefault(common.AGENTKIT_TOOL_HOST)
 	r.ServiceCode = utils.GetEnvWithDefault(common.AGENTKIT_TOOL_SERVICE_CODE)
 	r.Region = utils.GetEnvWithDefault(common.AGENTKIT_TOOL_REGION)
+}
+
+type LLMShield struct {
+	Url    string `yaml:"url"`
+	Region string `yaml:"region"`
+	AppId  string `yaml:"app_id"`
+	ApiKey string `yaml:"api_key"`
+}
+
+func (r *LLMShield) MapEnvToConfig() {
+	r.Url = utils.GetEnvWithDefault(common.TOOL_LLM_SHIELD_URL)
+	r.Region = utils.GetEnvWithDefault(common.TOOL_LLM_SHIELD_REGION)
+	r.ApiKey = utils.GetEnvWithDefault(common.TOOL_LLM_SHIELD_API_KEY)
+	r.AppId = utils.GetEnvWithDefault(common.TOOL_LLM_SHIELD_APP_ID)
 }

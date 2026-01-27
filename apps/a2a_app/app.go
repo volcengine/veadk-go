@@ -96,6 +96,7 @@ func (a *agentkitA2AServerApp) SetupRouters(router *mux.Router, config *apps.Run
 			SessionService:  config.SessionService,
 			ArtifactService: config.ArtifactService,
 			MemoryService:   config.MemoryService,
+			PluginConfig:    config.PluginConfig,
 		},
 	})
 	reqHandler := a2asrv.NewHandler(executor, config.A2AOptions...)
