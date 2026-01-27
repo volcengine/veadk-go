@@ -83,7 +83,7 @@ func SetAgentAttributes(span trace.Span, name string) {
 func SetWorkflowAttributes(span trace.Span) {
 	span.SetAttributes(
 		attribute.String(GenAISpanKindKey, SpanKindWorkflow),
-		attribute.String(GenAIOperationNameKey, "invocation"),
+		attribute.String(GenAIOperationNameKey, "chain"),
 	)
 }
 

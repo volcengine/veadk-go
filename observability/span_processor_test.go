@@ -84,14 +84,14 @@ func TestSpanEnrichmentProcessor(t *testing.T) {
 		var foundToken, foundDuration bool
 		for _, sm := range rm.ScopeMetrics {
 			for _, m := range sm.Metrics {
-				if m.Name == MetricNameTokenUsage {
-					data := m.Data.(metricdata.Sum[int64])
+				if m.Name == MetricNameLLMTokenUsage {
+					data := m.Data.(metricdata.Histogram[float64])
 					// We expect at least some data points
 					if len(data.DataPoints) > 0 {
 						foundToken = true
 					}
 				}
-				if m.Name == MetricNameOperationDuration {
+				if m.Name == MetricNameLLMOperationDuration {
 					foundDuration = true
 				}
 			}

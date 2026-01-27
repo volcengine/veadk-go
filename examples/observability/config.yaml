@@ -1,6 +1,5 @@
 observability:
   opentelemetry:
-    enable_global_provider: true  # Enable global OTel provider (optional)
     cozeloop:
       endpoint: "https://api.coze.cn/v1/loop/opentelemetry/v1/traces"
       api_key: "YOUR_COZE_API_KEY"

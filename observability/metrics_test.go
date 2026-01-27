@@ -47,15 +47,17 @@ func TestMetricsRecording(t *testing.T) {
 		var foundInput, foundOutput bool
 		for _, sm := range rm.ScopeMetrics {
 			for _, m := range sm.Metrics {
-				if m.Name == MetricNameTokenUsage {
-					data := m.Data.(metricdata.Sum[int64])
+				if m.Name == MetricNameLLMTokenUsage {
+					data := m.Data.(metricdata.Histogram[float64])
 					for _, dp := range data.DataPoints {
 						dir, _ := dp.Attributes.Value("token.direction")
 						if dir.AsString() == "input" {
-							assert.Equal(t, int64(10), dp.Value)
+							assert.Equal(t, uint64(1), dp.Count)
+							assert.Equal(t, 10.0, dp.Sum)
 							foundInput = true
 						} else if dir.AsString() == "output" {
-							assert.Equal(t, int64(20), dp.Value)
+							assert.Equal(t, uint64(1), dp.Count)
+							assert.Equal(t, 20.0, dp.Sum)
 							foundOutput = true
 						}
 					}
@@ -76,7 +78,7 @@ func TestMetricsRecording(t *testing.T) {
 		var found bool
 		for _, sm := range rm.ScopeMetrics {
 			for _, m := range sm.Metrics {
-				if m.Name == MetricNameOperationDuration {
+				if m.Name == MetricNameLLMOperationDuration {
 					data := m.Data.(metricdata.Histogram[float64])
 					for _, dp := range data.DataPoints {
 						if dp.Count > 0 {
@@ -91,8 +93,8 @@ func TestMetricsRecording(t *testing.T) {
 		assert.True(t, found, "Operation duration not found")
 	})
 
-	t.Run("RecordFirstTokenLatency", func(t *testing.T) {
-		RecordFirstTokenLatency(ctx, 0.5, attrs...)
+	t.Run("RecordStreamingTimeToFirstToken", func(t *testing.T) {
+		RecordStreamingTimeToFirstToken(ctx, 0.1, attrs...)
 
 		var rm metricdata.ResourceMetrics
 		err := reader.Collect(ctx, &rm)
@@ -101,19 +103,169 @@ func TestMetricsRecording(t *testing.T) {
 		var found bool
 		for _, sm := range rm.ScopeMetrics {
 			for _, m := range sm.Metrics {
-				if m.Name == MetricNameFirstTokenLatency {
+				if m.Name == MetricNameLLMStreamingTimeToFirstToken {
 					data := m.Data.(metricdata.Histogram[float64])
 					for _, dp := range data.DataPoints {
 						if dp.Count > 0 {
 							assert.Equal(t, uint64(1), dp.Count)
-							assert.Equal(t, 0.5, dp.Sum)
+							assert.Equal(t, 0.1, dp.Sum)
 							found = true
 						}
 					}
 				}
 			}
 		}
-		assert.True(t, found, "First token latency not found")
+		assert.True(t, found, "Streaming time to first token not found")
+	})
+
+	t.Run("RecordStreamingTimeToGenerate", func(t *testing.T) {
+		RecordStreamingTimeToGenerate(ctx, 2.0, attrs...)
+
+		var rm metricdata.ResourceMetrics
+		err := reader.Collect(ctx, &rm)
+		assert.NoError(t, err)
+
+		var found bool
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				if m.Name == MetricNameLLMStreamingTimeToGenerate {
+					data := m.Data.(metricdata.Histogram[float64])
+					for _, dp := range data.DataPoints {
+						if dp.Count > 0 {
+							assert.Equal(t, uint64(1), dp.Count)
+							assert.Equal(t, 2.0, dp.Sum)
+							found = true
+						}
+					}
+				}
+			}
+		}
+		assert.True(t, found, "Streaming time to generate not found")
+	})
+
+	t.Run("RecordStreamingTimePerOutputToken", func(t *testing.T) {
+		RecordStreamingTimePerOutputToken(ctx, 0.05, attrs...)
+
+		var rm metricdata.ResourceMetrics
+		err := reader.Collect(ctx, &rm)
+		assert.NoError(t, err)
+
+		var found bool
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				if m.Name == MetricNameLLMStreamingTimePerOutputToken {
+					data := m.Data.(metricdata.Histogram[float64])
+					for _, dp := range data.DataPoints {
+						if dp.Count > 0 {
+							assert.Equal(t, uint64(1), dp.Count)
+							assert.Equal(t, 0.05, dp.Sum)
+							found = true
+						}
+					}
+				}
+			}
+		}
+		assert.True(t, found, "Streaming time per output token not found")
+	})
+
+	t.Run("RecordLLMInvocation", func(t *testing.T) {
+		RecordLLMInvocation(ctx, attrs...)
+
+		var rm metricdata.ResourceMetrics
+		err := reader.Collect(ctx, &rm)
+		assert.NoError(t, err)
+
+		var found bool
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				if m.Name == MetricNameLLMChatCount {
+					data := m.Data.(metricdata.Sum[int64])
+					for _, dp := range data.DataPoints {
+						assert.Equal(t, int64(1), dp.Value)
+						found = true
+					}
+				}
+			}
+		}
+		assert.True(t, found, "LLM invocation not found")
+	})
+
+	t.Run("RecordChatException", func(t *testing.T) {
+		RecordChatException(ctx, attrs...)
+
+		var rm metricdata.ResourceMetrics
+		err := reader.Collect(ctx, &rm)
+		assert.NoError(t, err)
+
+		var found bool
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				if m.Name == MetricNameLLMCompletionsExceptions {
+					data := m.Data.(metricdata.Sum[int64])
+					for _, dp := range data.DataPoints {
+						assert.Equal(t, int64(1), dp.Value)
+						found = true
+					}
+				}
+			}
+		}
+		assert.True(t, found, "Chat exception not found")
+	})
+
+	t.Run("RecordAPMPlusSpanLatency", func(t *testing.T) {
+		RecordAPMPlusSpanLatency(ctx, 1.0, attrs...)
+
+		var rm metricdata.ResourceMetrics
+		err := reader.Collect(ctx, &rm)
+		assert.NoError(t, err)
+
+		var found bool
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				if m.Name == MetricNameAPMPlusSpanLatency {
+					data := m.Data.(metricdata.Histogram[float64])
+					for _, dp := range data.DataPoints {
+						if dp.Count > 0 {
+							assert.Equal(t, uint64(1), dp.Count)
+							assert.Equal(t, 1.0, dp.Sum)
+							found = true
+						}
+					}
+				}
+			}
+		}
+		assert.True(t, found, "APMPlus span latency not found")
+	})
+
+	t.Run("RecordAPMPlusToolTokenUsage", func(t *testing.T) {
+		RecordAPMPlusToolTokenUsage(ctx, 5, 10, attrs...)
+
+		var rm metricdata.ResourceMetrics
+		err := reader.Collect(ctx, &rm)
+		assert.NoError(t, err)
+
+		var foundInput, foundOutput bool
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				if m.Name == MetricNameAPMPlusToolTokenUsage {
+					data := m.Data.(metricdata.Histogram[float64])
+					for _, dp := range data.DataPoints {
+						dir, _ := dp.Attributes.Value("token.direction")
+						if dir.AsString() == "input" {
+							assert.Equal(t, uint64(1), dp.Count)
+							assert.Equal(t, 5.0, dp.Sum)
+							foundInput = true
+						} else if dir.AsString() == "output" {
+							assert.Equal(t, uint64(1), dp.Count)
+							assert.Equal(t, 10.0, dp.Sum)
+							foundOutput = true
+						}
+					}
+				}
+			}
+		}
+		assert.True(t, foundInput, "APMPlus tool input tokens not found")
+		assert.True(t, foundOutput, "APMPlus tool output tokens not found")
 	})
 }
 

@@ -56,9 +56,18 @@ const (
 
 // Metric names
 const (
-	MetricNameTokenUsage        = "gen_ai.client.token.usage"
-	MetricNameOperationDuration = "gen_ai.client.operation.duration"
-	MetricNameFirstTokenLatency = "gen_ai.client.token.first_token_latency"
+	// Standard Gen AI Metrics
+	MetricNameLLMChatCount                   = "gen_ai.chat.count"
+	MetricNameLLMTokenUsage                  = "gen_ai.client.token.usage"
+	MetricNameLLMOperationDuration           = "gen_ai.client.operation.duration"
+	MetricNameLLMCompletionsExceptions       = "gen_ai.chat_completions.exceptions"
+	MetricNameLLMStreamingTimeToFirstToken   = "gen_ai.chat_completions.streaming_time_to_first_token"
+	MetricNameLLMStreamingTimeToGenerate     = "gen_ai.chat_completions.streaming_time_to_generate"
+	MetricNameLLMStreamingTimePerOutputToken = "gen_ai.chat_completions.streaming_time_per_output_token"
+
+	// APMPlus Custom Metrics
+	MetricNameAPMPlusSpanLatency    = "apmplus_span_latency"
+	MetricNameAPMPlusToolTokenUsage = "apmplus_tool_token_usage"
 )
 
 // General attributes
