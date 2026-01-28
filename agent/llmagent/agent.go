@@ -27,7 +27,9 @@ import (
 	"github.com/volcengine/veadk-go/utils"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
+	adkModel "google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
+	"google.golang.org/genai"
 )
 
 type Config struct {
@@ -38,6 +40,7 @@ type Config struct {
 	ModelAPIKey      string
 	ModelExtraConfig map[string]any
 	KnowledgeBase    *knowledgebase.KnowledgeBase
+	EnableThought bool
 }
 
 func New(cfg *Config) (agent.Agent, error) {
@@ -50,7 +53,10 @@ func New(cfg *Config) (agent.Agent, error) {
 	if cfg.Description == "" {
 		cfg.Description = prompts.DEFAULT_DESCRIPTION
 	}
-
+	// default filtering of thought content in openai compatible LLMs
+	if !cfg.EnableThought {
+		cfg.AfterModelCallbacks = []llmagent.AfterModelCallback{ThoughtFilterCallback}
+	}
 	if cfg.Model == nil {
 		if cfg.ModelName == "" {
 			cfg.ModelName = utils.GetEnvWithDefault(common.MODEL_AGENT_NAME, configs.GetGlobalConfig().Model.Agent.Name, common.DEFAULT_MODEL_AGENT_NAME)
@@ -85,4 +91,33 @@ func New(cfg *Config) (agent.Agent, error) {
 		cfg.Tools = append(cfg.Tools, knowledgeTool)
 	}
 	return llmagent.New(cfg.Config)
+}
+
+// ThoughtFilterCallback flexible control over thought visibility
+func ThoughtFilterCallback(ctx agent.CallbackContext, llmResponse *adkModel.LLMResponse, llmResponseError error) (*adkModel.LLMResponse, error) {
+	if llmResponseError != nil || llmResponse == nil || llmResponse.Content == nil {
+		return nil, nil
+	}
+
+	var filteredParts []*genai.Part
+	hasThought := false
+
+	for _, part := range llmResponse.Content.Parts {
+		if !part.Thought {
+			filteredParts = append(filteredParts, part)
+		} else {
+			hasThought = true
+		}
+	}
+
+	if hasThought {
+		newResponse := *llmResponse
+		newResponse.Content = &genai.Content{
+			Role:  llmResponse.Content.Role,
+			Parts: filteredParts,
+		}
+		return &newResponse, nil
+	}
+
+	return nil, nil
 }
