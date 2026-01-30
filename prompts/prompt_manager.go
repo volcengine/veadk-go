@@ -32,22 +32,20 @@ var (
 	ErrNilCozeLoopApiToken    = errors.New("coze loop api token is nil, Please configure it via environment COZELOOP_API_TOKEN")
 )
 
-type PromptGetParam struct {
-	PromptKey string
-	Version   string
-	Label     string
-}
-
 type BasePromptManager interface {
-	GetPrompt(args *PromptGetParam) string
+	GetPrompt(args ...string) string
 }
 
 type CozeLoopPromptManager struct {
-	client cozeloop.Client
+	promptKey string
+	version   string
+	label     string
+	client    cozeloop.Client
 }
 
 // NewCozeLoopPromptManager creates a new instance of CozeLoopPromptManager
-func NewCozeLoopPromptManager() (*CozeLoopPromptManager, error) {
+// 参数说明 ：https://loop.coze.cn/open/docs/cozeloop/prompt-version-tag-for-go-sdk
+func NewCozeLoopPromptManager(promptKey, version, label string) (*CozeLoopPromptManager, error) {
 	workspaceId := utils.GetEnvWithDefault(common.COZELOOP_WORKSPACE_ID, configs.GetGlobalConfig().CozeLoopConfig.WorkspaceId)
 	if strings.TrimSpace(workspaceId) == "" {
 		return nil, ErrNilCozeLoopWorkspaceID
@@ -65,14 +63,29 @@ func NewCozeLoopPromptManager() (*CozeLoopPromptManager, error) {
 		return nil, fmt.Errorf("NewCozeLoopPromptManager failed: %v", err)
 	}
 	return &CozeLoopPromptManager{
-		client: client,
+		promptKey: promptKey,
+		version:   version,
+		label:     label,
+		client:    client,
 	}, nil
 }
 
 // GetPrompt retrieves the prompt from CozeLoop
 // 参数说明 ：https://loop.coze.cn/open/docs/cozeloop/prompt-version-tag-for-go-sdk
-// promptKey, version, label string
-func (m *CozeLoopPromptManager) GetPrompt(args *PromptGetParam) string {
+// promptKey, version, label string 按顺序写入，可以覆盖配置参数
+func (m *CozeLoopPromptManager) GetPrompt(args ...string) string {
+	promptKey := m.promptKey
+	if len(args) >= 1 {
+		promptKey = args[0]
+	}
+	version := m.version
+	if len(args) >= 2 {
+		version = args[1]
+	}
+	label := m.label
+	if len(args) >= 3 {
+		label = args[2]
+	}
 
 	if m.client == nil {
 		log.Println("CozeLoop client is not initialized")
@@ -80,9 +93,9 @@ func (m *CozeLoopPromptManager) GetPrompt(args *PromptGetParam) string {
 	}
 
 	pmt, err := m.client.GetPrompt(context.Background(), cozeloop.GetPromptParam{
-		PromptKey: args.PromptKey,
-		Version:   args.Version,
-		Label:     args.Label,
+		PromptKey: promptKey,
+		Version:   version,
+		Label:     label,
 	})
 
 	// Check if prompt is valid and has content
@@ -95,7 +108,7 @@ func (m *CozeLoopPromptManager) GetPrompt(args *PromptGetParam) string {
 	}
 
 	log.Printf("Prompt %s version %s label %s not found, get prompt result is %v, return default instruction\n",
-		args.PromptKey, args.Version, args.Label, pmt)
+		promptKey, version, label, pmt)
 
 	return DEFAULT_INSTRUCTION
 }
