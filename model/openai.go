@@ -577,7 +577,7 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 					}
 				}
 			}
-			
+
 			if delta.Content != nil {
 				if text, ok := delta.Content.(string); ok && text != "" {
 					textBuffer.WriteString(text)
@@ -760,7 +760,7 @@ func (m *openAIModel) buildFinalResponse(text string, reasoningText string, tool
 			Thought: true,
 		})
 	}
-	
+
 	if text != "" {
 		parts = append(parts, genai.NewPartFromText(text))
 	}
