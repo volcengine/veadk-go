@@ -103,7 +103,6 @@ func GetArkToken(region string) (string, error) {
 
 	firstApiKeyId := listResp.Result.Items[0].ID
 	log.Println("By default, VeADK fetches the first API Key in the list.")
-	log.Printf("Try to fetch ARK API Key with id=%d, name=%s\n", firstApiKeyId, listResp.Result.Items[0].Name)
 
 	// GetRawApiKey
 	req2 := ve_sign.VeRequest{
@@ -138,11 +137,7 @@ func GetArkToken(region string) (string, error) {
 		return "", fmt.Errorf("failed to get ARK api key: key not found in response")
 	}
 
-	if len(apiKey) >= 8 {
-		log.Printf("Successfully fetched ARK API Key (starts with %s).\n", apiKey[:8])
-	} else {
-		log.Println("Successfully fetched ARK API Key.")
-	}
+	log.Println("Successfully fetched ARK API Key.")
 
 	return apiKey, nil
 }

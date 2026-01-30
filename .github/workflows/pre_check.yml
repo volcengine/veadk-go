@@ -12,6 +12,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  actions: read
+  checks: write
+  pull-requests: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -23,7 +29,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 #v6
         with:
           install-mode: goinstall
           version: latest
