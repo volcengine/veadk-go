@@ -26,14 +26,15 @@ import (
 )
 
 type VeADKConfig struct {
-	Volcengine  *Volcengine         `yaml:"volcengine"`
-	Model       *ModelConfig        `yaml:"model"`
-	Tool        *BuiltinToolConfigs `yaml:"tools"`
-	PromptPilot *PromptPilotConfig  `yaml:"prompt_pilot"`
-	TlsConfig   *TLSConfig          `yaml:"tls_config"`
-	Veidentity  *VeIdentityConfig   `yaml:"veidentity"`
-	Database    *DatabaseConfig     `yaml:"database"`
-	LOGGING     *Logging            `yaml:"LOGGING"`
+	Volcengine     *Volcengine         `yaml:"volcengine"`
+	Model          *ModelConfig        `yaml:"model"`
+	Tool           *BuiltinToolConfigs `yaml:"tools"`
+	PromptPilot    *PromptPilotConfig  `yaml:"prompt_pilot"`
+	CozeLoopConfig *CozeLoopConfig     `yaml:"coze_loop"`
+	TlsConfig      *TLSConfig          `yaml:"tls_config"`
+	Veidentity     *VeIdentityConfig   `yaml:"veidentity"`
+	Database       *DatabaseConfig     `yaml:"database"`
+	LOGGING        *Logging            `yaml:"LOGGING"`
 }
 
 type EnvConfigMaptoStruct interface {
@@ -71,10 +72,11 @@ func SetupVeADKConfig() error {
 			RunCode:   &RunCode{},
 			LLMShield: &LLMShield{},
 		},
-		PromptPilot: &PromptPilotConfig{},
-		TlsConfig:   &TLSConfig{},
-		Veidentity:  &VeIdentityConfig{},
-		LOGGING:     &Logging{},
+		PromptPilot:    &PromptPilotConfig{},
+		CozeLoopConfig: &CozeLoopConfig{},
+		TlsConfig:      &TLSConfig{},
+		Veidentity:     &VeIdentityConfig{},
+		LOGGING:        &Logging{},
 		Database: &DatabaseConfig{
 			Postgresql: &CommonDatabaseConfig{},
 			Viking:     &VikingConfig{},
@@ -85,6 +87,7 @@ func SetupVeADKConfig() error {
 	globalConfig.Model.MapEnvToConfig()
 	globalConfig.Tool.MapEnvToConfig()
 	globalConfig.PromptPilot.MapEnvToConfig()
+	globalConfig.CozeLoopConfig.MapEnvToConfig()
 	globalConfig.LOGGING.MapEnvToConfig()
 	globalConfig.Database.MapEnvToConfig()
 	globalConfig.Volcengine.MapEnvToConfig()

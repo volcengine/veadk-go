@@ -28,7 +28,6 @@ You excel at the following tasks:
 - Solve problems and bugs in code (e.g., Python, JavaScript, SQL, ...)
 - If necessary, using programming to solve various problems beyond development
 4. If user gives you tools, finish various tasks that can be accomplished using tools and available resources
-"""
 `
 
 	DEFAULT_DESCRIPTION = `An AI agent developed by the VeADK team, specialized in data science, documentation, and software development.`
