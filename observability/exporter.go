@@ -177,7 +177,6 @@ func NewFileExporter(ctx context.Context, cfg *configs.FileConfig) (trace.SpanEx
 // NewMultiExporter creates a span exporter that can export to multiple platforms simultaneously.
 func NewMultiExporter(ctx context.Context, cfg *configs.OpenTelemetryConfig) (trace.SpanExporter, error) {
 	var exporters []trace.SpanExporter
-	// 1. Explicit Exporter Types (Stdout/File)
 	if cfg.Stdout != nil && cfg.Stdout.Enable {
 		if exp, err := NewStdoutExporter(); err == nil {
 			exporters = append(exporters, exp)
@@ -192,20 +191,21 @@ func NewMultiExporter(ctx context.Context, cfg *configs.OpenTelemetryConfig) (tr
 		}
 	}
 
-	// 2. Platform Exporters (Can be multiple)
-	if cfg.CozeLoop != nil && cfg.CozeLoop.APIKey != "" {
-		if exp, err := NewCozeLoopExporter(ctx, cfg.CozeLoop); err == nil {
-			exporters = append(exporters, exp)
-			log.Info("Exporting spans to CozeLoop", "endpoint", cfg.CozeLoop.Endpoint, "service_name", cfg.CozeLoop.ServiceName)
-		}
-	}
-	if cfg.ApmPlus != nil && cfg.ApmPlus.APIKey != "" {
+	if cfg.ApmPlus != nil && cfg.ApmPlus.Endpoint != "" && cfg.ApmPlus.APIKey != "" {
 		if exp, err := NewAPMPlusExporter(ctx, cfg.ApmPlus); err == nil {
 			exporters = append(exporters, exp)
 			log.Info("Exporting spans to APMPlus", "endpoint", cfg.ApmPlus.Endpoint, "service_name", cfg.ApmPlus.ServiceName)
 		}
 	}
-	if cfg.TLS != nil && cfg.TLS.AccessKey != "" && cfg.TLS.SecretKey != "" {
+
+	if cfg.CozeLoop != nil && cfg.CozeLoop.Endpoint != "" && cfg.CozeLoop.APIKey != "" {
+		if exp, err := NewCozeLoopExporter(ctx, cfg.CozeLoop); err == nil {
+			exporters = append(exporters, exp)
+			log.Info("Exporting spans to CozeLoop", "endpoint", cfg.CozeLoop.Endpoint, "service_name", cfg.CozeLoop.ServiceName)
+		}
+	}
+
+	if cfg.TLS != nil && cfg.TLS.Endpoint != "" && cfg.TLS.AccessKey != "" && cfg.TLS.SecretKey != "" {
 		if exp, err := NewTLSExporter(ctx, cfg.TLS); err == nil {
 			exporters = append(exporters, exp)
 			log.Info("Exporting spans to TLS", "endpoint", cfg.TLS.Endpoint, "service_name", cfg.TLS.ServiceName)
@@ -213,6 +213,10 @@ func NewMultiExporter(ctx context.Context, cfg *configs.OpenTelemetryConfig) (tr
 	}
 
 	log.Debug("trace data will be exported", "exporter count", len(exporters))
+
+	if len(exporters) == 0 {
+		log.Info("No exporters to export observability data")
+	}
 
 	if len(exporters) == 1 {
 		return exporters[0], nil
@@ -263,7 +267,7 @@ func NewMetricReader(ctx context.Context, cfg *configs.OpenTelemetryConfig) ([]s
 		}
 	}
 
-	if cfg.ApmPlus != nil && cfg.ApmPlus.APIKey != "" {
+	if cfg.ApmPlus != nil && cfg.ApmPlus.Endpoint != "" && cfg.ApmPlus.APIKey != "" {
 		if exp, err := NewAPMPlusMetricExporter(ctx, cfg.ApmPlus); err == nil {
 			readers = append(readers, sdkmetric.NewPeriodicReader(exp))
 			log.Info("Exporting metrics to APMPlus", "endpoint", cfg.ApmPlus.Endpoint, "service_name", cfg.ApmPlus.ServiceName)
