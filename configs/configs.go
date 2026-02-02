@@ -21,34 +21,40 @@ import (
 	"strconv"
 	"strings"
 
+	"sync"
+
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
 )
 
 type VeADKConfig struct {
-	Volcengine     *Volcengine         `yaml:"volcengine"`
-	Model          *ModelConfig        `yaml:"model"`
-	Tool           *BuiltinToolConfigs `yaml:"tools"`
-	PromptPilot    *PromptPilotConfig  `yaml:"prompt_pilot"`
-	CozeLoopConfig *CozeLoopConfig     `yaml:"coze_loop"`
-	TlsConfig      *TLSConfig          `yaml:"tls_config"`
-	Veidentity     *VeIdentityConfig   `yaml:"veidentity"`
-	Database       *DatabaseConfig     `yaml:"database"`
-	LOGGING        *Logging            `yaml:"LOGGING"`
+	Volcengine     *Volcengine          `yaml:"volcengine"`
+	Model          *ModelConfig         `yaml:"model"`
+	Tool           *BuiltinToolConfigs  `yaml:"tools"`
+	PromptPilot    *PromptPilotConfig   `yaml:"prompt_pilot"`
+	CozeLoopConfig *CozeLoopConfig      `yaml:"coze_loop"`
+	TlsConfig      *TLSConfig           `yaml:"tls_config"`
+	Veidentity     *VeIdentityConfig    `yaml:"veidentity"`
+	Database       *DatabaseConfig      `yaml:"database"`
+	LOGGING        *Logging             `yaml:"LOGGING"`
+	Observability  *ObservabilityConfig `yaml:"observability"`
 }
 
 type EnvConfigMaptoStruct interface {
 	MapEnvToConfig() // 用于映射环境变量到结构体字段
 }
 
-var globalConfig *VeADKConfig
+var (
+	globalConfig *VeADKConfig
+	configOnce   sync.Once
+)
 
 func GetGlobalConfig() *VeADKConfig {
-	if globalConfig == nil {
+	configOnce.Do(func() {
 		if err := SetupVeADKConfig(); err != nil {
 			panic(err)
 		}
-	}
+	})
 	return globalConfig
 }
 
@@ -83,6 +89,12 @@ func SetupVeADKConfig() error {
 			TOS:        &TosClientConf{},
 			Mem0:       &Mem0Config{},
 		},
+		Observability: &ObservabilityConfig{
+			OpenTelemetry: &OpenTelemetryConfig{
+				EnableGlobalProvider: true,  // use global trace provider by default, like veadk-python
+				EnableLocalProvider:  false, // disable adk-go's local provider
+			},
+		},
 	}
 	globalConfig.Model.MapEnvToConfig()
 	globalConfig.Tool.MapEnvToConfig()
@@ -91,6 +103,7 @@ func SetupVeADKConfig() error {
 	globalConfig.LOGGING.MapEnvToConfig()
 	globalConfig.Database.MapEnvToConfig()
 	globalConfig.Volcengine.MapEnvToConfig()
+	globalConfig.Observability.MapEnvToConfig()
 	return nil
 }
 
@@ -152,6 +165,10 @@ func setYamlToEnv(data map[string]interface{}, prefix string) {
 		case int:
 			if os.Getenv(fullKey) == "" {
 				_ = os.Setenv(fullKey, strconv.Itoa(v))
+			}
+		case bool:
+			if os.Getenv(fullKey) == "" {
+				_ = os.Setenv(fullKey, strconv.FormatBool(v))
 			}
 		}
 	}

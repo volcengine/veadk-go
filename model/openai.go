@@ -99,6 +99,7 @@ func (m *openAIModel) GenerateContent(ctx context.Context, req *model.LLMRequest
 	if stream {
 		return m.generateStream(ctx, openaiReq)
 	}
+
 	return m.generate(ctx, openaiReq)
 }
 
@@ -111,8 +112,13 @@ type openAIRequest struct {
 	TopP           *float64        `json:"top_p,omitempty"`
 	Stop           []string        `json:"stop,omitempty"`
 	Stream         bool            `json:"stream,omitempty"`
+	StreamOptions  *streamOptions  `json:"stream_options,omitempty"`
 	ResponseFormat *responseFormat `json:"response_format,omitempty"`
 	ExtraBody      map[string]any
+}
+
+type streamOptions struct {
+	IncludeUsage bool `json:"include_usage,omitempty"`
 }
 
 func (r openAIRequest) MarshalJSON() ([]byte, error) {
@@ -140,6 +146,9 @@ func (r openAIRequest) MarshalJSON() ([]byte, error) {
 	}
 	if r.ResponseFormat != nil {
 		topLevel["response_format"] = r.ResponseFormat
+	}
+	if r.StreamOptions != nil {
+		topLevel["stream_options"] = r.StreamOptions
 	}
 
 	if r.ExtraBody != nil {
@@ -204,7 +213,9 @@ type choice struct {
 
 type usage struct {
 	PromptTokens        int                  `json:"prompt_tokens"`
+	InputTokens         int                  `json:"input_tokens"` // Ark-compatible field
 	CompletionTokens    int                  `json:"completion_tokens"`
+	OutputTokens        int                  `json:"output_tokens"` // Ark-compatible field
 	TotalTokens         int                  `json:"total_tokens"`
 	PromptTokensDetails *promptTokensDetails `json:"prompt_tokens_details,omitempty"`
 }
@@ -267,6 +278,8 @@ func (m *openAIModel) convertOpenAIRequest(req *model.LLMRequest) (*openAIReques
 			openaiReq.ResponseFormat = &responseFormat{Type: "json_object"}
 		}
 	}
+
+	openaiReq.StreamOptions = &streamOptions{IncludeUsage: true}
 
 	return openaiReq, nil
 }
@@ -529,10 +542,16 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 		}()
 
 		scanner := bufio.NewScanner(httpResp.Body)
+		// Set a larger buffer for the scanner to handle long SSE lines
+		const maxScannerBuffer = 1 * 1024 * 1024 // 1MB
+		scanner.Buffer(make([]byte, 64*1024), maxScannerBuffer)
+
 		var textBuffer strings.Builder
 		var reasoningBuffer strings.Builder
 		var toolCalls []toolCall
-		var usage *usage
+		var finalUsage usage
+		var usageFound bool
+		var finishedReason string
 
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -550,11 +569,19 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 				continue
 			}
 
+			if chunk.Usage != nil {
+				finalUsage = *chunk.Usage
+				usageFound = true
+			}
+
 			if len(chunk.Choices) == 0 {
 				continue
 			}
 
 			choice := chunk.Choices[0]
+			if choice.FinishReason != "" {
+				finishedReason = choice.FinishReason
+			}
 			delta := choice.Delta
 			if delta == nil {
 				continue
@@ -597,8 +624,8 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 			}
 
 			if len(delta.ToolCalls) > 0 {
-				for idx, tc := range delta.ToolCalls {
-					targetIdx := idx
+				for _, tc := range delta.ToolCalls {
+					targetIdx := 0
 					if tc.Index != nil {
 						targetIdx = *tc.Index
 					}
@@ -614,18 +641,10 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 					if tc.Function.Name != "" {
 						toolCalls[targetIdx].Function.Name += tc.Function.Name
 					}
-					toolCalls[targetIdx].Function.Arguments += tc.Function.Arguments
+					if tc.Function.Arguments != "" {
+						toolCalls[targetIdx].Function.Arguments += tc.Function.Arguments
+					}
 				}
-			}
-
-			if chunk.Usage != nil {
-				usage = chunk.Usage
-			}
-
-			if choice.FinishReason != "" {
-				finalResp := m.buildFinalResponse(textBuffer.String(), reasoningBuffer.String(), toolCalls, usage, choice.FinishReason)
-				yield(finalResp, nil)
-				return
 			}
 		}
 
@@ -634,8 +653,15 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 			return
 		}
 
-		if textBuffer.Len() > 0 || len(toolCalls) > 0 {
-			finalResp := m.buildFinalResponse(textBuffer.String(), reasoningBuffer.String(), toolCalls, usage, "stop")
+		if textBuffer.Len() > 0 || len(toolCalls) > 0 || finishedReason != "" || usageFound {
+			var u *usage
+			if usageFound {
+				u = &finalUsage
+			}
+			if finishedReason == "" {
+				finishedReason = "stop"
+			}
+			finalResp := m.buildFinalResponse(textBuffer.String(), reasoningBuffer.String(), toolCalls, u, finishedReason)
 			yield(finalResp, nil)
 		}
 	}
@@ -743,6 +769,9 @@ func (m *openAIModel) convertResponse(resp *response) (*model.LLMResponse, error
 			Role:  "model",
 			Parts: parts,
 		},
+		CustomMetadata: map[string]any{
+			"response_model": resp.Model,
+		},
 	}
 
 	llmResp.UsageMetadata = buildUsageMetadata(resp.Usage)
@@ -785,6 +814,9 @@ func (m *openAIModel) buildFinalResponse(text string, reasoningText string, tool
 		},
 		FinishReason:  mapFinishReason(finishReason),
 		UsageMetadata: buildUsageMetadata(usage),
+		CustomMetadata: map[string]any{
+			"response_model": m.name,
+		},
 	}
 
 	return llmResp
@@ -794,10 +826,24 @@ func buildUsageMetadata(usage *usage) *genai.GenerateContentResponseUsageMetadat
 	if usage == nil {
 		return nil
 	}
+
+	promptTokens := usage.PromptTokens
+	if promptTokens == 0 {
+		promptTokens = usage.InputTokens
+	}
+	completionTokens := usage.CompletionTokens
+	if completionTokens == 0 {
+		completionTokens = usage.OutputTokens
+	}
+	totalTokens := usage.TotalTokens
+	if totalTokens == 0 && (promptTokens > 0 || completionTokens > 0) {
+		totalTokens = promptTokens + completionTokens
+	}
+
 	metadata := &genai.GenerateContentResponseUsageMetadata{
-		PromptTokenCount:     int32(usage.PromptTokens),
-		CandidatesTokenCount: int32(usage.CompletionTokens),
-		TotalTokenCount:      int32(usage.TotalTokens),
+		PromptTokenCount:     int32(promptTokens),
+		CandidatesTokenCount: int32(completionTokens),
+		TotalTokenCount:      int32(totalTokens),
 	}
 	if usage.PromptTokensDetails != nil {
 		metadata.CachedContentTokenCount = int32(usage.PromptTokensDetails.CachedTokens)

@@ -201,6 +201,9 @@ func TestModel_Generate(t *testing.T) {
 					CandidatesTokenCount: 5,
 					TotalTokenCount:      15,
 				},
+				CustomMetadata: map[string]any{
+					"response_model": "test-model",
+				},
 				FinishReason: genai.FinishReasonStop,
 			},
 		},
@@ -223,6 +226,9 @@ func TestModel_Generate(t *testing.T) {
 					PromptTokenCount:     10,
 					CandidatesTokenCount: 5,
 					TotalTokenCount:      15,
+				},
+				CustomMetadata: map[string]any{
+					"response_model": "test-model",
 				},
 				FinishReason: genai.FinishReasonStop,
 			},

@@ -25,3 +25,7 @@ go.work
 .trae
 agent/.env
 examples/quickstart/config.yaml
+
+
+# MacOS system file
+.DS_Store
