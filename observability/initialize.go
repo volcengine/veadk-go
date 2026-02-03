@@ -32,17 +32,16 @@ import (
 
 var (
 	initConfigOnce sync.Once
+	initErr        error
+	// ErrNoExporters is returned when no exporters are configured.
+	ErrNoExporters = errors.New("observability disabled: no exporters configured")
 )
 
 // Init initializes the observability system using the global configuration.
 // Users usually don't need to call this function directly unless they want to override the default global configuration.
 // NewPlugin will call this function to initialize observability once.
 func Init(ctx context.Context, cfg *configs.ObservabilityConfig) error {
-	var err error
-	var initialized bool
 	initConfigOnce.Do(func() {
-		handleSignals(ctx)
-
 		// In veadk-go, config loading might depend on loggers which might depend on global tracer
 		// or vice versa. We ensure InitConfig is called, and then initialize based on that.
 		var otelCfg *configs.OpenTelemetryConfig
@@ -50,18 +49,42 @@ func Init(ctx context.Context, cfg *configs.ObservabilityConfig) error {
 			otelCfg = cfg.OpenTelemetry
 		}
 
-		if otelCfg == nil {
-			log.Info("No observability config found, observability data will not be exported")
+		if otelCfg == nil || !hasEnabledExporters(otelCfg) {
+			log.Info("No observability config found or no exporters enabled, observability data will not be exported")
+			initErr = ErrNoExporters
+			return
 		}
 
-		err = initWithConfig(ctx, otelCfg)
-		initialized = true
-	})
+		handleSignals(ctx)
 
-	if initialized {
-		log.Info("Initializing TraceProvider and MetricsProvider based on observability config")
+		initErr = initWithConfig(ctx, otelCfg)
+		if initErr == nil {
+			log.Info("Initializing TraceProvider and MetricsProvider based on observability config")
+		}
+	})
+	return initErr
+}
+
+func hasEnabledExporters(cfg *configs.OpenTelemetryConfig) bool {
+	if cfg == nil {
+		return false
 	}
-	return err
+	if cfg.Stdout != nil && cfg.Stdout.Enable {
+		return true
+	}
+	if cfg.File != nil && cfg.File.Path != "" {
+		return true
+	}
+	if cfg.ApmPlus != nil {
+		return true
+	}
+	if cfg.CozeLoop != nil {
+		return true
+	}
+	if cfg.TLS != nil {
+		return true
+	}
+	return false
 }
 
 // Shutdown shuts down the observability system, flushing all spans and metrics.

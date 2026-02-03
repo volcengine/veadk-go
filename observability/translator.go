@@ -37,13 +37,14 @@ var (
 	gcpVertexAgentInvocationID     = "gcp.vertex.agent.invocation_id"
 	gcpVertexAgentSessionID        = "gcp.vertex.agent.session_id"
 
+	// ADKAttributeKeyMap maps ADK-specific attributes to standard GenAI attributes.
 	ADKAttributeKeyMap = map[string]string{
 		gcpVertexAgentLLMRequestName:   AttrInputValue,
 		gcpVertexAgentLLMResponseName:  AttrOutputValue,
 		gcpVertexAgentToolCallArgsName: AttrGenAIToolInput,
 		gcpVertexAgentToolResponseName: AttrGenAIToolOutput,
-		gcpVertexAgentInvocationID:     AttrGenAIInvocationId,
-		gcpVertexAgentSessionID:        AttrGenAISessionId,
+		gcpVertexAgentInvocationID:     AttrGenAIInvocationID,
+		gcpVertexAgentSessionID:        AttrGenAISessionID,
 	}
 )
 
@@ -64,6 +65,7 @@ type VeADKTranslatedExporter struct {
 	trace.SpanExporter
 }
 
+// ExportSpans filters and translates spans before exporting them to the underlying exporter.
 func (e *VeADKTranslatedExporter) ExportSpans(ctx context.Context, spans []trace.ReadOnlySpan) error {
 	translated := make([]trace.ReadOnlySpan, 0, len(spans))
 	registry := GetRegistry()

@@ -22,11 +22,13 @@ import (
 // https://volcengine.github.io/veadk-python/observation/span-attributes/
 //
 
+// InstrumentationName is the name of this instrumentation package.
 const (
 	InstrumentationName = "github.com/volcengine/veadk-go"
 )
 
 var (
+	// Version is the version of this instrumentation package.
 	Version = getVersion()
 )
 
@@ -75,16 +77,16 @@ const (
 	AttrGenAIAgentName     = "gen_ai.agent.name"
 	AttrInstrumentation    = "openinference.instrumentation.veadk"
 	AttrGenAIAppName       = "gen_ai.app.name"
-	AttrGenAIUserId        = "gen_ai.user.id"
-	AttrGenAISessionId     = "gen_ai.session.id"
-	AttrGenAIInvocationId  = "gen_ai.invocation.id"
+	AttrGenAIUserID        = "gen_ai.user.id"
+	AttrGenAISessionID     = "gen_ai.session.id"
+	AttrGenAIInvocationID  = "gen_ai.invocation.id"
 	AttrAgentName          = "agent_name"    // Alias of 'gen_ai.agent.name' for CozeLoop platform
 	AttrAgentNameDot       = "agent.name"    // Alias of 'gen_ai.agent.name' for TLS platform
 	AttrAppNameUnderline   = "app_name"      // Alias of gen_ai.app.name for CozeLoop platform
 	AttrAppNameDot         = "app.name"      // Alias of gen_ai.app.name for TLS platform
-	AttrUserId             = "user.id"       // Alias of gen_ai.user.id for CozeLoop/TLS platforms
-	AttrSessionId          = "session.id"    // Alias of gen_ai.session.id for CozeLoop/TLS platforms
-	AttrInvocationId       = "invocation.id" // Alias of gen_ai.invocation.id for CozeLoop platform
+	AttrUserID             = "user.id"       // Alias of gen_ai.user.id for CozeLoop/TLS platforms
+	AttrSessionID          = "session.id"    // Alias of gen_ai.session.id for CozeLoop/TLS platforms
+	AttrInvocationID       = "invocation.id" // Alias of gen_ai.invocation.id for CozeLoop platform
 
 	AttrErrorType            = "error.type"
 	AttrCozeloopReportSource = "cozeloop.report.source" // Fixed value: veadk
@@ -92,8 +94,8 @@ const (
 
 	// Environment Variable Keys for Zero-Config Attributes
 	EnvModelProvider = "VEADK_MODEL_PROVIDER"
-	EnvUserId        = "VEADK_USER_ID"
-	EnvSessionId     = "VEADK_SESSION_ID"
+	EnvUserID        = "VEADK_USER_ID"
+	EnvSessionID     = "VEADK_SESSION_ID"
 	EnvAppName       = "VEADK_APP_NAME"
 	EnvCallType      = "VEADK_CALL_TYPE"
 	EnvAgentName     = "VEADK_AGENT_NAME"
@@ -123,7 +125,7 @@ const (
 	AttrGenAIRequestTopP                   = "gen_ai.request.top_p"
 	AttrGenAIRequestFunctions              = "gen_ai.request.functions"
 	AttrGenAIResponseModel                 = "gen_ai.response.model"
-	AttrGenAIResponseId                    = "gen_ai.response.id"
+	AttrGenAIResponseID                    = "gen_ai.response.id"
 	AttrGenAIResponseStopReason            = "gen_ai.response.stop_reason"
 	AttrGenAIResponseFinishReason          = "gen_ai.response.finish_reason"
 	AttrGenAIResponseFinishReasons         = "gen_ai.response.finish_reasons"
@@ -172,12 +174,13 @@ const (
 // Context keys for storing runtime values
 type contextKey string
 
+// Context keys for storing runtime values
 const (
-	ContextKeySessionId     contextKey = "veadk.session_id"
-	ContextKeyUserId        contextKey = "veadk.user_id"
+	ContextKeySessionID     contextKey = "veadk.session_id"
+	ContextKeyUserID        contextKey = "veadk.user_id"
 	ContextKeyAppName       contextKey = "veadk.app_name"
 	ContextKeyAgentName     contextKey = "veadk.agent_name"
 	ContextKeyCallType      contextKey = "veadk.call_type"
 	ContextKeyModelProvider contextKey = "veadk.model_provider"
-	ContextKeyInvocationId  contextKey = "veadk.invocation_id"
+	ContextKeyInvocationID  contextKey = "veadk.invocation_id"
 )

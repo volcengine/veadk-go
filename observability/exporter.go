@@ -41,7 +41,9 @@ import (
 )
 
 const (
+	// OTELExporterOTLPProtocolEnvKey is the environment variable key for OTLP protocol.
 	OTELExporterOTLPProtocolEnvKey = "OTEL_EXPORTER_OTLP_PROTOCOL"
+	// OTELExporterOTLPEndpointEnvKey is the environment variable key for OTLP endpoint.
 	OTELExporterOTLPEndpointEnvKey = "OTEL_EXPORTER_OTLP_ENDPOINT"
 )
 
@@ -64,7 +66,6 @@ func createLogClient(ctx context.Context, url, protocol string, headers map[stri
 	default:
 		return otlploggrpc.New(ctx, otlploggrpc.WithEndpointURL(url), otlploggrpc.WithHeaders(headers))
 	}
-
 }
 
 func createTraceClient(ctx context.Context, url, protocol string, headers map[string]string) (trace.SpanExporter, error) {
@@ -181,6 +182,8 @@ func NewMultiExporter(ctx context.Context, cfg *configs.OpenTelemetryConfig) (tr
 		if exp, err := NewStdoutExporter(); err == nil {
 			exporters = append(exporters, exp)
 			log.Info("Exporting spans to Stdout")
+		} else {
+			return nil, err
 		}
 	}
 
@@ -188,27 +191,44 @@ func NewMultiExporter(ctx context.Context, cfg *configs.OpenTelemetryConfig) (tr
 		if exp, err := NewFileExporter(ctx, cfg.File); err == nil {
 			exporters = append(exporters, exp)
 			log.Info(fmt.Sprintf("Exporting spans to File: %s", cfg.File.Path))
+		} else {
+			return nil, err
 		}
 	}
 
-	if cfg.ApmPlus != nil && cfg.ApmPlus.Endpoint != "" && cfg.ApmPlus.APIKey != "" {
+	if cfg.ApmPlus != nil {
+		if cfg.ApmPlus.Endpoint == "" || cfg.ApmPlus.APIKey == "" {
+			return nil, fmt.Errorf("APMPlus endpoint and api_key are required")
+		}
 		if exp, err := NewAPMPlusExporter(ctx, cfg.ApmPlus); err == nil {
 			exporters = append(exporters, exp)
 			log.Info("Exporting spans to APMPlus", "endpoint", cfg.ApmPlus.Endpoint, "service_name", cfg.ApmPlus.ServiceName)
+		} else {
+			return nil, err
 		}
 	}
 
-	if cfg.CozeLoop != nil && cfg.CozeLoop.Endpoint != "" && cfg.CozeLoop.APIKey != "" {
+	if cfg.CozeLoop != nil {
+		if cfg.CozeLoop.Endpoint == "" || cfg.CozeLoop.APIKey == "" {
+			return nil, fmt.Errorf("CozeLoop endpoint and api_key are required")
+		}
 		if exp, err := NewCozeLoopExporter(ctx, cfg.CozeLoop); err == nil {
 			exporters = append(exporters, exp)
 			log.Info("Exporting spans to CozeLoop", "endpoint", cfg.CozeLoop.Endpoint, "service_name", cfg.CozeLoop.ServiceName)
+		} else {
+			return nil, err
 		}
 	}
 
-	if cfg.TLS != nil && cfg.TLS.Endpoint != "" && cfg.TLS.AccessKey != "" && cfg.TLS.SecretKey != "" {
+	if cfg.TLS != nil {
+		if cfg.TLS.Endpoint == "" || cfg.TLS.AccessKey == "" || cfg.TLS.SecretKey == "" {
+			return nil, fmt.Errorf("TLS endpoint, access_key and secret_key are required")
+		}
 		if exp, err := NewTLSExporter(ctx, cfg.TLS); err == nil {
 			exporters = append(exporters, exp)
 			log.Info("Exporting spans to TLS", "endpoint", cfg.TLS.Endpoint, "service_name", cfg.TLS.ServiceName)
+		} else {
+			return nil, err
 		}
 	}
 
@@ -216,6 +236,7 @@ func NewMultiExporter(ctx context.Context, cfg *configs.OpenTelemetryConfig) (tr
 
 	if len(exporters) == 0 {
 		log.Info("No exporters to export observability data")
+		return nil, nil
 	}
 
 	if len(exporters) == 1 {

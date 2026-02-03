@@ -83,6 +83,7 @@ func GetRegistry() *TraceRegistry {
 	return globalRegistry
 }
 
+// Shutdown stops the cleanup loop and closes the shutdown channel.
 func (r *TraceRegistry) Shutdown() {
 	select {
 	case <-r.shutdownChan:

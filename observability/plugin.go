@@ -36,6 +36,10 @@ import (
 	"google.golang.org/genai"
 )
 
+const (
+	PluginName = "veadk-observability"
+)
+
 // NewPlugin creates a new observability plugin for ADK.
 // It returns a *plugin.Plugin that can be registered in launcher.Config or agent.Config.
 func NewPlugin(opts ...Option) *plugin.Plugin {
@@ -45,21 +49,19 @@ func NewPlugin(opts ...Option) *plugin.Plugin {
 		opt(observabilityConfig)
 	}
 
+	if err := Init(context.Background(), observabilityConfig); err != nil {
+		log.Error("Init observability exporter and processor failed", "error", err)
+		return noOpPlugin(PluginName)
+	}
+
 	p := &adkObservabilityPlugin{
 		config: observabilityConfig,
+		tracer: otel.Tracer(InstrumentationName),
 	}
-
-	err := Init(context.Background(), observabilityConfig)
-	if err != nil {
-		log.Error("Init observability failed", "error", err)
-		return nil
-	}
-
-	p.tracer = otel.Tracer(InstrumentationName)
 
 	// no need to check the error as it is always nil.
 	pluginInstance, _ := plugin.New(plugin.Config{
-		Name:                "veadk-observability",
+		Name:                PluginName,
 		BeforeRunCallback:   p.BeforeRun,
 		AfterRunCallback:    p.AfterRun,
 		BeforeAgentCallback: p.BeforeAgent,
@@ -70,6 +72,15 @@ func NewPlugin(opts ...Option) *plugin.Plugin {
 		AfterToolCallback:   p.AfterTool,
 	})
 	return pluginInstance
+}
+
+func noOpPlugin(name string) *plugin.Plugin {
+	// Return a no-op plugin to avoid panic in the agent if the user adds it to the plugin list.
+	// Since no callbacks are registered, it will have zero overhead during execution.
+	p, _ := plugin.New(plugin.Config{
+		Name: name,
+	})
+	return p
 }
 
 // Option defines a functional option for the ADKObservabilityPlugin.
@@ -86,7 +97,8 @@ func WithEnableMetrics(enable bool) Option {
 type adkObservabilityPlugin struct {
 	config *configs.ObservabilityConfig
 
-	tracer trace.Tracer // global tracer
+	enabled bool
+	tracer  trace.Tracer // global tracer
 }
 
 func (p *adkObservabilityPlugin) isMetricsEnabled() bool {
