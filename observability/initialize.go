@@ -256,7 +256,7 @@ func initializeMeterProvider(ctx context.Context, cfg *configs.OpenTelemetryConf
 	var errs []error
 	var initialized bool
 	if cfg == nil || cfg.EnableMetrics == nil || !*cfg.EnableMetrics {
-		log.Info("Meter provider is not enabled")
+		log.Debug("Meter provider is not enabled")
 		return false, nil
 	}
 

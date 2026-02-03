@@ -50,7 +50,7 @@ func NewPlugin(opts ...Option) *plugin.Plugin {
 	}
 
 	if err := Init(context.Background(), observabilityConfig); err != nil {
-		log.Error("Init observability exporter and processor failed, return noop plugin", "error", err)
+		log.Warn("Return a noop plugin", "error", err)
 		return noOpPlugin(PluginName)
 	}
 
