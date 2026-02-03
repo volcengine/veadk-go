@@ -17,7 +17,7 @@ package veauth
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/volcengine/veadk-go/log"
 
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
@@ -34,7 +34,7 @@ type listVesearchApiKeysResponse struct {
 }
 
 func GetVeSearchToken(region string) (string, error) {
-	log.Println("Fetching VeSearch token...")
+	log.Info("Fetching VeSearch token...")
 	if region == "" {
 		region = common.DEFAULT_REGION
 	}
@@ -97,6 +97,6 @@ func GetVeSearchToken(region string) (string, error) {
 		return "", fmt.Errorf("failed to get VeSearch token: empty api_key")
 	}
 
-	log.Println("Fetching VeSearch token done.")
+	log.Info("Fetching VeSearch token done.")
 	return token, nil
 }

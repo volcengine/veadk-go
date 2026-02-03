@@ -16,12 +16,11 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 
 	"github.com/volcengine/veadk-go/agent/remoteagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
 	"google.golang.org/adk/agent"
 )
 
@@ -35,7 +34,8 @@ func main() {
 			SetBaseUrl("you base url"),
 	)
 	if err != nil {
-		log.Fatalf("Failed to create a remote agent: %v", err)
+		log.Errorf("Failed to create a remote agent: %v", err)
+		return
 	}
 
 	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
@@ -44,6 +44,6 @@ func main() {
 		AgentLoader: agent.NewSingleLoader(remoteAgent),
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }

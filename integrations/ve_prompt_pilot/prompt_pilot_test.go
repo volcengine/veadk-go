@@ -16,13 +16,13 @@ package ve_prompt_pilot
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/prompts"
 	"github.com/volcengine/veadk-go/utils"
 )
@@ -39,11 +39,11 @@ func TestNew(t *testing.T) {
 	},
 		"", defaultOptimizeModel)
 	if err != nil {
-		fmt.Println("error:", err)
+		log.Errorf("error:%v", err)
 		return
 	}
 
-	fmt.Println(prompt)
+	log.Info(prompt)
 }
 
 type mockRoundTripper struct {

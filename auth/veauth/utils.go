@@ -16,7 +16,9 @@ package veauth
 
 import (
 	"encoding/json"
-	"log"
+
+	"github.com/volcengine/veadk-go/log"
+
 	"os"
 	"strings"
 
@@ -61,7 +63,7 @@ func GetAuthInfo() (ak, sk, sessionToken string) {
 	if strings.TrimSpace(ak) == "" || strings.TrimSpace(sk) == "" {
 		iam, err := GetCredentialFromVeFaaSIAM()
 		if err != nil {
-			log.Printf("GetAuthInfo error: %s\n", err.Error())
+			log.Errorf("GetAuthInfo error: %s", err.Error())
 		} else {
 			ak = iam.AccessKeyID
 			sk = iam.SecretAccessKey

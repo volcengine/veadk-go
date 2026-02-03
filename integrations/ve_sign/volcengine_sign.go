@@ -23,11 +23,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/volcengine/veadk-go/log"
 )
 
 const (
@@ -210,7 +211,7 @@ func getSignedKey(secretKey, date, region, service string) []byte {
 func hashSHA256(data []byte) []byte {
 	hash := sha256.New()
 	if _, err := hash.Write(data); err != nil {
-		log.Printf("input hash err:%s", err.Error())
+		log.Errorf("input hash err:%s", err.Error())
 	}
 
 	return hash.Sum(nil)

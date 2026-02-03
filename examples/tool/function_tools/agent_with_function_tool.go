@@ -17,11 +17,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/utils"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
@@ -91,7 +91,8 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to create agent: %v", err)
+		log.Errorf("Failed to create agent: %v", err)
+		return
 	}
 
 	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
@@ -100,6 +101,6 @@ func main() {
 		AgentLoader: agent.NewSingleLoader(rootAgent),
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }

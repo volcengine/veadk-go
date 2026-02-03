@@ -18,13 +18,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/volcengine/veadk-go/integrations/ve_viking"
 	"github.com/volcengine/veadk-go/integrations/ve_viking/viking_memory"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/utils"
 )
 
@@ -89,7 +89,7 @@ func NewVikingDbMemoryBackend(config *VikingDbMemoryConfig) (LongTermMemoryBacke
 				if err != nil {
 					return nil, fmt.Errorf("%w : create viking memory index error: %w", ErrCollectionCreate, err)
 				}
-				log.Println("Create viking knowledge index", config.Index, "successfully", "MemoryTypes", config.MemoryTypes)
+				log.Info("Create viking knowledge index", config.Index, "successfully", "MemoryTypes", config.MemoryTypes)
 			} else {
 				return nil, fmt.Errorf("%w : viking memory index not exist", ErrCollectionCreate)
 			}
@@ -129,12 +129,12 @@ func (v *VikingDBMemoryBackend) SaveMemory(ctx context.Context, userId string, e
 		return fmt.Errorf("viking add memories failed: %v", resp)
 	}
 
-	log.Printf("Successfully saved user %s %d events to viking", userId, len(eventList))
+	log.Infof("Successfully saved user %s %d events to viking", userId, len(eventList))
 	return nil
 }
 
 func (v *VikingDBMemoryBackend) SearchMemory(ctx context.Context, userId, query string, topK int) ([]*MemItem, error) {
-	log.Printf("Searching viking for query: %s, user: %s, top_k: %d", query, userId, topK)
+	log.Infof("Searching viking for query: %s, user: %s, top_k: %d", query, userId, topK)
 	var memResp []*MemItem
 
 	vikingReq := &viking_memory.CollectionSearchMemoryRequest{

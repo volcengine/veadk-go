@@ -17,11 +17,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	vem "github.com/volcengine/veadk-go/memory"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"github.com/volcengine/veadk-go/utils"
 	"google.golang.org/adk/agent"
@@ -40,23 +39,24 @@ func main() {
 
 	sessionServer := session.InMemoryService()
 	memoryServer := memory.InMemoryService()
-	memoryServer, err := vem.NewLongTermMemoryService(vem.BackendLongTermViking, nil)
-	if err != nil {
-		log.Printf("NewLongTermMemoryService failed: %v", err)
-		return
-	}
+	//memoryServer, err := vem.NewLongTermMemoryService(vem.BackendLongTermViking, nil)
+	//if err != nil {
+	//	log.Errorf("NewLongTermMemoryService failed: %v", err)
+	//	return
+	//}
 
 	onBeforeAgent := func(ctx agent.CallbackContext) (*genai.Content, error) {
 		resp, err := sessionServer.Get(ctx, &session.GetRequest{AppName: ctx.AppName(), UserID: ctx.UserID(), SessionID: ctx.SessionID()})
 		if err != nil {
-			log.Fatalf("Failed to get completed session: %v", err)
+			log.Errorf("Failed to get completed session: %v", err)
+			return nil, fmt.Errorf("failed to get completed session: %v", err)
 		}
 		if err := memoryServer.AddSession(ctx, resp.Session); err != nil {
-			log.Fatalf("Failed to add session to memory: %v", err)
+			log.Errorf("Failed to add session to memory: %v", err)
+			return nil, fmt.Errorf("failed to add session to memory: %v", err)
 		}
-		log.Println("")
 
-		log.Printf("[Callback] Session %s added to memory.", ctx.SessionID())
+		log.Infof("[Callback] Session %s added to memory.", ctx.SessionID())
 		return nil, nil
 	}
 
@@ -69,7 +69,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent failed: %v", err)
+		log.Errorf("NewLLMAgent failed: %v", err)
 		return
 	}
 
@@ -80,7 +80,7 @@ func main() {
 		MemoryService:  memoryServer,
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Errorf("create runner1 error %v", err)
 	}
 
 	SessionID := "session123456789"
@@ -91,7 +91,7 @@ func main() {
 		SessionID: SessionID,
 	})
 	if err != nil {
-		log.Fatalf("sessionService.Create error: %v", err)
+		log.Errorf("sessionService.Create error: %v", err)
 	}
 
 	s.Session.State()
@@ -100,27 +100,29 @@ func main() {
 	var finalResponseText string
 	for event, err := range runner1.Run(ctx, userID, SessionID, userInput1, agent.RunConfig{}) {
 		if err != nil {
-			log.Printf("Agent 1 Error: %v", err)
+			log.Errorf("Agent 1 Error: %v", err)
 			continue
 		}
 		if event.Content != nil && !event.Partial {
 			finalResponseText = strings.Join(textParts(event.Content), "")
 		}
 	}
-	log.Printf("Agent 1 Response: %s\n", finalResponseText)
+	log.Infof("Agent 1 Response: %s\n", finalResponseText)
 
 	// Add the completed session to the Memory Service
-	log.Println("\n--- Adding Session 1 to Memory ---")
+	log.Info("\n--- Adding Session 1 to Memory ---")
 	resp, err := sessionServer.Get(ctx, &session.GetRequest{AppName: s.Session.AppName(), UserID: s.Session.UserID(), SessionID: s.Session.ID()})
 	if err != nil {
-		log.Fatalf("Failed to get completed session: %v", err)
+		log.Errorf("Failed to get completed session: %v", err)
+		return
 	}
 	if err := memoryServer.AddSession(ctx, resp.Session); err != nil {
-		log.Fatalf("Failed to add session to memory: %v", err)
+		log.Errorf("Failed to add session to memory: %v", err)
+		return
 	}
-	log.Println("Session added to memory.")
+	log.Info("Session added to memory.")
 
-	log.Println("\n--- Turn 2: Recalling Information ---")
+	log.Info("\n--- Turn 2: Recalling Information ---")
 
 	runner2, err := runner.New(runner.Config{
 		AppName:        appName,
@@ -129,7 +131,8 @@ func main() {
 		MemoryService:  memoryServer,
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Errorf("create runner2 error %v", err)
+		return
 	}
 
 	s, _ = sessionServer.Create(ctx, &session.CreateRequest{
@@ -143,7 +146,7 @@ func main() {
 	var finalResponseText2 []string
 	for event, err := range runner2.Run(ctx, s.Session.UserID(), s.Session.ID(), userInput2, agent.RunConfig{}) {
 		if err != nil {
-			log.Printf("Agent 2 Error: %v", err)
+			log.Errorf("Agent 2 Error: %v", err)
 			continue
 		}
 		if event.Content != nil && !event.Partial {
@@ -152,7 +155,7 @@ func main() {
 			}
 		}
 	}
-	log.Printf("Agent 2 Response: %s\n", strings.Join(finalResponseText2, ""))
+	log.Infof("Agent 2 Response: %s\n", strings.Join(finalResponseText2, ""))
 }
 
 func textParts(Content *genai.Content) []string {

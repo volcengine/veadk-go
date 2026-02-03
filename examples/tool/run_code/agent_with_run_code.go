@@ -16,11 +16,10 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"os"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"github.com/volcengine/veadk-go/tool/builtin_tools/web_search"
 	"google.golang.org/adk/agent"
@@ -57,13 +56,13 @@ print(target_df) 下载相关的股票数据，#只需在上述代码中增加�
 
 	webSearch, err := web_search.NewWebSearchTool(&web_search.Config{})
 	if err != nil {
-		fmt.Printf("NewWebSearchTool failed: %v", err)
+		log.Errorf("NewWebSearchTool failed: %v", err)
 		return
 	}
 
 	runCode, err := builtin_tools.NewRunCodeSandboxTool()
 	if err != nil {
-		fmt.Printf("NewRunCodeSandboxTool failed: %v", err)
+		log.Errorf("NewRunCodeSandboxTool failed: %v", err)
 		return
 	}
 
@@ -71,7 +70,7 @@ print(target_df) 下载相关的股票数据，#只需在上述代码中增加�
 
 	a, err := veagent.New(&cfg)
 	if err != nil {
-		fmt.Printf("NewLLMAgent failed: %v", err)
+		log.Errorf("NewLLMAgent failed: %v", err)
 		return
 	}
 
@@ -82,6 +81,7 @@ print(target_df) 下载相关的股票数据，#只需在上述代码中增加�
 
 	l := full.NewLauncher()
 	if err = l.Execute(ctx, config, os.Args[1:]); err != nil {
-		log.Fatalf("Run failed: %v\n\n%s", err, l.CommandLineSyntax())
+		log.Errorf("Run failed: %v\n\n%s", err, l.CommandLineSyntax())
+		return
 	}
 }

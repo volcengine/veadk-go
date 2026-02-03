@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/a2aproject/a2a-go/a2a"
 	"github.com/a2aproject/a2a-go/a2aclient"
@@ -144,7 +143,7 @@ func NewVeRemoteAgent(config *Config) (agent.Agent, error) {
 		// Resolve an AgentCard
 		card, err := agentcard.DefaultResolver.Resolve(ctx, config.BaseUrl, resolveOptions)
 		if err != nil {
-			log.Fatalf("Failed to resolve an AgentCard: %v", err)
+			return nil, fmt.Errorf("veadk: failed to resolve veadk card: %w", err)
 		}
 
 		card.URL = config.BaseUrl

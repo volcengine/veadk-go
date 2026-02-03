@@ -54,9 +54,9 @@ type BasicApp interface {
 func DefaultApiConfig() *ApiConfig {
 	return &ApiConfig{
 		Port:            8000,
-		WriteTimeout:    time.Second * 15,
-		ReadTimeout:     time.Second * 15,
-		IdleTimeout:     time.Second * 60,
+		WriteTimeout:    time.Second * 60,
+		ReadTimeout:     time.Second * 60,
+		IdleTimeout:     time.Second * 120,
 		SEEWriteTimeout: time.Second * 300,
 		ApiPathPrefix:   "", // set /api same as ADK-Go
 	}

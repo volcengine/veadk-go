@@ -17,7 +17,8 @@ package veauth
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/volcengine/veadk-go/log"
+
 	"strings"
 
 	"github.com/volcengine/veadk-go/common"
@@ -33,7 +34,7 @@ type getAppKeyResponse struct {
 }
 
 func GetApmPlusToken(region string) (string, error) {
-	log.Println("Fetching APMPlus token...")
+	log.Info("Fetching APMPlus token...")
 	if region == "" {
 		region = common.DEFAULT_REGION
 	}
@@ -89,6 +90,6 @@ func GetApmPlusToken(region string) (string, error) {
 		return "", fmt.Errorf("failed to get APMPlus token: app_key not found in response")
 	}
 
-	log.Println("Successfully fetching APMPlus API Key.")
+	log.Info("Successfully fetching APMPlus API Key.")
 	return resp.Data.AppKey, nil
 }

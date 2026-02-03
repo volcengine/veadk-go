@@ -16,12 +16,11 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
@@ -33,7 +32,7 @@ func main() {
 
 	imageGenerate, err := builtin_tools.NewImageGenerateTool(&builtin_tools.ImageGenerateConfig{})
 	if err != nil {
-		fmt.Printf("NewImageGenerateTool failed: %v", err)
+		log.Errorf("NewImageGenerateTool failed: %v", err)
 		return
 	}
 
@@ -47,7 +46,8 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to create agent: %v", err)
+		log.Error("Failed to create agent: %v", err)
+		return
 	}
 
 	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
@@ -56,6 +56,6 @@ func main() {
 		AgentLoader: agent.NewSingleLoader(rootAgent),
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }

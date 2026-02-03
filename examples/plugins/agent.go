@@ -16,12 +16,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/agent/workflowagents/sequentialagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"github.com/volcengine/veadk-go/tool/builtin_tools/web_search"
 	"github.com/volcengine/veadk-go/utils"
@@ -39,7 +39,7 @@ func main() {
 
 	webSearch, err := web_search.NewWebSearchTool(&web_search.Config{})
 	if err != nil {
-		fmt.Printf("NewWebSearchTool failed: %v", err)
+		log.Errorf("NewWebSearchTool failed: %v", err)
 		return
 	}
 
@@ -61,7 +61,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent greetingAgent failed: %v", err)
+		log.Errorf("NewLLMAgent greetingAgent failed: %v", err)
 		return
 	}
 
@@ -80,7 +80,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent goodbyeAgent failed: %v", err)
+		log.Errorf("NewLLMAgent goodbyeAgent failed: %v", err)
 		return
 	}
 
@@ -93,7 +93,7 @@ func main() {
 	})
 
 	if err != nil {
-		fmt.Printf("NewSequentialAgent failed: %v", err)
+		log.Errorf("NewSequentialAgent failed: %v", err)
 		return
 	}
 
@@ -110,27 +110,27 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }
 
 func beforeModelCallBack(ctx agent.CallbackContext, llmRequest *model.LLMRequest) (*model.LLMResponse, error) {
-	fmt.Printf("%s BeforeModelCallBack called\n", ctx.AgentName())
+	log.Infof("%s BeforeModelCallBack called\n", ctx.AgentName())
 	return nil, nil
 }
 
 func afterModelCallBack(ctx agent.CallbackContext, llmResponse *model.LLMResponse, llmResponseError error) (*model.LLMResponse, error) {
-	fmt.Printf("%s afterModelCallback called\n", ctx.AgentName())
+	log.Infof("%s afterModelCallback called\n", ctx.AgentName())
 	return nil, nil
 }
 
 func beforeToolCallback(ctx tool.Context, tool tool.Tool, args map[string]any) (map[string]any, error) {
-	fmt.Printf("%s beforeToolCallBack called\n", tool.Name())
+	log.Infof("%s beforeToolCallBack called\n", tool.Name())
 	return nil, nil
 }
 
 func afterToolCallback(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
-	fmt.Printf("%s afterToolCallback called\n", tool.Name())
+	log.Infof("%s afterToolCallback called\n", tool.Name())
 	return nil, nil
 }
 

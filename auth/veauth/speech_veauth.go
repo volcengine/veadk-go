@@ -17,7 +17,8 @@ package veauth
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/volcengine/veadk-go/log"
+
 	"net/http"
 
 	"github.com/volcengine/veadk-go/common"
@@ -41,7 +42,7 @@ func GetSpeechToken(region string) (string, error) {
 	if region == "" {
 		region = "cn-beijing"
 	}
-	log.Println("Fetching speech token...")
+	log.Info("Fetching speech token...")
 
 	// 1. Try to get credentials from Environment Variables or Global Config
 	accessKey := utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
@@ -100,6 +101,6 @@ func GetSpeechToken(region string) (string, error) {
 	}
 
 	firstApiKey := listResp.Result.APIKeys[0].APIKey
-	log.Println("Successfully fetching speech API Key.")
+	log.Info("Successfully fetching speech API Key.")
 	return firstApiKey, nil
 }

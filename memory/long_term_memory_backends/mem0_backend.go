@@ -18,12 +18,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/volcengine/veadk-go/auth/veauth"
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
 	mem0 "github.com/volcengine/veadk-go/integrations/ve_mem0"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/utils"
 )
 
@@ -92,12 +92,12 @@ func (mem *Mem0MemoryBackend) SaveMemory(ctx context.Context, userId string, eve
 			return fmt.Errorf("failed to save memory to Mem0: %w", err)
 		}
 	}
-	log.Printf("Successfully saved user %s %d events to Mem0", userId, len(eventList))
+	log.Infof("Successfully saved user %s %d events to Mem0", userId, len(eventList))
 	return nil
 }
 
 func (mem *Mem0MemoryBackend) SearchMemory(ctx context.Context, userId, query string, topK int) ([]*MemItem, error) {
-	log.Printf("Searching Mem0 for query: %s, user: %s, top_k: %d", query, userId, topK)
+	log.Infof("Searching Mem0 for query: %s, user: %s, top_k: %d", query, userId, topK)
 
 	var memResp []*MemItem
 

@@ -16,12 +16,11 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"os"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/tool/builtin_tools/web_search"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/cmd/launcher"
@@ -40,7 +39,7 @@ func main() {
 
 	webSearch, err := web_search.NewWebSearchTool(&web_search.Config{})
 	if err != nil {
-		fmt.Printf("NewWebSearchTool failed: %v", err)
+		log.Errorf("NewWebSearchTool failed: %v", err)
 		return
 	}
 
@@ -48,7 +47,7 @@ func main() {
 
 	a, err := veagent.New(&cfg)
 	if err != nil {
-		fmt.Printf("NewLLMAgent failed: %v", err)
+		log.Errorf("NewLLMAgent failed: %v", err)
 		return
 	}
 
@@ -59,6 +58,7 @@ func main() {
 
 	l := full.NewLauncher()
 	if err = l.Execute(ctx, config, os.Args[1:]); err != nil {
-		log.Fatalf("Run failed: %v\n\n%s", err, l.CommandLineSyntax())
+		log.Errorf("Run failed: %v\n\n%s", err, l.CommandLineSyntax())
+		return
 	}
 }

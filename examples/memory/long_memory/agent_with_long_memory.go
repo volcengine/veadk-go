@@ -17,11 +17,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
 	vem "github.com/volcengine/veadk-go/memory"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"github.com/volcengine/veadk-go/utils"
@@ -40,21 +40,22 @@ func main() {
 
 	memoryServer, err := vem.NewLongTermMemoryService(vem.BackendLongTermMem0, nil)
 	if err != nil {
-		log.Printf("NewLongTermMemoryService failed: %v", err)
+		log.Errorf("NewLongTermMemoryService failed: %v", err)
 		return
 	}
 
 	onBeforeAgent := func(ctx agent.CallbackContext) (*genai.Content, error) {
 		resp, err := sessionServer.Get(ctx, &session.GetRequest{AppName: ctx.AppName(), UserID: ctx.UserID(), SessionID: ctx.SessionID()})
 		if err != nil {
-			log.Fatalf("Failed to get completed session: %v", err)
+			log.Errorf("Failed to get completed session: %v", err)
+			return nil, fmt.Errorf("failed to get completed session: %w", err)
 		}
 		if err := memoryServer.AddSession(ctx, resp.Session); err != nil {
-			log.Fatalf("Failed to add session to memory: %v", err)
+			log.Errorf("Failed to add session to memory: %v", err)
+			return nil, fmt.Errorf("failed to add session to memory: %w", err)
 		}
-		log.Println("")
 
-		log.Printf("[Callback] Session %s added to memory.", ctx.SessionID())
+		log.Infof("[Callback] Session %s added to memory.", ctx.SessionID())
 		return nil, nil
 	}
 
@@ -67,7 +68,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent failed: %v", err)
+		log.Errorf("NewLLMAgent failed: %v", err)
 		return
 	}
 
@@ -79,6 +80,6 @@ func main() {
 		MemoryService:  memoryServer,
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }

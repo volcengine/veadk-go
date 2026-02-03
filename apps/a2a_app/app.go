@@ -17,7 +17,9 @@ package a2a_app
 import (
 	"context"
 	"fmt"
-	"log"
+
+	"github.com/volcengine/veadk-go/log"
+
 	"net/http"
 	"net/url"
 
@@ -46,7 +48,7 @@ func (a *agentkitA2AServerApp) Run(ctx context.Context, config *apps.RunConfig) 
 		config.SessionService = session.InMemoryService()
 	}
 
-	log.Printf("Web servers starts on %s", a.GetWebUrl())
+	log.Infof("Web servers starts on %s", a.GetWebUrl())
 	err := a.SetupRouters(router, config)
 	if err != nil {
 		return fmt.Errorf("setup a2a routers failed: %w", err)

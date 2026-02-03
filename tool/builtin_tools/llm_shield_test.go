@@ -15,12 +15,12 @@
 package builtin_tools
 
 import (
-	"log"
 	"strings"
 	"testing"
 
 	"github.com/volcengine/veadk-go/auth/veauth"
 	"github.com/volcengine/veadk-go/configs"
+	"github.com/volcengine/veadk-go/log"
 )
 
 func TestNewLLMShieldClient(t *testing.T) {
@@ -30,7 +30,7 @@ func TestNewLLMShieldClient(t *testing.T) {
 	}
 	err := configs.SetupVeADKConfig()
 	if err != nil {
-		log.Printf("veadk.SetupVeADKConfig: %v", err)
+		log.Errorf("veadk.SetupVeADKConfig: %v", err)
 	}
 	client, err := NewLLMShieldClient(60)
 	if err != nil {

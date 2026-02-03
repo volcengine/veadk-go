@@ -16,13 +16,13 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
+	vem "github.com/volcengine/veadk-go/memory"
 	"google.golang.org/adk/agent"
-	"google.golang.org/adk/session"
 )
 
 func main() {
@@ -30,24 +30,24 @@ func main() {
 
 	a, err := veagent.New(&veagent.Config{})
 	if err != nil {
-		fmt.Printf("NewLLMAgent failed: %v", err)
+		log.Errorf("NewLLMAgent failed: %v", err)
 		return
 	}
 
-	//sessionService, err := vem.NewShortTermMemoryService(vem.BackendShortTermPostgreSQL, nil)
-	//if err != nil {
-	//	log.Printf("NewShortTermMemoryService failed: %v", err)
-	//	return
-	//}
+	sessionService, err := vem.NewShortTermMemoryService(vem.BackendShortTermPostgreSQL, nil)
+	if err != nil {
+		log.Errorf("NewShortTermMemoryService failed: %v", err)
+		return
+	}
 
 	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
 
 	err = app.Run(ctx, &apps.RunConfig{
 		AgentLoader:    agent.NewSingleLoader(a),
-		SessionService: session.InMemoryService(),
+		SessionService: sessionService,
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 
 }
