@@ -21,9 +21,12 @@ import (
 
 	"github.com/a2aproject/a2a-go/a2asrv"
 	"github.com/gorilla/mux"
+	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/observability"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/artifact"
 	"google.golang.org/adk/memory"
+	"google.golang.org/adk/plugin"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 )
@@ -35,6 +38,24 @@ type RunConfig struct {
 	AgentLoader     agent.Loader
 	A2AOptions      []a2asrv.RequestHandlerOption
 	PluginConfig    runner.PluginConfig
+}
+
+func (cfg *RunConfig) AppendObservability() {
+	if len(cfg.PluginConfig.Plugins) == 0 {
+		cfg.PluginConfig = runner.PluginConfig{
+			Plugins: []*plugin.Plugin{observability.NewPlugin()},
+		}
+	} else {
+		observabilityPlugin := observability.NewPlugin()
+		for _, p := range cfg.PluginConfig.Plugins {
+			if p.Name() == observabilityPlugin.Name() {
+				log.Info("Plugin already configured")
+				return
+			}
+		}
+		cfg.PluginConfig.Plugins = append(cfg.PluginConfig.Plugins, observabilityPlugin)
+		log.Info("Plugin configured")
+	}
 }
 
 type ApiConfig struct {

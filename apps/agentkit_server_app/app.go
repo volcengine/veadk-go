@@ -24,6 +24,7 @@ import (
 	"github.com/volcengine/veadk-go/apps/a2a_app"
 	"github.com/volcengine/veadk-go/apps/simple_app"
 	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/observability"
 	"google.golang.org/adk/cmd/launcher"
 	"google.golang.org/adk/cmd/launcher/web"
 	"google.golang.org/adk/cmd/launcher/web/webui"
@@ -48,6 +49,17 @@ func (a *agentkitServerApp) Run(ctx context.Context, config *apps.RunConfig) err
 		config.SessionService = session.InMemoryService()
 	}
 
+	config.AppendObservability()
+
+	defer func() {
+		err := observability.Shutdown(ctx)
+		if err != nil {
+			log.Errorf("shutting down observability error: %s", err.Error())
+			return
+		}
+		log.Info("observability stopped")
+	}()
+
 	log.Infof("Web servers starts on %s", a.GetWebUrl())
 	err := a.SetupRouters(router, config)
 	if err != nil {
@@ -61,12 +73,10 @@ func (a *agentkitServerApp) Run(ctx context.Context, config *apps.RunConfig) err
 		IdleTimeout:  a.IdleTimeout,
 		Handler:      router,
 	}
-
 	err = srv.ListenAndServe()
 	if err != nil {
 		return fmt.Errorf("server failed: %v", err)
 	}
-
 	return nil
 }
 

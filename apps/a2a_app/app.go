@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/observability"
 
 	"net/http"
 	"net/url"
@@ -47,6 +48,17 @@ func (a *agentkitA2AServerApp) Run(ctx context.Context, config *apps.RunConfig) 
 	if config.SessionService == nil {
 		config.SessionService = session.InMemoryService()
 	}
+
+	config.AppendObservability()
+
+	defer func() {
+		err := observability.Shutdown(ctx)
+		if err != nil {
+			log.Errorf("shutting down observability error: %s", err.Error())
+			return
+		}
+		log.Info("observability stopped")
+	}()
 
 	log.Infof("Web servers starts on %s", a.GetWebUrl())
 	err := a.SetupRouters(router, config)
