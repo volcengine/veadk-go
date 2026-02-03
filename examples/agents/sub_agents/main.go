@@ -16,11 +16,10 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"os"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
+	"github.com/volcengine/veadk-go/log"
 	vetool "github.com/volcengine/veadk-go/tool"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
@@ -35,7 +34,7 @@ func main() {
 
 	getCityWeatherTool, err := vetool.GetCityWeatherTool()
 	if err != nil {
-		fmt.Printf("GetCityWeatherTool failed: %v", err)
+		log.Errorf("GetCityWeatherTool failed: %v", err)
 		return
 	}
 
@@ -47,7 +46,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent weatherReporter failed: %v", err)
+		log.Errorf("NewLLMAgent weatherReporter failed: %v", err)
 		return
 	}
 
@@ -61,7 +60,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent suggester failed: %v", err)
+		log.Errorf("NewLLMAgent suggester failed: %v", err)
 		return
 	}
 
@@ -75,7 +74,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent rootAgent failed: %v", err)
+		log.Errorf("NewLLMAgent rootAgent failed: %v", err)
 		return
 	}
 
@@ -86,7 +85,8 @@ func main() {
 
 	l := full.NewLauncher()
 	if err = l.Execute(ctx, config, os.Args[1:]); err != nil {
-		log.Fatalf("Run failed: %v\n\n%s", err, l.CommandLineSyntax())
+		log.Errorf("Run failed: %v\n\n%s", err, l.CommandLineSyntax())
+		return
 	}
 
 }

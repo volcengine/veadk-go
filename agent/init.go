@@ -15,7 +15,7 @@
 package agents
 
 import (
-	"log"
+	"github.com/volcengine/veadk-go/log"
 
 	"github.com/volcengine/veadk-go/configs"
 )
@@ -23,6 +23,6 @@ import (
 func init() {
 	err := configs.SetupVeADKConfig()
 	if err != nil {
-		log.Printf("veadk.SetupVeADKConfig: %v", err)
+		log.Errorf("veadk.SetupVeADKConfig: %v", err)
 	}
 }

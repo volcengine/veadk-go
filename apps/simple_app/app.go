@@ -19,7 +19,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+
+	"github.com/volcengine/veadk-go/log"
+
 	"net/http"
 	"strings"
 
@@ -88,8 +90,8 @@ func (app *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunC
 	router.NewRoute().Path("/invoke").Methods(http.MethodPost).HandlerFunc(app.newInvokeHandler())
 	router.NewRoute().Path("/health").Methods(http.MethodGet).HandlerFunc(app.newHealthHandler())
 
-	log.Printf("       invoke:  you can invoke agent using %s/invoke", app.GetWebUrl())
-	log.Printf("       health:  you can get health status using: %s/health", app.GetWebUrl())
+	log.Infof("       invoke:  you can invoke agent using %s/invoke", app.GetWebUrl())
+	log.Infof("       health:  you can get health status using: %s/health", app.GetWebUrl())
 
 	return nil
 }
@@ -97,7 +99,7 @@ func (app *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunC
 func (app *agentkitSimpleApp) Run(ctx context.Context, config *apps.RunConfig) error {
 	router := web.BuildBaseRouter()
 
-	log.Printf("Web servers starts on %s", app.GetWebUrl())
+	log.Infof("Web servers starts on %s", app.GetWebUrl())
 	err := app.SetupRouters(router, config)
 	if err != nil {
 		return fmt.Errorf("setup simple app router error: %w", err)
@@ -157,7 +159,7 @@ func (app *agentkitSimpleApp) newInvokeHandler() func(w http.ResponseWriter, r *
 		var finalResponseText []string
 		for event, err := range app.runner.Run(ctx, app.userID, app.session.ID(), userInput, agent.RunConfig{StreamingMode: agent.StreamingModeNone}) {
 			if err != nil {
-				log.Printf("Agent Run Error: %v", err)
+				log.Errorf("Agent Run Error: %v", err)
 				continue
 			}
 			if event.Content != nil && !event.Partial {

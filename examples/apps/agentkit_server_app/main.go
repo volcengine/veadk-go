@@ -16,11 +16,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
 	"google.golang.org/adk/agent"
 )
 
@@ -29,7 +29,7 @@ func main() {
 
 	a, err := veagent.New(&veagent.Config{})
 	if err != nil {
-		fmt.Printf("NewLLMAgent failed: %v", err)
+		log.Errorf("NewLLMAgent failed: %v", err)
 		return
 	}
 
@@ -39,6 +39,6 @@ func main() {
 		AgentLoader: agent.NewSingleLoader(a),
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }

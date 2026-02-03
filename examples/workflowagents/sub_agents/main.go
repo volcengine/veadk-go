@@ -16,11 +16,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
 	vetool "github.com/volcengine/veadk-go/tool"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
@@ -34,7 +34,7 @@ func main() {
 
 	getCityWeatherTool, err := vetool.GetCityWeatherTool()
 	if err != nil {
-		fmt.Printf("GetCityWeatherTool failed: %v", err)
+		log.Errorf("GetCityWeatherTool failed: %v", err)
 		return
 	}
 
@@ -48,7 +48,7 @@ func main() {
 		ModelName: modelName,
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent weatherReporter failed: %v", err)
+		log.Errorf("NewLLMAgent weatherReporter failed: %v", err)
 		return
 	}
 
@@ -63,7 +63,7 @@ func main() {
 		ModelName: modelName,
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent suggester failed: %v", err)
+		log.Errorf("NewLLMAgent suggester failed: %v", err)
 		return
 	}
 
@@ -78,7 +78,7 @@ func main() {
 		ModelName: modelName,
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent rootAgent failed: %v", err)
+		log.Errorf("NewLLMAgent rootAgent failed: %v", err)
 		return
 	}
 
@@ -88,6 +88,6 @@ func main() {
 		AgentLoader: agent.NewSingleLoader(rootAgent),
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }

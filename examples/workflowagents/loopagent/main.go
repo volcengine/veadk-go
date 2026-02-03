@@ -16,12 +16,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/agent/workflowagents/loopagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/tool"
@@ -33,7 +33,7 @@ func main() {
 
 	exitLoopTool, err := GetExitLoopTool()
 	if err != nil {
-		fmt.Printf("GetExitLoopTool failed: %v", err)
+		log.Errorf("GetExitLoopTool failed: %v", err)
 		return
 	}
 
@@ -52,7 +52,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent plannerAgent failed: %v", err)
+		log.Errorf("NewLLMAgent plannerAgent failed: %v", err)
 		return
 	}
 
@@ -72,7 +72,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent executorAgent failed: %v", err)
+		log.Errorf("NewLLMAgent executorAgent failed: %v", err)
 		return
 	}
 
@@ -85,7 +85,7 @@ func main() {
 	})
 
 	if err != nil {
-		fmt.Printf("NewSequentialAgent failed: %v", err)
+		log.Errorf("NewSequentialAgent failed: %v", err)
 		return
 	}
 
@@ -95,7 +95,7 @@ func main() {
 		AgentLoader: agent.NewSingleLoader(rootAgent),
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }
 

@@ -17,7 +17,7 @@ package veauth
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/volcengine/veadk-go/log"
 
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
@@ -39,7 +39,7 @@ func GetPromptPilotToken(region string) (string, error) {
 	if region == "" {
 		region = common.DEFAULT_REGION
 	}
-	log.Println("Fetching Prompt Pilot token...")
+	log.Info("Fetching Prompt Pilot token...")
 
 	// 1. Get Credentials (Env -> Global Config -> IAM)
 	accessKey := utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)

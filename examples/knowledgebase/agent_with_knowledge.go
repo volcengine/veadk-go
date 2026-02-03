@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
 	"strings"
 	"time"
@@ -29,6 +28,7 @@ import (
 	"github.com/volcengine/veadk-go/knowledgebase"
 	"github.com/volcengine/veadk-go/knowledgebase/backend/viking_knowledge_backend"
 	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
+	"github.com/volcengine/veadk-go/log"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/session"
@@ -50,7 +50,8 @@ func main() {
 			}),
 	)
 	if err != nil {
-		log.Fatal("NewVikingKnowledgeBackend error: ", err)
+		log.Errorf("NewVikingKnowledgeBackend error: %v", err)
+		return
 	}
 
 	mock_data := []string{
@@ -62,13 +63,13 @@ func main() {
 	著有《自卑与超越》《人性的研究》《个体心理学的理论与实践》《自卑与生活》等。`}
 
 	if err = knowledgeBase.Backend.AddFromText(mock_data); err != nil {
-		log.Fatal("AddFromText error: ", err)
+		log.Errorf("AddFromText error: %v", err)
 		return
 	}
 
 	calculateDateDifferenceTool, err := CalculateDateDifferenceTool()
 	if err != nil {
-		log.Fatal("CalculateDateDifferenceTool error: ", err)
+		log.Errorf("CalculateDateDifferenceTool error: %v", err)
 		return
 	}
 
@@ -84,7 +85,7 @@ func main() {
 		KnowledgeBase: knowledgeBase,
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent failed: %v", err)
+		log.Errorf("NewLLMAgent failed: %v", err)
 		return
 	}
 
@@ -95,7 +96,7 @@ func main() {
 		SessionService: session.InMemoryService(),
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }
 

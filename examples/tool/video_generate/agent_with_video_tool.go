@@ -16,12 +16,11 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
@@ -34,7 +33,7 @@ func main() {
 		ModelName: "doubao-seedance-1-5-pro-251215",
 	})
 	if err != nil {
-		fmt.Printf("NewVideoGenerateTool failed: %v", err)
+		log.Errorf("NewVideoGenerateTool failed: %v", err)
 		return
 	}
 
@@ -45,7 +44,8 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to create agent: %v", err)
+		log.Errorf("Failed to create agent: %v", err)
+		return
 	}
 
 	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
@@ -54,6 +54,6 @@ func main() {
 		AgentLoader: agent.NewSingleLoader(rootAgent),
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }

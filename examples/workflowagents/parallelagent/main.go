@@ -17,13 +17,12 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"log"
 
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
 	"github.com/volcengine/veadk-go/agent/workflowagents/parallelagent"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/log"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/model"
@@ -40,7 +39,7 @@ import (
 
 func onBeforeModel(ctx agent.CallbackContext, req *model.LLMRequest) (*model.LLMResponse, error) {
 	reqStr, _ := json.Marshal(req)
-	log.Printf("%s [Callback] BeforeModel req: %s", ctx.AgentName(), string(reqStr))
+	log.Infof("%s [Callback] BeforeModel req: %s", ctx.AgentName(), string(reqStr))
 	return nil, nil
 }
 
@@ -56,7 +55,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent prosAgent failed: %v", err)
+		log.Errorf("NewLLMAgent prosAgent failed: %v", err)
 		return
 	}
 
@@ -69,7 +68,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewLLMAgent consAgent failed: %v", err)
+		log.Errorf("NewLLMAgent consAgent failed: %v", err)
 		return
 	}
 
@@ -81,7 +80,7 @@ func main() {
 	})
 
 	if err != nil {
-		fmt.Printf("NewSequentialAgent failed: %v", err)
+		log.Errorf("NewSequentialAgent failed: %v", err)
 		return
 	}
 
@@ -91,6 +90,6 @@ func main() {
 		AgentLoader: agent.NewSingleLoader(rootAgent),
 	})
 	if err != nil {
-		fmt.Printf("Run failed: %v", err)
+		log.Errorf("Run failed: %v", err)
 	}
 }

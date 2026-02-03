@@ -17,11 +17,11 @@ package veauth
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/integrations/ve_sign"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/utils"
 )
 
@@ -67,7 +67,6 @@ func getAPIKeyIDByProjectID(projectID, accessKey, secretKey, sessionToken, regio
 		return "", fmt.Errorf("failed to describe memory project detail: %w", err)
 	}
 
-	fmt.Println(string(respBody))
 	var res describeMemoryProjectDetailResult
 	if err := json.Unmarshal(respBody, &res); err != nil {
 		return "", fmt.Errorf("failed to unmarshal response: %w", err)
@@ -109,8 +108,6 @@ func getAPIKeyByAPIKeyID(projectID, apiKeyID, accessKey, secretKey, sessionToken
 		return "", fmt.Errorf("failed to describe api key detail: %w", err)
 	}
 
-	fmt.Println(string(respBody))
-
 	var res describeAPIKeyDetailResult
 	if err := json.Unmarshal(respBody, &res); err != nil {
 		return "", fmt.Errorf("failed to unmarshal response: %w", err)
@@ -127,7 +124,7 @@ func GetVikingMem0Token(memoryProjectID string, region string) (string, error) {
 	if region == "" {
 		region = common.DEFAULT_REGION
 	}
-	log.Printf("Fetching Viking mem0 token...")
+	log.Infof("Fetching Viking mem0 token...")
 
 	accessKey := utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
 	secretKey := utils.GetEnvWithDefault(common.VOLCENGINE_SECRET_KEY, configs.GetGlobalConfig().Volcengine.SK)

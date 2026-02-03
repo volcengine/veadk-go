@@ -17,7 +17,8 @@ package veauth
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/volcengine/veadk-go/log"
+
 	"net/http"
 
 	"github.com/volcengine/veadk-go/common"
@@ -45,7 +46,7 @@ func GetArkToken(region string) (string, error) {
 	if region == "" {
 		region = common.DEFAULT_MODEL_REGION
 	}
-	log.Println("Fetching ARK token...")
+	log.Info("Fetching ARK token...")
 
 	accessKey := utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
 	secretKey := utils.GetEnvWithDefault(common.VOLCENGINE_SECRET_KEY, configs.GetGlobalConfig().Volcengine.SK)
@@ -102,7 +103,7 @@ func GetArkToken(region string) (string, error) {
 	}
 
 	firstApiKeyId := listResp.Result.Items[0].ID
-	log.Println("By default, VeADK fetches the first API Key in the list.")
+	log.Info("By default, VeADK fetches the first API Key in the list.")
 
 	// GetRawApiKey
 	req2 := ve_sign.VeRequest{
@@ -137,7 +138,7 @@ func GetArkToken(region string) (string, error) {
 		return "", fmt.Errorf("failed to get ARK api key: key not found in response")
 	}
 
-	log.Println("Successfully fetched ARK API Key.")
+	log.Info("Successfully fetched ARK API Key.")
 
 	return apiKey, nil
 }

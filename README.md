@@ -37,17 +37,17 @@ model:
 
 Enjoy a minimal agent from VeADK:
 
-```golang
+```go
 package main
 
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
-
+	
 	_ "github.com/volcengine/veadk-go/agent"
 	veagent "github.com/volcengine/veadk-go/agent/llmagent"
+	"github.com/volcengine/veadk-go/log"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/cmd/launcher"
 	"google.golang.org/adk/cmd/launcher/full"
@@ -66,7 +66,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		fmt.Printf("NewVeAgent failed: %v", err)
+		log.Errorf("NewVeAgent failed: %v", err)
 		return
 	}
 

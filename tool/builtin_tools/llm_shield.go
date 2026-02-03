@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -29,6 +28,7 @@ import (
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/integrations/ve_sign"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/utils"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/model"
@@ -302,11 +302,11 @@ func (p *LLMShieldClient) beforeModelCallBack(ctx agent.CallbackContext, req *mo
 		return nil, nil
 	}
 
-	log.Printf("agent %s beforeModelCallBack lastUserMessage is %s\n", ctx.AgentName(), lastUserMessage)
+	log.Debugf("agent %s beforeModelCallBack lastUserMessage is %s", ctx.AgentName(), lastUserMessage)
 
 	blockMsg, err := p.requestLLMShield(lastUserMessage, "user")
 	if err != nil {
-		log.Printf("LLM Shield beforeModelCallBack error: %v\n", err)
+		log.Errorf("LLM Shield beforeModelCallBack error: %v", err)
 		return nil, nil
 	}
 
@@ -337,15 +337,15 @@ func (p *LLMShieldClient) afterModelCallBack(ctx agent.CallbackContext, resp *mo
 		return nil, nil
 	}
 
-	log.Printf("agent %s afterModelCallBack lastUserMessage is %s\n", ctx.AgentName(), lastModelMessage)
+	log.Debugf("agent %s afterModelCallBack lastUserMessage is %s", ctx.AgentName(), lastModelMessage)
 
 	blockMsg, err := p.requestLLMShield(lastModelMessage, "assistant")
 	if err != nil {
-		log.Printf("LLM Shield afterModelCallBack error: %v\n", err)
+		log.Errorf("LLM Shield afterModelCallBack error: %v", err)
 		return nil, nil
 	}
 
-	log.Printf("agent %s beforeModelCallBack blockMsg is %s\n", ctx.AgentName(), blockMsg)
+	log.Debugf("agent %s afterModelCallBack blockMsg is %s", ctx.AgentName(), blockMsg)
 
 	if blockMsg != "" {
 		return &model.LLMResponse{
@@ -373,7 +373,7 @@ func (p *LLMShieldClient) beforeToolCallback(ctx tool.Context, tool tool.Tool, a
 
 	blockMsg, err := p.requestLLMShield(message, "user")
 	if err != nil {
-		log.Printf("LLM Shield beforeToolCallback error: %v\n", err)
+		log.Errorf("LLM Shield beforeToolCallback error: %v", err)
 		return nil, nil
 	}
 
@@ -396,7 +396,7 @@ func (p *LLMShieldClient) afterToolCallback(ctx tool.Context, tool tool.Tool, ar
 
 	blockMsg, err := p.requestLLMShield(message, "assistant")
 	if err != nil {
-		log.Printf("LLM Shield beforeToolCallback error: %v\n", err)
+		log.Errorf("LLM Shield beforeToolCallback error: %v", err)
 		return nil, nil
 	}
 

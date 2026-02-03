@@ -18,12 +18,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/coze-dev/cozeloop-go"
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/utils"
 )
 
@@ -88,7 +88,7 @@ func (m *CozeLoopPromptManager) GetPrompt(args ...string) string {
 	}
 
 	if m.client == nil {
-		log.Println("CozeLoop client is not initialized")
+		log.Info("CozeLoop client is not initialized")
 		return DEFAULT_INSTRUCTION
 	}
 
@@ -107,7 +107,7 @@ func (m *CozeLoopPromptManager) GetPrompt(args ...string) string {
 		return *pmt.PromptTemplate.Messages[0].Content
 	}
 
-	log.Printf("Prompt %s version %s label %s not found, get prompt result is %v, return default instruction\n",
+	log.Infof("Prompt %s version %s label %s not found, get prompt result is %v, return default instruction",
 		promptKey, version, label, pmt)
 
 	return DEFAULT_INSTRUCTION

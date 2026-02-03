@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -31,6 +30,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/prompts"
 	"github.com/volcengine/veadk-go/utils"
 )
@@ -138,10 +138,10 @@ func (p *VePromptPilot) Optimize(agentInfo *prompts.AgentInfo, feedback string, 
 	var err error
 
 	if feedback == "" {
-		log.Println("Optimizing prompt without feedback.")
+		log.Info("Optimizing prompt without feedback.")
 		taskDescription, err = prompts.RenderPromptWithTemplate(agentInfo)
 	} else {
-		log.Printf("Optimizing prompt with feedback: %s\n", feedback)
+		log.Infof("Optimizing prompt with feedback: %s\n", feedback)
 		taskDescription, err = prompts.RenderPromptFeedbackWithTemplate(agentInfo, feedback)
 	}
 
@@ -176,18 +176,18 @@ func (p *VePromptPilot) Optimize(agentInfo *prompts.AgentInfo, feedback string, 
 			usageTotal = event.Data.Usage.TotalTokens
 		} else {
 			eventStr, _ := json.Marshal(event)
-			log.Printf("Unexpected event: %s\n", string(eventStr))
+			log.Infof("Unexpected event: %s\n", string(eventStr))
 		}
 	}
 
 	finalPrompt = strings.ReplaceAll(builder.String(), "\\n", "\n")
 
-	log.Printf("Optimized prompt is -----\n%s\n-----\n", finalPrompt)
+	log.Infof("Optimized prompt is -----\n%s\n-----\n", finalPrompt)
 
 	if usageTotal > 0 {
-		log.Printf("Token usage: %d", usageTotal)
+		log.Infof("Token usage: %d", usageTotal)
 	} else {
-		log.Println("[Warn]No usage data.")
+		log.Info("[Warn]No usage data.")
 	}
 
 	return finalPrompt, nil

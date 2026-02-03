@@ -16,12 +16,12 @@ package short_term_memory_backends
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/log"
-	"go.uber.org/zap/zapcore"
 	"google.golang.org/adk/session"
 	"google.golang.org/adk/session/database"
 	"gorm.io/driver/postgres"
@@ -58,7 +58,7 @@ func NewPostgreSqlSTMBackend(config *PostgresqlBackendConfig) (session.Service, 
 
 	sessionService, err := database.NewSessionService(
 		postgres.Open(config.DBUrl),
-		&gorm.Config{PrepareStmt: true, Logger: log.NewLogger(zapcore.FatalLevel)},
+		&gorm.Config{PrepareStmt: true, Logger: log.NewGormLogger(slog.LevelError)},
 	)
 	if err != nil {
 		log.Error(fmt.Sprintf("init DatabaseSessionService failed: %v", err))

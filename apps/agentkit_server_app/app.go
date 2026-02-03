@@ -17,13 +17,13 @@ package agentkit_server_app
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/volcengine/veadk-go/apps"
 	"github.com/volcengine/veadk-go/apps/a2a_app"
 	"github.com/volcengine/veadk-go/apps/simple_app"
+	"github.com/volcengine/veadk-go/log"
 	"google.golang.org/adk/cmd/launcher"
 	"google.golang.org/adk/cmd/launcher/web"
 	"google.golang.org/adk/cmd/launcher/web/webui"
@@ -48,7 +48,7 @@ func (a *agentkitServerApp) Run(ctx context.Context, config *apps.RunConfig) err
 		config.SessionService = session.InMemoryService()
 	}
 
-	log.Printf("Web servers starts on %s", a.GetWebUrl())
+	log.Infof("Web servers starts on %s", a.GetWebUrl())
 	err := a.SetupRouters(router, config)
 	if err != nil {
 		return fmt.Errorf("setup agentkit server routers failed: %w", err)
@@ -125,8 +125,8 @@ func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 		http.StripPrefix(a.ApiPathPrefix, corsHandler),
 	)
 
-	log.Printf("       api:  you can access API using %s", a.GetAPIPath())
-	log.Printf("       api:      for instance: %s/list-apps", a.GetAPIPath())
+	log.Infof("       api:  you can access API using %s", a.GetAPIPath())
+	log.Infof("       api:      for instance: %s/list-apps", a.GetAPIPath())
 
 	return nil
 }

@@ -15,7 +15,8 @@
 package web_search
 
 import (
-	"log"
+	"github.com/volcengine/veadk-go/log"
+
 	"testing"
 
 	"github.com/volcengine/veadk-go/common"
@@ -35,10 +36,10 @@ func TestClient_DoRequest(t *testing.T) {
 		Query: "How to create a LLMAgent?",
 	})
 	if err != nil {
-		log.Printf("web search client DoRequest error: %v", err)
+		log.Errorf("web search client DoRequest error: %v", err)
 		return
 	}
 
-	log.Println("response: ", result.Result)
+	log.Infof("response: %+v", result.Result)
 
 }
