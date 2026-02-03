@@ -21,6 +21,7 @@ import (
 	"io"
 
 	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/observability"
 
 	"net/http"
 	"strings"
@@ -51,11 +52,6 @@ func NewAgentkitSimpleApp(config *apps.ApiConfig) apps.BasicApp {
 }
 
 func (app *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunConfig) error {
-	ctx := context.Background()
-	sessionService := config.SessionService
-	if sessionService == nil {
-		sessionService = session.InMemoryService()
-	}
 
 	if app.appName == "" {
 		app.appName = config.AgentLoader.RootAgent().Name()
@@ -65,7 +61,7 @@ func (app *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunC
 		app.userID = "agentkit_user"
 	}
 
-	resp, err := sessionService.Create(ctx, &session.CreateRequest{
+	resp, err := config.SessionService.Create(context.Background(), &session.CreateRequest{
 		AppName: app.appName,
 		UserID:  app.userID,
 	})
@@ -77,7 +73,7 @@ func (app *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunC
 	r, err := runner.New(runner.Config{
 		AppName:         app.appName,
 		Agent:           config.AgentLoader.RootAgent(),
-		SessionService:  sessionService,
+		SessionService:  config.SessionService,
 		ArtifactService: config.ArtifactService,
 		MemoryService:   config.MemoryService,
 		PluginConfig:    config.PluginConfig,
@@ -97,6 +93,22 @@ func (app *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunC
 }
 
 func (app *agentkitSimpleApp) Run(ctx context.Context, config *apps.RunConfig) error {
+
+	if config.SessionService == nil {
+		config.SessionService = session.InMemoryService()
+	}
+
+	config.AppendObservability()
+
+	defer func() {
+		err := observability.Shutdown(ctx)
+		if err != nil {
+			log.Errorf("shutting down observability error: %s", err.Error())
+			return
+		}
+		log.Info("observability stopped")
+	}()
+
 	router := web.BuildBaseRouter()
 
 	log.Infof("Web servers starts on %s", app.GetWebUrl())
