@@ -16,7 +16,6 @@ package observability
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	"go.opentelemetry.io/otel"
@@ -290,10 +289,7 @@ func RecordAPMPlusToolTokenUsage(ctx context.Context, tokens int64, attrs ...att
 	}
 }
 
-func RecordAgentKitDuration(ctx context.Context, durationSeconds float64, err error, attrs ...attribute.KeyValue) {
-	if err != nil {
-		attrs = append(attrs, attribute.String("error_type", fmt.Sprintf("%T", err)))
-	}
+func RecordAgentKitDuration(ctx context.Context, durationSeconds float64, attrs ...attribute.KeyValue) {
 	for _, histogram := range agentkitDurationHistograms {
 		histogram.Record(ctx, durationSeconds, metric.WithAttributes(attrs...))
 	}

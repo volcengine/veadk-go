@@ -17,11 +17,14 @@ package observability
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/volcengine/veadk-go/configs"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
+
+var isAgentKitRuntime = checkAgentKitRuntime()
 
 // setCommonAttributes enriches the span with common attributes from context, config, or env.
 func setCommonAttributes(ctx context.Context, span trace.Span) {
@@ -191,4 +194,22 @@ func getServiceName(cfg *configs.OpenTelemetryConfig) string {
 		}
 	}
 	return "<unknown_service>"
+}
+
+// OTEL_RESOURCE_ATTRIBUTES="instance.id=123456,apmplus.business_carrier=agentkit_runtime"
+func checkAgentKitRuntime() bool {
+	otelAttrStr := os.Getenv("OTEL_RESOURCE_ATTRIBUTES")
+	if otelAttrStr == "" {
+		return false
+	}
+
+	otelAttrs := strings.Split(otelAttrStr, ",")
+	for _, attr := range otelAttrs {
+		kv := strings.Split(attr, "=")
+		if len(kv) == 2 && kv[0] == "apmplus.business_carrier" && kv[1] == "agentkit_runtime" {
+			return true
+		}
+	}
+
+	return false
 }
