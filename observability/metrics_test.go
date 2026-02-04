@@ -16,7 +16,6 @@ package observability
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -120,8 +119,7 @@ func TestMetricsRecording(t *testing.T) {
 	})
 
 	t.Run("RecordAgentKitDurationWithError", func(t *testing.T) {
-		testErr := fmt.Errorf("test error")
-		RecordAgentKitDuration(ctx, 2.5, testErr, attrs...)
+		RecordAgentKitDuration(ctx, 2.5, attrs...)
 
 		var rm metricdata.ResourceMetrics
 		err := reader.Collect(ctx, &rm)
@@ -136,8 +134,6 @@ func TestMetricsRecording(t *testing.T) {
 						if dp.Count > 0 {
 							assert.Equal(t, uint64(1), dp.Count)
 							assert.Equal(t, 2.5, dp.Sum)
-							errType, _ := dp.Attributes.Value("error_type")
-							assert.Equal(t, "*errors.errorString", errType.AsString())
 							found = true
 						}
 					}

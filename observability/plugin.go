@@ -189,16 +189,22 @@ func (p *adkObservabilityPlugin) AfterRun(ctx agent.InvocationContext) {
 					RecordOperationDuration(context.Background(), elapsed, metricAttrs...)
 					RecordAPMPlusSpanLatency(context.Background(), elapsed, metricAttrs...)
 
-					agentKitsAttrs := []attribute.KeyValue{
-						attribute.String("gen_ai_operation_name", "chain"),
-						attribute.String("gen_ai_operation_type", "workflow"),
+					if isAgentKitRuntime {
+						agentKitsAttrs := []attribute.KeyValue{
+							attribute.String("gen_ai_operation_name", "chain"),
+							attribute.String("gen_ai_operation_type", "workflow"),
+						}
+
+						var lastErr error
+						if val, _ := ctx.Session().State().Get(stateKeyLastError); val != nil {
+							lastErr = val.(error)
+						}
+						if lastErr != nil {
+							agentKitsAttrs = append(agentKitsAttrs, attribute.String("error_type", "invocation_error"))
+						}
+						RecordAgentKitDuration(context.Background(), elapsed, agentKitsAttrs...)
 					}
 
-					var lastErr error
-					if val, _ := ctx.Session().State().Get(stateKeyLastError); val != nil {
-						lastErr = val.(error)
-					}
-					RecordAgentKitDuration(context.Background(), elapsed, lastErr, agentKitsAttrs...)
 				}
 
 			}
@@ -367,7 +373,7 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 				attribute.String("gen_ai_response_model", meta.ModelName),
 				attribute.String("gen_ai_operation_name", "chat"),
 				attribute.String("gen_ai_operation_type", "llm"),
-				attribute.String("error_type", "error"), // Simple error type
+				attribute.String("error_type", "llm_error"), // Simple error type
 			}
 			RecordExceptions(context.Context(ctx), 1, metricAttrs...)
 			p.recordFinalResponseMetrics(ctx, meta, meta.ModelName, err)
@@ -590,11 +596,16 @@ func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.CallbackCo
 			RecordOperationDuration(context.Context(ctx), duration, metricAttrs...)
 			RecordAPMPlusSpanLatency(context.Context(ctx), duration, metricAttrs...)
 
-			agentKitsAttrs := []attribute.KeyValue{
-				attribute.String("gen_ai_operation_name", "chat"),
-				attribute.String("gen_ai_operation_type", "llm"),
+			if isAgentKitRuntime {
+				agentKitsAttrs := []attribute.KeyValue{
+					attribute.String("gen_ai_operation_name", "chat"),
+					attribute.String("gen_ai_operation_type", "llm"),
+				}
+				if err != nil {
+					agentKitsAttrs = append(agentKitsAttrs, attribute.String("error_type", "llm_error"))
+				}
+				RecordAgentKitDuration(context.Context(ctx), duration, agentKitsAttrs...)
 			}
-			RecordAgentKitDuration(context.Context(ctx), duration, err, agentKitsAttrs...)
 		}
 	}
 }
@@ -937,11 +948,16 @@ func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, tool tool.Tool, arg
 			RecordOperationDuration(context.Background(), duration, metricAttrs...)
 			RecordAPMPlusSpanLatency(context.Background(), duration, metricAttrs...)
 
-			agentKitsAttrs := []attribute.KeyValue{
-				attribute.String("gen_ai_operation_name", tool.Name()),
-				attribute.String("gen_ai_operation_type", "tool"),
+			if isAgentKitRuntime {
+				agentKitsAttrs := []attribute.KeyValue{
+					attribute.String("gen_ai_operation_name", tool.Name()),
+					attribute.String("gen_ai_operation_type", "tool"),
+				}
+				if err == nil {
+					agentKitsAttrs = append(agentKitsAttrs, attribute.String("error_type", "tool_error"))
+				}
+				RecordAgentKitDuration(context.Background(), duration, agentKitsAttrs...)
 			}
-			RecordAgentKitDuration(context.Background(), duration, err, agentKitsAttrs...)
 		}
 
 		if p.isMetricsEnabled() {
@@ -1032,6 +1048,28 @@ func (p *adkObservabilityPlugin) AfterAgent(ctx agent.CallbackContext) (*genai.C
 				}
 			}
 			span.End()
+		}
+	}
+
+	meta := p.getSpanMetadata(ctx.State())
+	if !meta.StartTime.IsZero() {
+		if p.isMetricsEnabled() {
+			if isAgentKitRuntime {
+				duration := time.Since(meta.StartTime).Seconds()
+				agentKitsAttrs := []attribute.KeyValue{
+					attribute.String("gen_ai_operation_name", "invoke_agent"),
+					attribute.String("gen_ai_operation_type", "agent_server"),
+				}
+				var lastErr error
+				if val, _ := ctx.State().Get(stateKeyLastError); val != nil {
+					lastErr = val.(error)
+				}
+
+				if lastErr != nil {
+					agentKitsAttrs = append(agentKitsAttrs, attribute.String("error_type", "invoke_agent_error"))
+				}
+				RecordAgentKitDuration(context.Background(), duration, agentKitsAttrs...)
+			}
 		}
 	}
 	return nil, nil
