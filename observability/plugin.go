@@ -179,16 +179,28 @@ func (p *adkObservabilityPlugin) AfterRun(ctx agent.InvocationContext) {
 
 			// Record final metrics for invocation
 			if !meta.StartTime.IsZero() {
-				elapsed := time.Since(meta.StartTime).Seconds()
-				metricAttrs := []attribute.KeyValue{
-					attribute.String("gen_ai_operation_name", "chain"),
-					attribute.String("gen_ai_operation_type", "workflow"),
-					attribute.String("gen_ai.system", GetModelProvider(context.Context(ctx))),
-				}
 				if p.isMetricsEnabled() {
+					elapsed := time.Since(meta.StartTime).Seconds()
+					metricAttrs := []attribute.KeyValue{
+						attribute.String("gen_ai_operation_name", "chain"),
+						attribute.String("gen_ai_operation_type", "workflow"),
+						attribute.String("gen_ai.system", GetModelProvider(context.Context(ctx))),
+					}
 					RecordOperationDuration(context.Background(), elapsed, metricAttrs...)
 					RecordAPMPlusSpanLatency(context.Background(), elapsed, metricAttrs...)
+
+					agentKitsAttrs := []attribute.KeyValue{
+						attribute.String("gen_ai_operation_name", "chain"),
+						attribute.String("gen_ai_operation_type", "workflow"),
+					}
+
+					var lastErr error
+					if val, _ := ctx.Session().State().Get(stateKeyLastError); val != nil {
+						lastErr = val.(error)
+					}
+					RecordAgentKitDuration(context.Background(), elapsed, lastErr, agentKitsAttrs...)
 				}
+
 			}
 
 			// Clean up from global map with delay to allow children to be exported.
@@ -346,6 +358,7 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 
 	if err != nil {
 		span.SetStatus(codes.Error, err.Error())
+		_ = ctx.State().Set(stateKeyLastError, err)
 		// Record Exceptions metric
 		if p.isMetricsEnabled() {
 			meta := p.getSpanMetadata(ctx.State())
@@ -357,6 +370,7 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 				attribute.String("error_type", "error"), // Simple error type
 			}
 			RecordExceptions(context.Context(ctx), 1, metricAttrs...)
+			p.recordFinalResponseMetrics(ctx, meta, meta.ModelName, err)
 		}
 		return nil, nil
 	}
@@ -450,7 +464,7 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 
 	if !resp.Partial {
 		// Record Operation Duration and Latency
-		p.recordFinalResponseMetrics(ctx, meta, finalModelName)
+		p.recordFinalResponseMetrics(ctx, meta, finalModelName, nil)
 	}
 
 	return nil, nil
@@ -563,7 +577,7 @@ func (p *adkObservabilityPlugin) recordStreamingGenerationMetrics(ctx agent.Call
 	}
 }
 
-func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.CallbackContext, meta *spanMetadata, finalModelName string) {
+func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.CallbackContext, meta *spanMetadata, finalModelName string, err error) {
 	if !meta.StartTime.IsZero() {
 		duration := time.Since(meta.StartTime).Seconds()
 		metricAttrs := []attribute.KeyValue{
@@ -575,6 +589,12 @@ func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.CallbackCo
 		if p.isMetricsEnabled() {
 			RecordOperationDuration(context.Context(ctx), duration, metricAttrs...)
 			RecordAPMPlusSpanLatency(context.Context(ctx), duration, metricAttrs...)
+
+			agentKitsAttrs := []attribute.KeyValue{
+				attribute.String("gen_ai_operation_name", "chat"),
+				attribute.String("gen_ai_operation_type", "llm"),
+			}
+			RecordAgentKitDuration(context.Context(ctx), duration, err, agentKitsAttrs...)
 		}
 	}
 }
@@ -901,6 +921,9 @@ func (p *adkObservabilityPlugin) BeforeTool(ctx tool.Context, tool tool.Tool, ar
 
 // AfterTool is called after a tool is executed.
 func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
+	if err != nil {
+		_ = ctx.State().Set(stateKeyLastError, err)
+	}
 	// Metrics recording only
 	meta := p.getSpanMetadata(ctx.State())
 	if !meta.StartTime.IsZero() {
@@ -913,6 +936,12 @@ func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, tool tool.Tool, arg
 		if p.isMetricsEnabled() {
 			RecordOperationDuration(context.Background(), duration, metricAttrs...)
 			RecordAPMPlusSpanLatency(context.Background(), duration, metricAttrs...)
+
+			agentKitsAttrs := []attribute.KeyValue{
+				attribute.String("gen_ai_operation_name", tool.Name()),
+				attribute.String("gen_ai_operation_type", "tool"),
+			}
+			RecordAgentKitDuration(context.Background(), duration, err, agentKitsAttrs...)
 		}
 
 		if p.isMetricsEnabled() {
@@ -1052,6 +1081,7 @@ const (
 	stateKeyMetadata        = "veadk.observability.metadata"
 	stateKeyStreamingOutput = "veadk.observability.streaming_output"
 	stateKeyStreamingSpan   = "veadk.observability.streaming_span"
+	stateKeyLastError       = "veadk.observability.last_error"
 )
 
 // spanMetadata groups various observational data points in a single structure

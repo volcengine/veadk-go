@@ -16,6 +16,7 @@ package observability
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -116,6 +117,34 @@ func TestMetricsRecording(t *testing.T) {
 			}
 		}
 		assert.True(t, found, "Streaming time to first token not found")
+	})
+
+	t.Run("RecordAgentKitDurationWithError", func(t *testing.T) {
+		testErr := fmt.Errorf("test error")
+		RecordAgentKitDuration(ctx, 2.5, testErr, attrs...)
+
+		var rm metricdata.ResourceMetrics
+		err := reader.Collect(ctx, &rm)
+		assert.NoError(t, err)
+
+		var found bool
+		for _, sm := range rm.ScopeMetrics {
+			for _, m := range sm.Metrics {
+				if m.Name == MetricNameAgentKitDuration {
+					data := m.Data.(metricdata.Histogram[float64])
+					for _, dp := range data.DataPoints {
+						if dp.Count > 0 {
+							assert.Equal(t, uint64(1), dp.Count)
+							assert.Equal(t, 2.5, dp.Sum)
+							errType, _ := dp.Attributes.Value("error_type")
+							assert.Equal(t, "*errors.errorString", errType.AsString())
+							found = true
+						}
+					}
+				}
+			}
+		}
+		assert.True(t, found, "AgentKit duration not found")
 	})
 }
 

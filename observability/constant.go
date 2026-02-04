@@ -68,6 +68,9 @@ const (
 	// APMPlus specific metrics
 	MetricNameAPMPlusSpanLatency    = "apmplus_span_latency"
 	MetricNameAPMPlusToolTokenUsage = "apmplus_tool_token_usage"
+
+	// AgentKit specific metrics
+	MetricNameAgentKitDuration = "agentkit_runtime_operation_latency"
 )
 
 // General attributes

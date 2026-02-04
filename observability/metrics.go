@@ -16,7 +16,7 @@ package observability
 
 import (
 	"context"
-
+	"fmt"
 	"sync"
 
 	"go.opentelemetry.io/otel"
@@ -46,6 +46,11 @@ var (
 	genAIServerTimePerOutputTokenBuckets = []float64{
 		0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 2.5,
 	}
+
+	// Time duration buckets for agent_kit (seconds)
+	agentkitDurationSecondBuckets = []float64{
+		0.01, 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 1.28, 2.56, 5.12, 10.24, 20.48, 40.96, 81.92, 163.84,
+	}
 )
 
 var (
@@ -69,6 +74,9 @@ var (
 	// special metrics for APMPlus
 	apmPlusLatencyHistograms        []metric.Float64Histogram
 	apmPlusToolTokenUsageHistograms []metric.Float64Histogram
+
+	// special metrics for AgentKit
+	agentkitDurationHistograms []metric.Float64Histogram
 )
 
 // registerLocalMetrics initializes the metrics system with a local isolated MeterProvider.
@@ -200,6 +208,16 @@ func initializeInstruments(m metric.Meter) {
 	); err == nil {
 		apmPlusToolTokenUsageHistograms = append(apmPlusToolTokenUsageHistograms, h)
 	}
+
+	// AgentKit Duration
+	if h, err := m.Float64Histogram(
+		MetricNameAgentKitDuration,
+		metric.WithDescription("operation latency"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(agentkitDurationSecondBuckets...),
+	); err == nil {
+		agentkitDurationHistograms = append(agentkitDurationHistograms, h)
+	}
 }
 
 // RecordTokenUsage records the number of tokens used.
@@ -269,5 +287,14 @@ func RecordAPMPlusSpanLatency(ctx context.Context, durationSeconds float64, attr
 func RecordAPMPlusToolTokenUsage(ctx context.Context, tokens int64, attrs ...attribute.KeyValue) {
 	for _, histogram := range apmPlusToolTokenUsageHistograms {
 		histogram.Record(ctx, float64(tokens), metric.WithAttributes(attrs...))
+	}
+}
+
+func RecordAgentKitDuration(ctx context.Context, durationSeconds float64, err error, attrs ...attribute.KeyValue) {
+	if err != nil {
+		attrs = append(attrs, attribute.String("error_type", fmt.Sprintf("%T", err)))
+	}
+	for _, histogram := range agentkitDurationHistograms {
+		histogram.Record(ctx, durationSeconds, metric.WithAttributes(attrs...))
 	}
 }
