@@ -15,7 +15,6 @@
 package observability
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,21 +28,6 @@ type MockSpan struct {
 	trace.Span // Embed default NoopSpan to satisfy interface
 	Attributes map[attribute.Key]attribute.Value
 }
-
-type mockReadonlyCtx struct {
-	context.Context
-	userID       string
-	sessionID    string
-	appName      string
-	agentName    string
-	invocationID string
-}
-
-func (m mockReadonlyCtx) UserID() string       { return m.userID }
-func (m mockReadonlyCtx) SessionID() string    { return m.sessionID }
-func (m mockReadonlyCtx) AppName() string      { return m.appName }
-func (m mockReadonlyCtx) AgentName() string    { return m.agentName }
-func (m mockReadonlyCtx) InvocationID() string { return m.invocationID }
 
 func NewMockSpan() *MockSpan {
 	return &MockSpan{
