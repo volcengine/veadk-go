@@ -179,11 +179,11 @@ type contextKey string
 
 // Context keys for storing runtime values
 const (
+	ContextKeyModelProvider contextKey = "veadk.model_provider"
 	ContextKeySessionID     contextKey = "veadk.session_id"
 	ContextKeyUserID        contextKey = "veadk.user_id"
 	ContextKeyAppName       contextKey = "veadk.app_name"
 	ContextKeyAgentName     contextKey = "veadk.agent_name"
 	ContextKeyCallType      contextKey = "veadk.call_type"
-	ContextKeyModelProvider contextKey = "veadk.model_provider"
 	ContextKeyInvocationID  contextKey = "veadk.invocation_id"
 )

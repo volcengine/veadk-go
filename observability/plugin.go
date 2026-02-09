@@ -123,7 +123,7 @@ func (p *adkObservabilityPlugin) BeforeRun(ctx agent.InvocationContext) (*genai.
 	_ = ctx.Session().State().Set(stateKeyInvocationSpan, span)
 	_ = ctx.Session().State().Set(stateKeyInvocationCtx, newCtx)
 
-	setCommonAttributes(newCtx, span)
+	setCommonAttributesFromInvocation(ctx, span)
 	setWorkflowAttributes(span)
 
 	// Record start time for metrics
@@ -239,7 +239,7 @@ func (p *adkObservabilityPlugin) BeforeModel(ctx agent.CallbackContext, req *mod
 	// 2. Start our OWN span to cover the full duration of the call (including streaming).
 	// ADK's "call_llm" span will be closed prematurely by the framework on the first chunk.
 	// Align with Python: name is "call_llm"
-	newCtx, span := p.tracer.Start(parentCtx, SpanCallLLM)
+	_, span := p.tracer.Start(parentCtx, SpanCallLLM)
 	log.Debug("BeforeModel created a span", "span", span.SpanContext(), "is_recording", span.IsRecording())
 	_ = ctx.State().Set(stateKeyStreamingSpan, span)
 
@@ -265,7 +265,7 @@ func (p *adkObservabilityPlugin) BeforeModel(ctx agent.CallbackContext, req *mod
 		span.SetAttributes(attribute.String("adk.internal_span_id", adkSpan.SpanContext().SpanID().String()))
 	}
 
-	setCommonAttributes(newCtx, span)
+	setCommonAttributesFromCallback(ctx, span)
 	// Set GenAI standard span attributes
 	setLLMAttributes(span)
 
@@ -990,7 +990,7 @@ func (p *adkObservabilityPlugin) BeforeAgent(ctx agent.CallbackContext) (*genai.
 	_ = ctx.State().Set(stateKeyInvokeAgentCtx, newCtx)
 
 	// 4. Set attributes
-	setCommonAttributes(newCtx, span)
+	setCommonAttributesFromCallback(ctx, span)
 	setWorkflowAttributes(span)
 	setAgentAttributes(span, agentName)
 
