@@ -24,13 +24,12 @@ import (
 	"github.com/volcengine/veadk-go/apps/a2a_app"
 	"github.com/volcengine/veadk-go/apps/simple_app"
 	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/observability"
 	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/web"
 	"google.golang.org/adk/cmd/launcher/web/webui"
 	"google.golang.org/adk/server/adkrest"
-	"google.golang.org/adk/session"
 )
+
+const serverName = "agentkit server"
 
 type agentkitServerApp struct {
 	*apps.ApiConfig
@@ -43,41 +42,7 @@ func NewAgentkitServerApp(config *apps.ApiConfig) apps.BasicApp {
 }
 
 func (a *agentkitServerApp) Run(ctx context.Context, config *apps.RunConfig) error {
-	router := web.BuildBaseRouter()
-
-	if config.SessionService == nil {
-		config.SessionService = session.InMemoryService()
-	}
-
-	config.AppendObservability()
-
-	defer func() {
-		err := observability.Shutdown(ctx)
-		if err != nil {
-			log.Errorf("shutting down observability error: %s", err.Error())
-			return
-		}
-		log.Info("observability stopped")
-	}()
-
-	log.Infof("Web servers starts on %s", a.GetWebUrl())
-	err := a.SetupRouters(router, config)
-	if err != nil {
-		return fmt.Errorf("setup agentkit server routers failed: %w", err)
-	}
-
-	srv := http.Server{
-		Addr:         fmt.Sprintf(":%v", fmt.Sprint(a.Port)),
-		WriteTimeout: a.WriteTimeout,
-		ReadTimeout:  a.ReadTimeout,
-		IdleTimeout:  a.IdleTimeout,
-		Handler:      router,
-	}
-	err = srv.ListenAndServe()
-	if err != nil {
-		return fmt.Errorf("server failed: %v", err)
-	}
-	return nil
+	return apps.Run(ctx, config, a)
 }
 
 func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunConfig) error {
@@ -139,6 +104,14 @@ func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 	log.Infof("       api:      for instance: %s/list-apps", a.GetAPIPath())
 
 	return nil
+}
+
+func (a *agentkitServerApp) GetApiConfig() *apps.ApiConfig {
+	return a.ApiConfig
+}
+
+func (a *agentkitServerApp) GetServerName() string {
+	return serverName
 }
 
 func corsWithArgs(frontendAddress string) func(next http.Handler) http.Handler {

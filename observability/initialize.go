@@ -294,6 +294,6 @@ func handleSignals(ctx context.Context) {
 
 		// Trigger shutdown which will flush all processors (including BatchSpanProcessor)
 		_ = Shutdown(ctx)
-		os.Exit(0)
+		//os.Exit(0)
 	}()
 }

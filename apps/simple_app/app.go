@@ -20,20 +20,20 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/observability"
-
 	"net/http"
 	"strings"
+
+	"github.com/volcengine/veadk-go/log"
 
 	"github.com/gorilla/mux"
 	"github.com/volcengine/veadk-go/apps"
 	"google.golang.org/adk/agent"
-	"google.golang.org/adk/cmd/launcher/web"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 	"google.golang.org/genai"
 )
+
+const serverName = "agentkit simple server"
 
 type agentkitSimpleApp struct {
 	*apps.ApiConfig
@@ -51,27 +51,27 @@ func NewAgentkitSimpleApp(config *apps.ApiConfig) apps.BasicApp {
 	}
 }
 
-func (app *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunConfig) error {
+func (a *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunConfig) error {
 
-	if app.appName == "" {
-		app.appName = config.AgentLoader.RootAgent().Name()
+	if a.appName == "" {
+		a.appName = config.AgentLoader.RootAgent().Name()
 	}
 
-	if app.userID == "" {
-		app.userID = "agentkit_user"
+	if a.userID == "" {
+		a.userID = "agentkit_user"
 	}
 
 	resp, err := config.SessionService.Create(context.Background(), &session.CreateRequest{
-		AppName: app.appName,
-		UserID:  app.userID,
+		AppName: a.appName,
+		UserID:  a.userID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create the session service: %w", err)
 	}
-	app.session = resp.Session
+	a.session = resp.Session
 
 	r, err := runner.New(runner.Config{
-		AppName:         app.appName,
+		AppName:         a.appName,
 		Agent:           config.AgentLoader.RootAgent(),
 		SessionService:  config.SessionService,
 		ArtifactService: config.ArtifactService,
@@ -81,56 +81,19 @@ func (app *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunC
 	if err != nil {
 		return fmt.Errorf("new runner error: %w", err)
 	}
-	app.runner = r
+	a.runner = r
 
-	router.NewRoute().Path("/invoke").Methods(http.MethodPost).HandlerFunc(app.newInvokeHandler())
-	router.NewRoute().Path("/health").Methods(http.MethodGet).HandlerFunc(app.newHealthHandler())
+	router.NewRoute().Path("/invoke").Methods(http.MethodPost).HandlerFunc(a.newInvokeHandler())
+	router.NewRoute().Path("/health").Methods(http.MethodGet).HandlerFunc(a.newHealthHandler())
 
-	log.Infof("       invoke:  you can invoke agent using %s/invoke", app.GetWebUrl())
-	log.Infof("       health:  you can get health status using: %s/health", app.GetWebUrl())
+	log.Infof("       invoke:  you can invoke agent using %s/invoke", a.GetWebUrl())
+	log.Infof("       health:  you can get health status using: %s/health", a.GetWebUrl())
 
 	return nil
 }
 
-func (app *agentkitSimpleApp) Run(ctx context.Context, config *apps.RunConfig) error {
-
-	if config.SessionService == nil {
-		config.SessionService = session.InMemoryService()
-	}
-
-	config.AppendObservability()
-
-	defer func() {
-		err := observability.Shutdown(ctx)
-		if err != nil {
-			log.Errorf("shutting down observability error: %s", err.Error())
-			return
-		}
-		log.Info("observability stopped")
-	}()
-
-	router := web.BuildBaseRouter()
-
-	log.Infof("Web servers starts on %s", app.GetWebUrl())
-	err := app.SetupRouters(router, config)
-	if err != nil {
-		return fmt.Errorf("setup simple app router error: %w", err)
-	}
-
-	srv := http.Server{
-		Addr:         fmt.Sprintf(":%s", fmt.Sprint(app.Port)),
-		WriteTimeout: app.WriteTimeout,
-		ReadTimeout:  app.ReadTimeout,
-		IdleTimeout:  app.IdleTimeout,
-		Handler:      router,
-	}
-
-	err = srv.ListenAndServe()
-	if err != nil {
-		return fmt.Errorf("server failed: %v", err)
-	}
-
-	return nil
+func (a *agentkitSimpleApp) Run(ctx context.Context, config *apps.RunConfig) error {
+	return apps.Run(ctx, config, a)
 }
 
 type Request struct {
@@ -144,7 +107,7 @@ type Response struct {
 	Data      string `json:"data"`
 }
 
-func (app *agentkitSimpleApp) newInvokeHandler() func(w http.ResponseWriter, r *http.Request) {
+func (a *agentkitSimpleApp) newInvokeHandler() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req Request
 		ctx := context.Background()
@@ -169,7 +132,7 @@ func (app *agentkitSimpleApp) newInvokeHandler() func(w http.ResponseWriter, r *
 		userInput := genai.NewContentFromText(req.Prompt, "user")
 
 		var finalResponseText []string
-		for event, err := range app.runner.Run(ctx, app.userID, app.session.ID(), userInput, agent.RunConfig{StreamingMode: agent.StreamingModeNone}) {
+		for event, err := range a.runner.Run(ctx, a.userID, a.session.ID(), userInput, agent.RunConfig{StreamingMode: agent.StreamingModeNone}) {
 			if err != nil {
 				log.Errorf("Agent Run Error: %v", err)
 				continue
@@ -186,20 +149,28 @@ func (app *agentkitSimpleApp) newInvokeHandler() func(w http.ResponseWriter, r *
 		res := Response{
 			Code:      200,
 			Message:   "success",
-			SessionId: app.session.ID(),
+			SessionId: a.session.ID(),
 			Data:      strings.Join(finalResponseText, ""),
 		}
 		_ = json.NewEncoder(w).Encode(res)
 	}
 }
 
-func (app *agentkitSimpleApp) newHealthHandler() func(w http.ResponseWriter, r *http.Request) {
+func (a *agentkitSimpleApp) newHealthHandler() func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		res := Response{
 			Code:    200,
 			Message: "success",
-			Data:    fmt.Sprintf("Service %s is running ...", app.appName),
+			Data:    fmt.Sprintf("Service %s is running ...", a.appName),
 		}
 		_ = json.NewEncoder(w).Encode(res)
 	}
+}
+
+func (a *agentkitSimpleApp) GetApiConfig() *apps.ApiConfig {
+	return a.ApiConfig
+}
+
+func (a *agentkitSimpleApp) GetServerName() string {
+	return serverName
 }

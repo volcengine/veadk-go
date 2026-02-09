@@ -16,26 +16,23 @@ package a2a_app
 
 import (
 	"context"
-	"fmt"
+	"net/url"
 
 	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/observability"
-
-	"net/http"
-	"net/url"
 
 	a2acore "github.com/a2aproject/a2a-go/a2a"
 	"github.com/a2aproject/a2a-go/a2asrv"
 	"github.com/gorilla/mux"
 	"github.com/volcengine/veadk-go/apps"
-	"google.golang.org/adk/cmd/launcher/web"
 	"google.golang.org/adk/cmd/launcher/web/a2a"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/server/adka2a"
-	"google.golang.org/adk/session"
 )
 
-const apiPath = "/"
+const (
+	serverName = "agentkit a2a server"
+	apiPath    = "/"
+)
 
 type agentkitA2AServerApp struct {
 	*apps.ApiConfig
@@ -43,43 +40,7 @@ type agentkitA2AServerApp struct {
 }
 
 func (a *agentkitA2AServerApp) Run(ctx context.Context, config *apps.RunConfig) error {
-	router := web.BuildBaseRouter()
-
-	if config.SessionService == nil {
-		config.SessionService = session.InMemoryService()
-	}
-
-	config.AppendObservability()
-
-	defer func() {
-		err := observability.Shutdown(ctx)
-		if err != nil {
-			log.Errorf("shutting down observability error: %s", err.Error())
-			return
-		}
-		log.Info("observability stopped")
-	}()
-
-	log.Infof("Web servers starts on %s", a.GetWebUrl())
-	err := a.SetupRouters(router, config)
-	if err != nil {
-		return fmt.Errorf("setup a2a routers failed: %w", err)
-	}
-
-	srv := http.Server{
-		Addr:         fmt.Sprintf(":%v", fmt.Sprint(a.Port)),
-		WriteTimeout: a.WriteTimeout,
-		ReadTimeout:  a.ReadTimeout,
-		IdleTimeout:  a.IdleTimeout,
-		Handler:      router,
-	}
-
-	err = srv.ListenAndServe()
-	if err != nil {
-		return fmt.Errorf("server failed: %v", err)
-	}
-
-	return nil
+	return apps.Run(ctx, config, a)
 }
 
 func (a *agentkitA2AServerApp) SetupRouters(router *mux.Router, config *apps.RunConfig) error {
@@ -120,6 +81,14 @@ func (a *agentkitA2AServerApp) SetupRouters(router *mux.Router, config *apps.Run
 	a2aLauncher.UserMessage(a.GetWebUrl()+apiPath, log.Println)
 
 	return nil
+}
+
+func (a *agentkitA2AServerApp) GetApiConfig() *apps.ApiConfig {
+	return a.ApiConfig
+}
+
+func (a *agentkitA2AServerApp) GetServerName() string {
+	return serverName
 }
 
 func NewAgentkitA2AServerApp(config *apps.ApiConfig) apps.BasicApp {

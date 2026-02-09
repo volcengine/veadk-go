@@ -16,7 +16,12 @@ package apps
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/a2aproject/a2a-go/a2asrv"
@@ -25,6 +30,7 @@ import (
 	"github.com/volcengine/veadk-go/observability"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/artifact"
+	"google.golang.org/adk/cmd/launcher/web"
 	"google.golang.org/adk/memory"
 	"google.golang.org/adk/plugin"
 	"google.golang.org/adk/runner"
@@ -70,6 +76,8 @@ type ApiConfig struct {
 type BasicApp interface {
 	Run(ctx context.Context, config *RunConfig) error
 	SetupRouters(router *mux.Router, config *RunConfig) error
+	GetApiConfig() *ApiConfig
+	GetServerName() string
 }
 
 func DefaultApiConfig() *ApiConfig {
@@ -119,4 +127,59 @@ func (a *ApiConfig) GetWebUrl() string {
 
 func (a *ApiConfig) GetAPIPath() string {
 	return fmt.Sprintf("http://localhost:%d%s", a.Port, a.ApiPathPrefix)
+}
+
+func Run(ctx context.Context, config *RunConfig, app BasicApp) error {
+	router := web.BuildBaseRouter()
+
+	if config.SessionService == nil {
+		config.SessionService = session.InMemoryService()
+	}
+
+	config.AppendObservability()
+
+	defer func() {
+		err := observability.Shutdown(ctx)
+		if err != nil {
+			log.Errorf("shutting down observability error: %s", err.Error())
+			return
+		}
+		log.Info("observability stopped")
+	}()
+
+	log.Infof("Web servers starts on %s", app.GetApiConfig().GetWebUrl())
+	err := app.SetupRouters(router, config)
+	if err != nil {
+		return fmt.Errorf("setup %s routers failed: %w", app.GetServerName(), err)
+	}
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(quit)
+
+	srv := http.Server{
+		Addr:         fmt.Sprintf(":%v", fmt.Sprint(app.GetApiConfig().Port)),
+		WriteTimeout: app.GetApiConfig().WriteTimeout,
+		ReadTimeout:  app.GetApiConfig().ReadTimeout,
+		IdleTimeout:  app.GetApiConfig().IdleTimeout,
+		Handler:      router,
+	}
+
+	go func() {
+		<-quit
+		log.Infof("Received shutdown signal, gracefully stopping %s...", app.GetServerName())
+		shutdownCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Errorf("Server shutdown failed: %v", err)
+		}
+	}()
+
+	err = srv.ListenAndServe()
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("%s failed: %v", app.GetServerName(), err)
+	}
+
+	log.Infof("%s stopped gracefully", app.GetServerName())
+	return nil
 }
