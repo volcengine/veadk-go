@@ -75,9 +75,6 @@ All settings can be overridden via environment variables:
 - `OBSERVABILITY_OPENTELEMETRY_COZELOOP_API_KEY`
 - `OBSERVABILITY_OPENTELEMETRY_APMPLUS_API_KEY`
 - `OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_PROVIDER` (default: true)
-- `VEADK_USER_ID` - Set default user ID
-- `VEADK_SESSION_ID` - Set default session ID
-- `VEADK_APP_NAME` - Set default app name
 - `VEADK_MODEL_PROVIDER` - Set model provider
 
 

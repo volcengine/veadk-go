@@ -16,7 +16,6 @@ package observability
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,35 +56,6 @@ func (m *MockSpan) SetAttributes(kv ...attribute.KeyValue) {
 	for _, a := range kv {
 		m.Attributes[a.Key] = a.Value
 	}
-}
-
-func TestEnvFallback(t *testing.T) {
-	os.Setenv(EnvAppName, "env-app")
-	defer os.Unsetenv(EnvAppName)
-
-	ctx := context.Background()
-	assert.Equal(t, "env-app", GetAppName(ctx))
-
-}
-
-func TestReadonlyContextPreferred(t *testing.T) {
-	os.Setenv(EnvAppName, "env-app")
-	defer os.Unsetenv(EnvAppName)
-
-	ctx := mockReadonlyCtx{
-		Context:      context.Background(),
-		userID:       "u1",
-		sessionID:    "s1",
-		appName:      "app1",
-		agentName:    "agent1",
-		invocationID: "inv1",
-	}
-
-	assert.Equal(t, "u1", GetUserID(ctx))
-	assert.Equal(t, "s1", GetSessionID(ctx))
-	assert.Equal(t, "app1", GetAppName(ctx))
-	assert.Equal(t, "agent1", GetAgentName(ctx))
-	assert.Equal(t, "inv1", GetInvocationID(ctx))
 }
 
 func TestSetSpecificAttributes(t *testing.T) {

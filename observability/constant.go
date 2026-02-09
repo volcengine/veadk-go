@@ -97,11 +97,8 @@ const (
 
 	// Environment Variable Keys for Zero-Config Attributes
 	EnvModelProvider = "VEADK_MODEL_PROVIDER"
-	EnvUserID        = "VEADK_USER_ID"
-	EnvSessionID     = "VEADK_SESSION_ID"
 	EnvAppName       = "VEADK_APP_NAME"
 	EnvCallType      = "VEADK_CALL_TYPE"
-	EnvAgentName     = "VEADK_AGENT_NAME"
 
 	// Default and fallback values
 	DefaultCozeLoopCallType     = "None"  // fixed

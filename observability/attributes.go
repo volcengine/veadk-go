@@ -43,7 +43,6 @@ func setCommonAttributesFromInvocation(ctx agent.InvocationContext, span trace.S
 		sessionID,
 		userID,
 		appName,
-		"",
 		ctx.InvocationID(),
 	)
 }
@@ -57,12 +56,13 @@ func setCommonAttributesFromCallback(ctx agent.CallbackContext, span trace.Span)
 		ctx.SessionID(),
 		ctx.UserID(),
 		ctx.AppName(),
-		ctx.AgentName(),
+
 		ctx.InvocationID(),
 	)
+	setDynamicAttribute(span, AttrGenAIAgentName, ctx.AgentName(), FallbackAgentName, AttrAgentName, AttrAgentNameDot)
 }
 
-func setCommonAttributesWithIdentity(ctx context.Context, span trace.Span, sessionID, userID, appName, agentName, invocationID string) {
+func setCommonAttributesWithIdentity(ctx context.Context, span trace.Span, sessionID, userID, appName, invocationID string) {
 	// 1. Fixed attributes
 	span.SetAttributes(attribute.String(AttrCozeloopReportSource, DefaultCozeLoopReportSource))
 
@@ -73,7 +73,6 @@ func setCommonAttributesWithIdentity(ctx context.Context, span trace.Span, sessi
 	setDynamicAttribute(span, AttrGenAISessionID, sessionID, FallbackSessionID, AttrSessionID)
 	setDynamicAttribute(span, AttrGenAIUserID, userID, FallbackUserID, AttrUserID)
 	setDynamicAttribute(span, AttrGenAIAppName, appName, FallbackAppName, AttrAppNameUnderline, AttrAppNameDot)
-	setDynamicAttribute(span, AttrGenAIAgentName, agentName, FallbackAgentName, AttrAgentName, AttrAgentNameDot)
 	setDynamicAttribute(span, AttrGenAIInvocationID, invocationID, FallbackInvocationID, AttrInvocationID)
 }
 
