@@ -31,6 +31,21 @@ type MockSpan struct {
 	Attributes map[attribute.Key]attribute.Value
 }
 
+type mockReadonlyCtx struct {
+	context.Context
+	userID       string
+	sessionID    string
+	appName      string
+	agentName    string
+	invocationID string
+}
+
+func (m mockReadonlyCtx) UserID() string       { return m.userID }
+func (m mockReadonlyCtx) SessionID() string    { return m.sessionID }
+func (m mockReadonlyCtx) AppName() string      { return m.appName }
+func (m mockReadonlyCtx) AgentName() string    { return m.agentName }
+func (m mockReadonlyCtx) InvocationID() string { return m.invocationID }
+
 func NewMockSpan() *MockSpan {
 	return &MockSpan{
 		Span:       noop.Span{},
@@ -51,6 +66,26 @@ func TestEnvFallback(t *testing.T) {
 	ctx := context.Background()
 	assert.Equal(t, "env-app", GetAppName(ctx))
 
+}
+
+func TestReadonlyContextPreferred(t *testing.T) {
+	os.Setenv(EnvAppName, "env-app")
+	defer os.Unsetenv(EnvAppName)
+
+	ctx := mockReadonlyCtx{
+		Context:      context.Background(),
+		userID:       "u1",
+		sessionID:    "s1",
+		appName:      "app1",
+		agentName:    "agent1",
+		invocationID: "inv1",
+	}
+
+	assert.Equal(t, "u1", GetUserID(ctx))
+	assert.Equal(t, "s1", GetSessionID(ctx))
+	assert.Equal(t, "app1", GetAppName(ctx))
+	assert.Equal(t, "agent1", GetAgentName(ctx))
+	assert.Equal(t, "inv1", GetInvocationID(ctx))
 }
 
 func TestSetSpecificAttributes(t *testing.T) {

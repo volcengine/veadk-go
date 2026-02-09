@@ -22,12 +22,47 @@ import (
 	"github.com/volcengine/veadk-go/configs"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/adk/agent"
 )
 
 var isAgentKitRuntime = checkAgentKitRuntime()
 
-// setCommonAttributes enriches the span with common attributes from context, config, or env.
-func setCommonAttributes(ctx context.Context, span trace.Span) {
+// setCommonAttributesFromInvocation enriches the span with identity attributes from
+// agent.InvocationContext, following ADK canonical sources.
+func setCommonAttributesFromInvocation(ctx agent.InvocationContext, span trace.Span) {
+	var sessionID, userID, appName string
+	if s := ctx.Session(); s != nil {
+		sessionID = s.ID()
+		userID = s.UserID()
+		appName = s.AppName()
+	}
+
+	setCommonAttributesWithIdentity(
+		context.Context(ctx),
+		span,
+		sessionID,
+		userID,
+		appName,
+		"",
+		ctx.InvocationID(),
+	)
+}
+
+// setCommonAttributesFromCallback enriches the span with identity attributes from
+// agent.CallbackContext, following ADK canonical sources.
+func setCommonAttributesFromCallback(ctx agent.CallbackContext, span trace.Span) {
+	setCommonAttributesWithIdentity(
+		context.Context(ctx),
+		span,
+		ctx.SessionID(),
+		ctx.UserID(),
+		ctx.AppName(),
+		ctx.AgentName(),
+		ctx.InvocationID(),
+	)
+}
+
+func setCommonAttributesWithIdentity(ctx context.Context, span trace.Span, sessionID, userID, appName, agentName, invocationID string) {
 	// 1. Fixed attributes
 	span.SetAttributes(attribute.String(AttrCozeloopReportSource, DefaultCozeLoopReportSource))
 
@@ -35,11 +70,11 @@ func setCommonAttributes(ctx context.Context, span trace.Span) {
 	setDynamicAttribute(span, AttrGenAISystem, GetModelProvider(ctx), FallbackModelProvider)
 	setDynamicAttribute(span, AttrGenAISystemVersion, Version, "", AttrInstrumentation)
 	setDynamicAttribute(span, AttrCozeloopCallType, GetCallType(ctx), DefaultCozeLoopCallType)
-	setDynamicAttribute(span, AttrGenAISessionID, GetSessionID(ctx), FallbackSessionID, AttrSessionID)
-	setDynamicAttribute(span, AttrGenAIUserID, GetUserID(ctx), FallbackUserID, AttrUserID)
-	setDynamicAttribute(span, AttrGenAIAppName, GetAppName(ctx), FallbackAppName, AttrAppNameUnderline, AttrAppNameDot)
-	setDynamicAttribute(span, AttrGenAIAgentName, GetAgentName(ctx), FallbackAgentName, AttrAgentName, AttrAgentNameDot)
-	setDynamicAttribute(span, AttrGenAIInvocationID, GetInvocationID(ctx), FallbackInvocationID, AttrInvocationID)
+	setDynamicAttribute(span, AttrGenAISessionID, sessionID, FallbackSessionID, AttrSessionID)
+	setDynamicAttribute(span, AttrGenAIUserID, userID, FallbackUserID, AttrUserID)
+	setDynamicAttribute(span, AttrGenAIAppName, appName, FallbackAppName, AttrAppNameUnderline, AttrAppNameDot)
+	setDynamicAttribute(span, AttrGenAIAgentName, agentName, FallbackAgentName, AttrAgentName, AttrAgentNameDot)
+	setDynamicAttribute(span, AttrGenAIInvocationID, invocationID, FallbackInvocationID, AttrInvocationID)
 }
 
 // setDynamicAttribute sets an attribute and its aliases if the value is not empty (or falls back to a default).
@@ -90,26 +125,6 @@ func setWorkflowAttributes(span trace.Span) {
 	)
 }
 
-// GetUserID retrieves the User ID from the context or environment variables.
-func GetUserID(ctx context.Context) string {
-	return getContextString(ctx, ContextKeyUserID, EnvUserID)
-}
-
-// GetSessionID retrieves the Session ID from the context or environment variables.
-func GetSessionID(ctx context.Context) string {
-	return getContextString(ctx, ContextKeySessionID, EnvSessionID)
-}
-
-// GetAppName retrieves the App Name from the context or environment variables.
-func GetAppName(ctx context.Context) string {
-	return getContextString(ctx, ContextKeyAppName, EnvAppName)
-}
-
-// GetAgentName retrieves the Agent Name from the context or environment variables.
-func GetAgentName(ctx context.Context) string {
-	return getContextString(ctx, ContextKeyAgentName, EnvAgentName)
-}
-
 // GetCallType retrieves the Call Type from the context or environment variables.
 func GetCallType(ctx context.Context) string {
 	return getContextString(ctx, ContextKeyCallType, EnvCallType)
@@ -118,14 +133,6 @@ func GetCallType(ctx context.Context) string {
 // GetModelProvider retrieves the Model Provider from the context or environment variables.
 func GetModelProvider(ctx context.Context) string {
 	return getContextString(ctx, ContextKeyModelProvider, EnvModelProvider)
-}
-
-// GetInvocationID retrieves the Invocation ID from the context.
-func GetInvocationID(ctx context.Context) string {
-	if val, ok := ctx.Value(ContextKeyInvocationID).(string); ok && val != "" {
-		return val
-	}
-	return ""
 }
 
 // getContextString retrieves a string value from Context -> Global Config -> Environment Variable.
