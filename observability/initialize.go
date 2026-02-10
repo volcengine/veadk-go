@@ -17,10 +17,7 @@ package observability
 import (
 	"context"
 	"errors"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/log"
@@ -54,8 +51,6 @@ func Init(ctx context.Context, cfg *configs.ObservabilityConfig) error {
 			initErr = ErrNoExporters
 			return
 		}
-
-		handleSignals(ctx)
 
 		initErr = initWithConfig(ctx, otelCfg)
 		if initErr == nil {
@@ -282,18 +277,4 @@ func initializeMeterProvider(ctx context.Context, cfg *configs.OpenTelemetryConf
 		}
 	}
 	return initialized, errors.Join(errs...)
-}
-
-// handleSignals registers a signal handler to ensure observability data is flushed on exit.
-func handleSignals(ctx context.Context) {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		<-sigChan
-
-		// Trigger shutdown which will flush all processors (including BatchSpanProcessor)
-		_ = Shutdown(ctx)
-		//os.Exit(0)
-	}()
 }

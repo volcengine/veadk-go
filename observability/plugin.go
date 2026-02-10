@@ -109,6 +109,7 @@ func (p *adkObservabilityPlugin) isMetricsEnabled() bool {
 
 // BeforeRun is called before an agent run starts.
 func (p *adkObservabilityPlugin) BeforeRun(ctx agent.InvocationContext) (*genai.Content, error) {
+	log.Debug("Before Run", "InvocationID", ctx.InvocationID(), "SessionID", ctx.Session().ID(), "UserID", ctx.Session().UserID())
 	// 1. Start the 'invocation' span
 	newCtx, span := p.tracer.Start(context.Context(ctx), SpanInvocation, trace.WithSpanKind(trace.SpanKindServer))
 	log.Debug("BeforeRun created a new invocation span", "span", span.SpanContext())
@@ -148,6 +149,7 @@ func (p *adkObservabilityPlugin) BeforeRun(ctx agent.InvocationContext) (*genai.
 
 // AfterRun is called after an agent run ends.
 func (p *adkObservabilityPlugin) AfterRun(ctx agent.InvocationContext) {
+	log.Debug("After Run", "InvocationID", ctx.InvocationID(), "SessionID", ctx.Session().ID(), "UserID", ctx.Session().UserID())
 	// 1. End the span
 	if s, _ := ctx.Session().State().Get(stateKeyInvocationSpan); s != nil {
 		span := s.(trace.Span)
@@ -226,6 +228,8 @@ func (p *adkObservabilityPlugin) AfterRun(ctx agent.InvocationContext) {
 
 // BeforeModel is called before the LLM is called.
 func (p *adkObservabilityPlugin) BeforeModel(ctx agent.CallbackContext, req *model.LLMRequest) (*model.LLMResponse, error) {
+	log.Debug("BeforeModel",
+		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	parentCtx := context.Context(ctx)
 
 	if actx, _ := ctx.State().Get(stateKeyInvokeAgentCtx); actx != nil {
@@ -341,6 +345,8 @@ func (p *adkObservabilityPlugin) setLLMRequestAttributes(ctx agent.CallbackConte
 
 // AfterModel is called after the LLM returns.
 func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *model.LLMResponse, err error) (*model.LLMResponse, error) {
+	log.Debug("AfterModel",
+		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	// 1. Get our managed span from state
 	s, _ := ctx.State().Get(stateKeyStreamingSpan)
 	if s == nil {
@@ -906,6 +912,8 @@ func (p *adkObservabilityPlugin) flattenCompletion(content *genai.Content) []att
 
 // BeforeTool is called before a tool is executed.
 func (p *adkObservabilityPlugin) BeforeTool(ctx tool.Context, tool tool.Tool, args map[string]any) (map[string]any, error) {
+	log.Debug("BeforeTool",
+		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	// Note: In Google ADK-go, the execute_tool span is often not available in the context at this stage.
 	// We rely on VeADKTranslatedExporter (translator.go) to reconstruct tool attributes from the
 	// span after it is ended and exported.
@@ -919,6 +927,8 @@ func (p *adkObservabilityPlugin) BeforeTool(ctx tool.Context, tool tool.Tool, ar
 
 // AfterTool is called after a tool is executed.
 func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
+	log.Debug("AfterTool",
+		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	// Metrics recording only
 	meta := p.getSpanMetadata(ctx.State())
 	if !meta.StartTime.IsZero() {
@@ -962,6 +972,8 @@ func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, tool tool.Tool, arg
 
 // BeforeAgent is called before an agent execution.
 func (p *adkObservabilityPlugin) BeforeAgent(ctx agent.CallbackContext) (*genai.Content, error) {
+	log.Debug("BeforeAgent",
+		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	agentName := ctx.AgentName()
 	if agentName == "" {
 		agentName = FallbackAgentName
@@ -1009,6 +1021,8 @@ func (p *adkObservabilityPlugin) BeforeAgent(ctx agent.CallbackContext) (*genai.
 
 // AfterAgent is called after an agent execution.
 func (p *adkObservabilityPlugin) AfterAgent(ctx agent.CallbackContext) (*genai.Content, error) {
+	log.Debug("AfterAgent",
+		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	// 1. End the span
 	if s, _ := ctx.State().Get(stateKeyInvokeAgentSpan); s != nil {
 		span := s.(trace.Span)
