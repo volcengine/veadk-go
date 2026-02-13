@@ -69,9 +69,10 @@ func SetupVeADKConfig() error {
 	globalConfig = &VeADKConfig{
 		Volcengine: &Volcengine{},
 		Model: &ModelConfig{
-			Agent: &AgentConfig{},
-			Image: &CommonModelConfig{},
-			Video: &CommonModelConfig{},
+			Agent:     &AgentConfig{},
+			Image:     &CommonModelConfig{},
+			Video:     &CommonModelConfig{},
+			Embedding: &EmbeddingModelConfig{},
 		},
 		Tool: &BuiltinToolConfigs{
 			MCPRouter: &MCPRouter{},
