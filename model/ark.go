@@ -551,7 +551,7 @@ func buildArkUsageMetadata(usage *arkmodel.Usage) *genai.GenerateContentResponse
 		CandidatesTokenCount: int32(completionTokens),
 		TotalTokenCount:      int32(totalTokens),
 	}
-	if usage.PromptTokensDetails.CachedTokens > 0 {
+	if usage.PromptTokensDetails != nil && usage.PromptTokensDetails.CachedTokens > 0 {
 		metadata.CachedContentTokenCount = int32(usage.PromptTokensDetails.CachedTokens)
 	}
 	return metadata
