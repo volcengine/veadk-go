@@ -28,6 +28,11 @@ const (
 	// Video
 	DEFAULT_MODEL_VIDEO_NAME     = "doubao-seedance-1-0-pro-250528"
 	DEFAULT_MODEL_VIDEO_API_BASE = "https://ark.cn-beijing.volces.com/api/v3/"
+
+	// Embedding
+	DEFAULT_MODEL_EMBEDDING_NAME     = "doubao-embedding-large-text-240915"
+	DEFAULT_MODEL_EMBEDDING_API_BASE = "https://ark.cn-beijing.volces.com/api/v3/"
+	DEFAULT_MODEL_EMBEDDING_DIM      = 1024
 )
 
 // LOGGING
