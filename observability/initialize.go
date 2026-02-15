@@ -21,7 +21,6 @@ import (
 
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/log"
-	"google.golang.org/adk/telemetry"
 
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -87,15 +86,8 @@ func Shutdown(ctx context.Context) error {
 	}
 
 	// 2. Shutdown local MeterProvider if exists
-	if localMeterProvider != nil {
-		if err := localMeterProvider.Shutdown(ctx); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	// 3. Shutdown global MeterProvider if exists
-	if globalMeterProvider != nil {
-		if err := globalMeterProvider.Shutdown(ctx); err != nil {
+	if meterProvider != nil {
+		if err := meterProvider.Shutdown(ctx); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -132,25 +124,6 @@ func newVeadkExporter(exp sdktrace.SpanExporter) sdktrace.SpanExporter {
 	return &VeADKTranslatedExporter{SpanExporter: exp}
 }
 
-// AddSpanExporter registers an exporter to Google ADK's local telemetry.
-func AddSpanExporter(exp sdktrace.SpanExporter) {
-	veExp := newVeadkExporter(exp)
-	if veExp != nil {
-		telemetry.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(veExp))
-	}
-}
-
-// AddGlobalSpanExporter registers an exporter toglobal TracerProvider.
-func AddGlobalSpanExporter(exp sdktrace.SpanExporter) {
-	veExp := newVeadkExporter(exp)
-	if veExp != nil {
-		globalTP := otel.GetTracerProvider()
-		if sdkTP, ok := globalTP.(*sdktrace.TracerProvider); ok {
-			sdkTP.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(veExp))
-		}
-	}
-}
-
 // setGlobalTracerProvider configures the global OpenTelemetry TracerProvider.
 func setGlobalTracerProvider(exp sdktrace.SpanExporter, spanProcessors ...sdktrace.SpanProcessor) {
 	// Always wrap with VeADKTranslatedExporter to ensure ADK-internal spans are correctly mapped
@@ -160,7 +133,7 @@ func setGlobalTracerProvider(exp sdktrace.SpanExporter, spanProcessors ...sdktra
 	}
 
 	// Default processors
-	allProcessors := append([]sdktrace.SpanProcessor{}, spanProcessors...)
+	allProcessors := append([]sdktrace.SpanProcessor{NewVeADKSpanProcessor()}, spanProcessors...)
 
 	// Use BatchSpanProcessor for all exporters to ensure performance and batching.
 	finalProcessor := sdktrace.NewBatchSpanProcessor(translatedExp)
@@ -190,8 +163,12 @@ func setGlobalTracerProvider(exp sdktrace.SpanExporter, spanProcessors ...sdktra
 	otel.SetTracerProvider(tp)
 }
 
-func setupLocalTracer(ctx context.Context, cfg *configs.OpenTelemetryConfig) (bool, error) {
+func initializeTraceProvider(ctx context.Context, cfg *configs.OpenTelemetryConfig) (bool, error) {
 	if cfg == nil {
+		return false, nil
+	}
+
+	if !cfg.EnableGlobalProvider {
 		return false, nil
 	}
 
@@ -204,77 +181,29 @@ func setupLocalTracer(ctx context.Context, cfg *configs.OpenTelemetryConfig) (bo
 		return false, nil
 	}
 
-	AddSpanExporter(exp)
+	setGlobalTracerProvider(exp)
 	return true, nil
 }
 
-func setupGlobalTracer(ctx context.Context, cfg *configs.OpenTelemetryConfig) (bool, error) {
-	globalExp, err := NewMultiExporter(ctx, cfg)
-	if err != nil {
-		return false, err
-	}
-
-	if globalExp != nil {
-		log.Info("Registering ADK Global TracerProvider")
-		setGlobalTracerProvider(globalExp)
-		return true, nil
-	}
-	return false, nil
-}
-
-func initializeTraceProvider(ctx context.Context, cfg *configs.OpenTelemetryConfig) (bool, error) {
-	var errs []error
-	var initialized bool
-	if cfg != nil && cfg.EnableLocalProvider {
-		ok, err := setupLocalTracer(ctx, cfg)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if ok {
-			initialized = true
-		}
-	}
-
-	if cfg != nil && cfg.EnableGlobalProvider {
-		ok, err := setupGlobalTracer(ctx, cfg)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if ok {
-			initialized = true
-		}
-	}
-	return initialized, errors.Join(errs...)
-}
-
 func initializeMeterProvider(ctx context.Context, cfg *configs.OpenTelemetryConfig) (bool, error) {
-	var errs []error
-	var initialized bool
 	if cfg == nil || cfg.EnableMetrics == nil || !*cfg.EnableMetrics {
 		log.Debug("Meter provider is not enabled")
 		return false, nil
 	}
 
-	if cfg.EnableLocalProvider {
-		readers, err := NewMetricReader(ctx, cfg)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if len(readers) > 0 {
-			registerLocalMetrics(readers)
-			initialized = true
-		}
+	if !cfg.EnableGlobalProvider {
+		return false, nil
 	}
 
-	if cfg.EnableGlobalProvider {
-		globalReaders, err := NewMetricReader(ctx, cfg)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if len(globalReaders) > 0 {
-			registerGlobalMetrics(globalReaders)
-			initialized = true
-		}
+	readers, err := NewMetricReader(ctx, cfg)
+	if err != nil {
+		return false, err
 	}
-	return initialized, errors.Join(errs...)
+
+	if len(readers) == 0 {
+		return false, nil
+	}
+
+	registerMetrics(readers)
+	return true, nil
 }

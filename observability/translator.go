@@ -165,6 +165,16 @@ func (p *translatedSpan) processAttributes(attrs []attribute.KeyValue, existingK
 	for _, kv := range attrs {
 		key := string(kv.Key)
 
+		if key == AttrGenAIOperationName {
+			op := kv.Value.AsString()
+			switch op {
+			case "generate_content":
+				kv = attribute.String(AttrGenAIOperationName, "chat")
+			case "invoke_agent":
+				kv = attribute.String(AttrGenAIOperationName, "chain")
+			}
+		}
+
 		// 1. Map ADK internal attributes if not already present in standard form
 		if strings.HasPrefix(key, "gcp.vertex.agent.") {
 			targetKey, ok := ADKAttributeKeyMap[key]
@@ -190,6 +200,14 @@ func (p *translatedSpan) processAttributes(attrs []attribute.KeyValue, existingK
 		newAttrs = append(newAttrs, kv)
 	}
 	return newAttrs
+}
+
+func (p *translatedSpan) Name() string {
+	name := p.ReadOnlySpan.Name()
+	if strings.HasPrefix(name, "generate_content ") || name == "generate_content" {
+		return SpanCallLLM
+	}
+	return name
 }
 
 func (p *translatedSpan) reconstructToolInput(toolName, toolDesc, toolArgs string) []attribute.KeyValue {

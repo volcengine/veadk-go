@@ -88,11 +88,9 @@ func TestInitializeWithConfig(t *testing.T) {
 	err := initWithConfig(context.Background(), nil)
 	assert.ErrorIs(t, err, ErrNoExporters)
 
-	// Config with disabled global provider but valid exporter, should return ErrNoExporters
-	// because neither local nor global provider is enabled.
+	// Config with disabled global provider but valid exporter, should return ErrNoExporters.
 	cfg := &configs.OpenTelemetryConfig{
 		EnableGlobalProvider: false,
-		EnableLocalProvider:  false,
 		Stdout:               &configs.StdoutConfig{Enable: true},
 	}
 	err = initWithConfig(context.Background(), cfg)

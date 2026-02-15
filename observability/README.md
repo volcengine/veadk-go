@@ -62,6 +62,7 @@ Add an `observability` section to your `config.yaml`:
 ```yaml
 observability:
   opentelemetry:
+        enable_global_tracer: true
     apmplus:
       endpoint: "https://apmplus-cn-beijing.volces.com:4318"
       api_key: "YOUR_APMPLUS_API_KEY"
