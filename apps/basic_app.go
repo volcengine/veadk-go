@@ -35,15 +35,17 @@ import (
 	"google.golang.org/adk/plugin"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
+	"google.golang.org/adk/telemetry"
 )
 
 type RunConfig struct {
-	SessionService  session.Service
-	ArtifactService artifact.Service
-	MemoryService   memory.Service
-	AgentLoader     agent.Loader
-	A2AOptions      []a2asrv.RequestHandlerOption
-	PluginConfig    runner.PluginConfig
+	SessionService   session.Service
+	ArtifactService  artifact.Service
+	MemoryService    memory.Service
+	AgentLoader      agent.Loader
+	A2AOptions       []a2asrv.RequestHandlerOption
+	PluginConfig     runner.PluginConfig
+	TelemetryOptions []telemetry.Option
 }
 
 func (cfg *RunConfig) AppendObservability() {
@@ -62,6 +64,8 @@ func (cfg *RunConfig) AppendObservability() {
 		cfg.PluginConfig.Plugins = append(cfg.PluginConfig.Plugins, observabilityPlugin)
 		log.Info("Plugin configured")
 	}
+
+	cfg.TelemetryOptions = append(cfg.TelemetryOptions, observability.ADKTelemetryOptions()...)
 }
 
 type ApiConfig struct {

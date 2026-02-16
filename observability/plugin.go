@@ -16,11 +16,11 @@ package observability
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/log"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -108,16 +108,10 @@ func (p *adkObservabilityPlugin) BeforeRun(ctx agent.InvocationContext) (*genai.
 	log.Debug("Before Run", "InvocationID", ctx.InvocationID(), "SessionID", ctx.Session().ID(), "UserID", ctx.Session().UserID())
 	// 1. Start the 'invocation' span
 	_, span := p.tracer.Start(context.Context(ctx), SpanInvocation, trace.WithSpanKind(trace.SpanKindServer))
-	log.Debug("BeforeRun created a new invocation span", "span", span.SpanContext())
-
-	// Register internal ADK run span ID -> our veadk invocation span context.
-	adkSpan := trace.SpanFromContext(context.Context(ctx))
-	if adkSpan.SpanContext().IsValid() {
-		GetRegistry().RegisterRunMapping(adkSpan.SpanContext().SpanID(), adkSpan.SpanContext().TraceID(), span.SpanContext(), span)
-	}
 
 	// 2. Store in state for AfterRun
 	_ = ctx.Session().State().Set(stateKeyInvocationSpan, span)
+	GetRegistry().RegisterInvocationSpan(span)
 
 	setCommonAttributesFromInvocation(ctx, span)
 	setWorkflowAttributes(span)
@@ -130,12 +124,17 @@ func (p *adkObservabilityPlugin) BeforeRun(ctx agent.InvocationContext) (*genai.
 
 	// Capture input from UserContent
 	if userContent := ctx.UserContent(); userContent != nil {
-		if jsonIn, err := json.Marshal(userContent); err == nil {
-			val := string(jsonIn)
+		if val := serializeContentForTelemetry(userContent); val != "" {
 			span.SetAttributes(
 				attribute.String(AttrInputValue, val),
 				attribute.String(AttrGenAIInput, val),
 			)
+			span.AddEvent(EventGenAIUserMessage, trace.WithAttributes(
+				attribute.String(AttrGenAIMessages, val),
+			))
+			span.AddEvent(EventGenAIContentPrompt, trace.WithAttributes(
+				attribute.String(AttrInputValue, val),
+			))
 		}
 	}
 
@@ -146,85 +145,96 @@ func (p *adkObservabilityPlugin) BeforeRun(ctx agent.InvocationContext) (*genai.
 func (p *adkObservabilityPlugin) AfterRun(ctx agent.InvocationContext) {
 	log.Debug("After Run", "InvocationID", ctx.InvocationID(), "SessionID", ctx.Session().ID(), "UserID", ctx.Session().UserID())
 	// 1. End the span
-	if s, _ := ctx.Session().State().Get(stateKeyInvocationSpan); s != nil {
-		span := s.(trace.Span)
-		log.Debug("AfterRun get a span from state", "span", span, "isRecording", span.IsRecording())
+	s, _ := ctx.Session().State().Get(stateKeyInvocationSpan)
+	if s == nil {
+		return
+	}
 
-		if span.IsRecording() {
-			// Capture final output if available
-			if cached, _ := ctx.Session().State().Get(stateKeyStreamingOutput); cached != nil {
-				if jsonOut, err := json.Marshal(cached); err == nil {
-					val := string(jsonOut)
+	span := s.(trace.Span)
+	log.Debug("AfterRun get a span from state", "span", span, "isRecording", span.IsRecording())
+
+	if span.IsRecording() {
+		// Capture final output if available
+		if cached, _ := ctx.Session().State().Get(stateKeyStreamingOutput); cached != nil {
+			if content, ok := cached.(*genai.Content); ok {
+				if val := serializeContentForTelemetry(content); val != "" {
 					span.SetAttributes(
 						attribute.String(AttrOutputValue, val),
 						attribute.String(AttrGenAIOutput, val),
 					)
+					span.AddEvent(EventGenAIChoice, trace.WithAttributes(
+						attribute.String(AttrGenAIChoice, val),
+					))
+					span.AddEvent(EventGenAIContentCompletion, trace.WithAttributes(
+						attribute.String(AttrOutputValue, val),
+					))
 				}
 			}
-			// Capture accumulated token usage for the root invocation span
-			meta := p.getSpanMetadata(ctx.Session().State())
-
-			if meta.PromptTokens > 0 {
-				span.SetAttributes(attribute.Int64(AttrGenAIUsageInputTokens, meta.PromptTokens))
-			}
-			if meta.CandidateTokens > 0 {
-				span.SetAttributes(attribute.Int64(AttrGenAIUsageOutputTokens, meta.CandidateTokens))
-			}
-			if meta.TotalTokens > 0 {
-				span.SetAttributes(attribute.Int64(AttrGenAIUsageTotalTokens, meta.TotalTokens))
-			}
-
-			// Record final metrics for invocation
-			if !meta.StartTime.IsZero() {
-				if p.isMetricsEnabled() {
-					elapsed := time.Since(meta.StartTime).Seconds()
-					metricAttrs := []attribute.KeyValue{
-						attribute.String("gen_ai_operation_name", "chain"),
-						attribute.String("gen_ai_operation_type", "workflow"),
-						attribute.String("gen_ai.system", GetModelProvider(context.Context(ctx))),
-					}
-					RecordOperationDuration(context.Background(), elapsed, metricAttrs...)
-					RecordAPMPlusSpanLatency(context.Background(), elapsed, metricAttrs...)
-
-					if isAgentKitRuntime {
-						agentKitsAttrs := []attribute.KeyValue{
-							attribute.String("gen_ai_operation_name", "chain"),
-							attribute.String("gen_ai_operation_type", "workflow"),
-						}
-
-						var errorCode string
-						eventLen := ctx.Session().Events().Len()
-						if eventLen > 0 {
-							lastEvent := ctx.Session().Events().At(eventLen - 1)
-							errorCode = lastEvent.ErrorCode
-						}
-						if errorCode != "" {
-							agentKitsAttrs = append(agentKitsAttrs, attribute.String("error_type", errorCode))
-						}
-						RecordAgentKitDuration(context.Background(), elapsed, agentKitsAttrs...)
-					}
-				}
-			}
-
-			// Clean up from global map with delay to allow children to be exported.
-			// Since we have multiple exporters, we wait long enough for all of them to finish.
-			adkSpan := trace.SpanFromContext(context.Context(ctx))
-			if adkSpan.SpanContext().IsValid() {
-				id := adkSpan.SpanContext().SpanID()
-				tid := adkSpan.SpanContext().TraceID()
-				veadkTraceID := span.SpanContext().SpanID()
-				GetRegistry().ScheduleCleanup(tid, id, veadkTraceID)
-			}
-
-			span.End()
 		}
+		// Capture accumulated token usage for the root invocation span
+		meta := p.getSpanMetadata(ctx.Session().State())
+
+		if meta.PromptTokens > 0 {
+			span.SetAttributes(attribute.Int64(AttrGenAIUsageInputTokens, meta.PromptTokens))
+		}
+		if meta.CandidateTokens > 0 {
+			span.SetAttributes(attribute.Int64(AttrGenAIUsageOutputTokens, meta.CandidateTokens))
+		}
+		if meta.TotalTokens > 0 {
+			span.SetAttributes(attribute.Int64(AttrGenAIUsageTotalTokens, meta.TotalTokens))
+		}
+
+		// Record final metrics for invocation
+		if !meta.StartTime.IsZero() {
+			if p.isMetricsEnabled() {
+				elapsed := time.Since(meta.StartTime).Seconds()
+				metricAttrs := []attribute.KeyValue{
+					attribute.String(MetricAttrGenAIOperationName, OperationNameChain),
+					attribute.String(MetricAttrGenAIOperationType, OperationTypeWorkflow),
+					attribute.String(AttrGenAISystem, GetModelProvider(context.Context(ctx))),
+				}
+				RecordOperationDuration(context.Background(), elapsed, metricAttrs...)
+				RecordAPMPlusSpanLatency(context.Background(), elapsed, metricAttrs...)
+
+				if isAgentKitRuntime {
+					agentKitsAttrs := []attribute.KeyValue{
+						attribute.String(MetricAttrGenAIOperationName, OperationNameChain),
+						attribute.String(MetricAttrGenAIOperationType, OperationTypeWorkflow),
+					}
+
+					var errorCode string
+					eventLen := ctx.Session().Events().Len()
+					if eventLen > 0 {
+						lastEvent := ctx.Session().Events().At(eventLen - 1)
+						errorCode = lastEvent.ErrorCode
+					}
+					if errorCode != "" {
+						agentKitsAttrs = append(agentKitsAttrs, attribute.String(MetricAttrErrorType, errorCode))
+					}
+					RecordAgentKitDuration(context.Background(), elapsed, agentKitsAttrs...)
+				}
+			}
+		}
+
+		// Clean up from global map with delay to allow children to be exported.
+		// Since we have multiple exporters, we wait long enough for all of them to finish.
+		adkSpan := trace.SpanFromContext(context.Context(ctx))
+		if adkSpan.SpanContext().IsValid() {
+			tid := adkSpan.SpanContext().TraceID()
+			veadkInvocationSpanID := span.SpanContext().SpanID()
+			GetRegistry().ScheduleCleanup(tid, veadkInvocationSpanID)
+		}
+
+		span.End()
 	}
+
 }
 
 // BeforeModel is called before the LLM is called.
 func (p *adkObservabilityPlugin) BeforeModel(ctx agent.CallbackContext, req *model.LLMRequest) (*model.LLMResponse, error) {
 	log.Debug("BeforeModel",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
+	p.tryBridgeTraceMappingFromCallback(ctx, "BeforeModel")
 	// New ADK emits model/tool spans natively. Plugin only keeps metadata for metrics and invocation aggregation.
 	meta := p.getSpanMetadata(ctx.State())
 	meta.StartTime = time.Now()
@@ -247,9 +257,9 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 			metricAttrs := []attribute.KeyValue{
 				attribute.String(AttrGenAISystem, GetModelProvider(context.Context(ctx))),
 				attribute.String("gen_ai_response_model", meta.ModelName),
-				attribute.String("gen_ai_operation_name", "chat"),
-				attribute.String("gen_ai_operation_type", "llm"),
-				attribute.String("error_type", "error"),
+				attribute.String(MetricAttrGenAIOperationName, OperationNameChat),
+				attribute.String(MetricAttrGenAIOperationType, OperationTypeLLM),
+				attribute.String(MetricAttrErrorType, ErrorTypeError),
 			}
 			RecordExceptions(context.Context(ctx), 1, metricAttrs...)
 		}
@@ -268,7 +278,7 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 	}
 
 	if resp.UsageMetadata != nil {
-		p.handleUsageWithoutSpan(ctx, resp, finalModelName)
+		p.accumulateLLMUsageAndRecordMetrics(ctx, resp, finalModelName)
 	}
 
 	if resp.Content != nil {
@@ -276,12 +286,7 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 			_ = ctx.State().Set(stateKeyStreamingOutput, resp.Content)
 		}
 
-		parentSC := trace.SpanContext{}
-		if s, _ := ctx.State().Get(stateKeyInvocationSpan); s != nil {
-			if span, ok := s.(trace.Span); ok {
-				parentSC = span.SpanContext()
-			}
-		}
+		parentSC, _ := getInvocationSpanContextFromState(ctx.State())
 
 		adkSpan := trace.SpanFromContext(context.Context(ctx))
 		adkTraceID := trace.TraceID{}
@@ -309,8 +314,8 @@ func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.CallbackCo
 		metricAttrs := []attribute.KeyValue{
 			attribute.String(AttrGenAISystem, GetModelProvider(context.Context(ctx))),
 			attribute.String("gen_ai_response_model", finalModelName),
-			attribute.String("gen_ai_operation_name", "chat"),
-			attribute.String("gen_ai_operation_type", "llm"),
+			attribute.String(MetricAttrGenAIOperationName, OperationNameChat),
+			attribute.String(MetricAttrGenAIOperationType, OperationTypeLLM),
 		}
 		if p.isMetricsEnabled() {
 			RecordOperationDuration(context.Context(ctx), duration, metricAttrs...)
@@ -319,28 +324,33 @@ func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.CallbackCo
 	}
 }
 
-func (p *adkObservabilityPlugin) handleUsageWithoutSpan(ctx agent.CallbackContext, resp *model.LLMResponse, modelName string) {
+// accumulateLLMUsageAndRecordMetrics aggregates per-call LLM usage into invocation-level metadata,
+// then emits LLM usage metrics for the current response.
+//
+// This remains in plugin callbacks because invocation-level accumulation requires cross-callback state.
+func (p *adkObservabilityPlugin) accumulateLLMUsageAndRecordMetrics(ctx agent.CallbackContext, resp *model.LLMResponse, modelName string) {
 	meta := p.getSpanMetadata(ctx.State())
 
 	currentPrompt := int64(resp.UsageMetadata.PromptTokenCount)
 	currentCandidate := int64(resp.UsageMetadata.CandidatesTokenCount)
 	currentTotal := int64(resp.UsageMetadata.TotalTokenCount)
 
-	if currentTotal == 0 && (currentPrompt > 0 || currentCandidate > 0) {
-		currentTotal = currentPrompt + currentCandidate
-	}
-
-	meta.PromptTokens = meta.PrevPromptTokens + currentPrompt
-	meta.CandidateTokens = meta.PrevCandidateTokens + currentCandidate
-	meta.TotalTokens = meta.PrevTotalTokens + currentTotal
+	meta.PromptTokens, meta.CandidateTokens, meta.TotalTokens = mergeUsageTotals(
+		meta.PrevPromptTokens,
+		meta.PrevCandidateTokens,
+		meta.PrevTotalTokens,
+		currentPrompt,
+		currentCandidate,
+		currentTotal,
+	)
 	p.storeSpanMetadata(ctx.State(), meta)
 
 	if p.isMetricsEnabled() {
 		metricAttrs := []attribute.KeyValue{
 			attribute.String(AttrGenAISystem, GetModelProvider(ctx)),
 			attribute.String("gen_ai_response_model", modelName),
-			attribute.String("gen_ai_operation_name", "chat"),
-			attribute.String("gen_ai_operation_type", "llm"),
+			attribute.String(MetricAttrGenAIOperationName, OperationNameChat),
+			attribute.String(MetricAttrGenAIOperationType, OperationTypeLLM),
 		}
 		RecordChatCount(context.Context(ctx), 1, metricAttrs...)
 		if currentTotal > 0 && (currentPrompt > 0 || currentCandidate > 0) {
@@ -349,71 +359,78 @@ func (p *adkObservabilityPlugin) handleUsageWithoutSpan(ctx agent.CallbackContex
 	}
 }
 
-// BeforeTool is called before a tool is executed.
+func mergeUsageTotals(prevPrompt, prevCandidate, prevTotal, currentPrompt, currentCandidate, currentTotal int64) (int64, int64, int64) {
+	if currentTotal == 0 && (currentPrompt > 0 || currentCandidate > 0) {
+		currentTotal = currentPrompt + currentCandidate
+	}
+
+	return prevPrompt + currentPrompt, prevCandidate + currentCandidate, prevTotal + currentTotal
+}
+
+// BeforeTool is a lightweight debug-only callback.
+// Tool span metrics and token estimation are handled in span processor / translator paths.
 func (p *adkObservabilityPlugin) BeforeTool(ctx tool.Context, tool tool.Tool, args map[string]any) (map[string]any, error) {
 	log.Debug("BeforeTool",
-		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
-	// Note: In Google ADK-go, the execute_tool span is often not available in the context at this stage.
-	// We rely on VeADKTranslatedExporter (translator.go) to reconstruct tool attributes from the
-	// span after it is ended and exported.
-
-	// Maintain metadata for metrics calculation
-	meta := p.getSpanMetadata(ctx.State())
-	meta.StartTime = time.Now()
-	p.storeSpanMetadata(ctx.State(), meta)
+		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName(),
+		"ToolName", tool.Name(), "ToolArgs", args)
 	return nil, nil
 }
 
-// AfterTool is called after a tool is executed.
-func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
+// AfterTool is a lightweight debug-only callback.
+// Tool span metrics and token estimation are handled in span processor / translator paths.
+func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, tool tool.Tool, args map[string]any, result map[string]any, err error) (map[string]any, error) {
 	log.Debug("AfterTool",
-		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
-	// Metrics recording only
-	meta := p.getSpanMetadata(ctx.State())
-	if !meta.StartTime.IsZero() {
-		duration := time.Since(meta.StartTime).Seconds()
-		metricAttrs := []attribute.KeyValue{
-			attribute.String("gen_ai_operation_name", tool.Name()),
-			attribute.String("gen_ai_operation_type", "tool"),
-			attribute.String(AttrGenAISystem, GetModelProvider(context.Context(ctx))),
-		}
-		if p.isMetricsEnabled() {
-			RecordOperationDuration(context.Background(), duration, metricAttrs...)
-			RecordAPMPlusSpanLatency(context.Background(), duration, metricAttrs...)
-		}
-
-		if p.isMetricsEnabled() {
-			// Tool Token Usage (Estimated)
-
-			// Input Chars
-			var inputChars int64
-			if argsJSON, err := json.Marshal(args); err == nil {
-				inputChars = int64(len(argsJSON))
-			}
-
-			// Output Chars
-			var outputChars int64
-			if resultJSON, err := json.Marshal(result); err == nil {
-				outputChars = int64(len(resultJSON))
-			}
-
-			if inputChars > 0 {
-				RecordAPMPlusToolTokenUsage(context.Background(), inputChars/4, append(metricAttrs, attribute.String("token_type", "input"))...)
-			}
-			if outputChars > 0 {
-				RecordAPMPlusToolTokenUsage(context.Background(), outputChars/4, append(metricAttrs, attribute.String("token_type", "output"))...)
-			}
-		}
-	}
+		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName(),
+		"ToolName", tool.Name(), "ToolArgs", args, "ToolResult", result, "ToolError", err)
 
 	return nil, nil
 }
 
 // BeforeAgent is called before an agent execution.
+// This is the primary trace-bridging point for adk trace -> veadk invocation trace.
+// BeforeModel keeps an idempotent bridge as a secondary safety net.
 func (p *adkObservabilityPlugin) BeforeAgent(ctx agent.CallbackContext) (*genai.Content, error) {
 	log.Debug("BeforeAgent",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
+	p.tryBridgeTraceMappingFromCallback(ctx, "BeforeAgent")
 	return nil, nil
+}
+
+func (p *adkObservabilityPlugin) tryBridgeTraceMappingFromCallback(ctx agent.CallbackContext, stage string) {
+	adkSC := trace.SpanFromContext(context.Context(ctx)).SpanContext()
+	veadkInvocationSC, ok := getInvocationSpanContextFromState(ctx.State())
+	if !ok {
+		log.Debug("Skip trace mapping bridge: invocation span missing in state", "stage", stage)
+		return
+	}
+
+	if registerTraceMappingIfPossible(GetRegistry(), adkSC, veadkInvocationSC) {
+		log.Debug("Bridged adk trace to veadk invocation trace",
+			"stage", stage,
+			"adk_trace_id", adkSC.TraceID().String(),
+			"veadk_trace_id", veadkInvocationSC.TraceID().String(),
+		)
+	}
+}
+
+func registerTraceMappingIfPossible(registry *TraceRegistry, adkSC, veadkSC trace.SpanContext) bool {
+	if registry == nil || !adkSC.IsValid() || !veadkSC.IsValid() {
+		return false
+	}
+	registry.RegisterTraceMapping(adkSC.TraceID(), veadkSC.TraceID())
+	return true
+}
+
+func getInvocationSpanContextFromState(state session.State) (trace.SpanContext, bool) {
+	if s, _ := state.Get(stateKeyInvocationSpan); s != nil {
+		if span, ok := s.(trace.Span); ok {
+			sc := span.SpanContext()
+			if sc.IsValid() {
+				return sc, true
+			}
+		}
+	}
+	return trace.SpanContext{}, false
 }
 
 // AfterAgent is called after an agent execution.

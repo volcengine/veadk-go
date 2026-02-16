@@ -91,7 +91,7 @@ func SetupVeADKConfig() error {
 		},
 		Observability: &ObservabilityConfig{
 			OpenTelemetry: &OpenTelemetryConfig{
-				EnableGlobalProvider: true, // adk-go main path: use global provider by default
+				// traces are enabled automatically when at least one trace exporter is configured
 			},
 		},
 	}

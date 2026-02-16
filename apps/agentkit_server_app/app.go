@@ -63,12 +63,13 @@ func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 	}
 
 	launchConfig := &launcher.Config{
-		SessionService:  config.SessionService,
-		ArtifactService: config.ArtifactService,
-		MemoryService:   config.MemoryService,
-		AgentLoader:     config.AgentLoader,
-		A2AOptions:      config.A2AOptions,
-		PluginConfig:    config.PluginConfig,
+		SessionService:   config.SessionService,
+		ArtifactService:  config.ArtifactService,
+		MemoryService:    config.MemoryService,
+		AgentLoader:      config.AgentLoader,
+		A2AOptions:       config.A2AOptions,
+		PluginConfig:     config.PluginConfig,
+		TelemetryOptions: config.TelemetryOptions,
 	}
 
 	// setup webui routers

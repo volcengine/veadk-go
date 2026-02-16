@@ -62,7 +62,6 @@ Add an `observability` section to your `config.yaml`:
 ```yaml
 observability:
   opentelemetry:
-        enable_global_tracer: true
     apmplus:
       endpoint: "https://apmplus-cn-beijing.volces.com:4318"
       api_key: "YOUR_APMPLUS_API_KEY"
@@ -75,8 +74,9 @@ All settings can be overridden via environment variables:
 
 - `OBSERVABILITY_OPENTELEMETRY_COZELOOP_API_KEY`
 - `OBSERVABILITY_OPENTELEMETRY_APMPLUS_API_KEY`
-- `OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_PROVIDER` (default: true)
 - `VEADK_MODEL_PROVIDER` - Set model provider
+
+Trace exporting is enabled automatically when at least one trace exporter is configured.
 
 
 ## Usage

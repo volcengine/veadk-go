@@ -22,9 +22,8 @@ import (
 
 const (
 	// Global
-	EnvOtelServiceName                   = "OTEL_SERVICE_NAME"
-	EnvObservabilityEnableGlobalProvider = "OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_PROVIDER"
-	EnvObservabilityEnableMetrics        = "OBSERVABILITY_OPENTELEMETRY_ENABLE_METRICS"
+	EnvOtelServiceName            = "OTEL_SERVICE_NAME"
+	EnvObservabilityEnableMetrics = "OBSERVABILITY_OPENTELEMETRY_ENABLE_METRICS"
 
 	// APMPlus
 	EnvObservabilityOpenTelemetryApmPlusProtocol    = "OBSERVABILITY_OPENTELEMETRY_APMPLUS_PROTOCOL"
@@ -58,8 +57,7 @@ type ObservabilityConfig struct {
 }
 
 type OpenTelemetryConfig struct {
-	EnableGlobalProvider bool  `yaml:"enable_global_tracer"`
-	EnableMetrics        *bool `yaml:"enable_metrics"`
+	EnableMetrics *bool `yaml:"enable_metrics"`
 
 	File     *FileConfig             `yaml:"file"`
 	Stdout   *StdoutConfig           `yaml:"stdout"`
@@ -229,11 +227,6 @@ func (c *ObservabilityConfig) MapEnvToConfig() {
 		ot.Stdout.Enable = v == "true"
 	}
 
-	// Global Tracer
-	if v := utils.GetEnvWithDefault(EnvObservabilityEnableGlobalProvider); v != "" {
-		ot.EnableGlobalProvider = v == "true"
-	}
-
 	// Meter Provider
 	if v := utils.GetEnvWithDefault(EnvObservabilityEnableMetrics); v != "" {
 		if ot.EnableMetrics == nil {
@@ -258,13 +251,12 @@ func (c *OpenTelemetryConfig) Clone() *OpenTelemetryConfig {
 	}
 
 	return &OpenTelemetryConfig{
-		EnableGlobalProvider: c.EnableGlobalProvider,
-		EnableMetrics:        c.EnableMetrics,
-		ApmPlus:              c.ApmPlus.Clone(),
-		CozeLoop:             c.CozeLoop.Clone(),
-		TLS:                  c.TLS.Clone(),
-		File:                 c.File.Clone(),
-		Stdout:               c.Stdout.Clone(),
+		EnableMetrics: c.EnableMetrics,
+		ApmPlus:       c.ApmPlus.Clone(),
+		CozeLoop:      c.CozeLoop.Clone(),
+		TLS:           c.TLS.Clone(),
+		File:          c.File.Clone(),
+		Stdout:        c.Stdout.Clone(),
 	}
 }
 

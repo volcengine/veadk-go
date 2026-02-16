@@ -62,7 +62,6 @@ VeADK Go 实现了以下 Span 属性类别，详见 [Python ADK Span 属性文�
 ```yaml
 observability:
   opentelemetry:
-        enable_global_tracer: true
     apmplus:
       endpoint: "https://apmplus-cn-beijing.volces.com:4318"
       api_key: "YOUR_APMPLUS_API_KEY"
@@ -75,8 +74,9 @@ observability:
 
 - `OBSERVABILITY_OPENTELEMETRY_COZELOOP_API_KEY`
 - `OBSERVABILITY_OPENTELEMETRY_APMPLUS_API_KEY`
-- `OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_PROVIDER` (默认: true)
 - `VEADK_MODEL_PROVIDER` - 设置模型提供商
+
+只要配置了至少一个 trace exporter，就会自动启用 trace 导出。
 
 ## 使用方法
 

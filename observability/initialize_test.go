@@ -16,7 +16,6 @@ package observability
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,39 +24,6 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
-
-func TestGetServiceName(t *testing.T) {
-	t.Run("EnvVar", func(t *testing.T) {
-		os.Setenv("OTEL_SERVICE_NAME", "env-service")
-		defer os.Unsetenv("OTEL_SERVICE_NAME")
-		assert.Equal(t, "env-service", getServiceName(&configs.OpenTelemetryConfig{}))
-	})
-
-	t.Run("ApmPlus", func(t *testing.T) {
-		cfg := &configs.OpenTelemetryConfig{
-			ApmPlus: &configs.ApmPlusConfig{ServiceName: "apm-service"},
-		}
-		assert.Equal(t, "apm-service", getServiceName(cfg))
-	})
-
-	t.Run("CozeLoop", func(t *testing.T) {
-		cfg := &configs.OpenTelemetryConfig{
-			CozeLoop: &configs.CozeLoopExporterConfig{ServiceName: "coze-service"},
-		}
-		assert.Equal(t, "coze-service", getServiceName(cfg))
-	})
-
-	t.Run("TLS", func(t *testing.T) {
-		cfg := &configs.OpenTelemetryConfig{
-			TLS: &configs.TLSExporterConfig{ServiceName: "tls-service"},
-		}
-		assert.Equal(t, "tls-service", getServiceName(cfg))
-	})
-
-	t.Run("Unknown", func(t *testing.T) {
-		assert.Equal(t, "<unknown_service>", getServiceName(&configs.OpenTelemetryConfig{}))
-	})
-}
 
 func TestSetGlobalTracerProvider(t *testing.T) {
 	// Save original provider to restore
@@ -88,18 +54,16 @@ func TestInitializeWithConfig(t *testing.T) {
 	err := initWithConfig(context.Background(), nil)
 	assert.ErrorIs(t, err, ErrNoExporters)
 
-	// Config with disabled global provider but valid exporter, should return ErrNoExporters.
+	// Config without exporters should return ErrNoExporters.
 	cfg := &configs.OpenTelemetryConfig{
-		EnableGlobalProvider: false,
-		Stdout:               &configs.StdoutConfig{Enable: true},
+		EnableMetrics: nil,
 	}
 	err = initWithConfig(context.Background(), cfg)
 	assert.ErrorIs(t, err, ErrNoExporters)
 
-	// Config with global provider enabled and stdout
+	// Config with stdout exporter should initialize traces.
 	cfgGlobal := &configs.OpenTelemetryConfig{
-		EnableGlobalProvider: true,
-		Stdout:               &configs.StdoutConfig{Enable: true},
+		Stdout: &configs.StdoutConfig{Enable: true},
 	}
 	err = initWithConfig(context.Background(), cfgGlobal)
 	assert.NoError(t, err)

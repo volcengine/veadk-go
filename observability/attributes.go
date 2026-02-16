@@ -47,21 +47,6 @@ func setCommonAttributesFromInvocation(ctx agent.InvocationContext, span trace.S
 	)
 }
 
-// setCommonAttributesFromCallback enriches the span with identity attributes from
-// agent.CallbackContext, following ADK canonical sources.
-func setCommonAttributesFromCallback(ctx agent.CallbackContext, span trace.Span) {
-	setCommonAttributesWithIdentity(
-		context.Context(ctx),
-		span,
-		ctx.SessionID(),
-		ctx.UserID(),
-		ctx.AppName(),
-
-		ctx.InvocationID(),
-	)
-	setDynamicAttribute(span, AttrGenAIAgentName, ctx.AgentName(), FallbackAgentName, AttrAgentName, AttrAgentNameDot)
-}
-
 func setCommonAttributesWithIdentity(ctx context.Context, span trace.Span, sessionID, userID, appName, invocationID string) {
 	// 1. Fixed attributes
 	span.SetAttributes(attribute.String(AttrCozeloopReportSource, DefaultCozeLoopReportSource))
@@ -90,37 +75,11 @@ func setDynamicAttribute(span trace.Span, key string, val string, fallback strin
 	}
 }
 
-// setLLMAttributes sets standard GenAI attributes for LLM spans.
-func setLLMAttributes(span trace.Span) {
-	span.SetAttributes(
-		attribute.String(AttrGenAISpanKind, SpanKindLLM),
-		attribute.String(AttrGenAIOperationName, "chat"),
-	)
-}
-
-// setToolAttributes sets standard GenAI attributes for Tool spans.
-func setToolAttributes(span trace.Span, name string) {
-	span.SetAttributes(
-		attribute.String(AttrGenAISpanKind, SpanKindTool),
-		attribute.String(AttrGenAIOperationName, "execute_tool"),
-		attribute.String(AttrGenAIToolName, name),
-	)
-}
-
-// setAgentAttributes sets standard GenAI attributes for Agent spans.
-func setAgentAttributes(span trace.Span, name string) {
-	span.SetAttributes(
-		attribute.String(AttrGenAIAgentName, name),
-		attribute.String(AttrAgentName, name),    // Alias: agent_name
-		attribute.String(AttrAgentNameDot, name), // Alias: agent.name
-	)
-}
-
 // setWorkflowAttributes sets standard GenAI attributes for Workflow/Root spans.
 func setWorkflowAttributes(span trace.Span) {
 	span.SetAttributes(
 		attribute.String(AttrGenAISpanKind, SpanKindWorkflow),
-		attribute.String(AttrGenAIOperationName, "chain"),
+		attribute.String(AttrGenAIOperationName, OperationNameChain),
 	)
 }
 
@@ -175,31 +134,6 @@ func getFromGlobalConfig(key contextKey) string {
 		}
 	}
 	return ""
-}
-
-func getServiceName(cfg *configs.OpenTelemetryConfig) string {
-	if serviceFromEnv := os.Getenv("OTEL_SERVICE_NAME"); serviceFromEnv != "" {
-		return serviceFromEnv
-	}
-
-	if cfg.ApmPlus != nil {
-		if cfg.ApmPlus.ServiceName != "" {
-			return cfg.ApmPlus.ServiceName
-		}
-	}
-
-	if cfg.CozeLoop != nil {
-		if cfg.CozeLoop.ServiceName != "" {
-			return cfg.CozeLoop.ServiceName
-		}
-	}
-
-	if cfg.TLS != nil {
-		if cfg.TLS.ServiceName != "" {
-			return cfg.TLS.ServiceName
-		}
-	}
-	return "<unknown_service>"
 }
 
 // OTEL_RESOURCE_ATTRIBUTES="instance.id=123456,apmplus.business_carrier=agentkit_runtime"

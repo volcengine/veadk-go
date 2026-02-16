@@ -25,9 +25,6 @@ import (
 // TraceRegistry manages the mapping between ADK-go's spans and VeADK spans.
 // It ensures thread-safe access and proper cleanup of resources.
 type TraceRegistry struct {
-	// adkSpanMap tracks google's adk SpanID (Run/Agent/LLM/Tool) -> VeADK SpanContext
-	adkSpanMap sync.Map
-
 	// toolCallMap tracks ToolCallID (string) -> *toolCallInfo
 	// Consolidates: toolCallToVeadkLLMMap, toolInputs, toolOutputs
 	toolCallMap sync.Map
@@ -46,11 +43,16 @@ type TraceRegistry struct {
 	shutdownChan chan struct{}
 }
 
+const (
+	traceCleanupQueueSize = 512
+	traceCleanupDelay     = 2 * time.Minute
+	traceCleanupTick      = 10 * time.Second
+)
+
 type cleanupRequest struct {
-	adkTraceID    trace.TraceID
-	internalRunID trace.SpanID
-	veadkSpanID   trace.SpanID
-	deadline      time.Time
+	adkTraceID  trace.TraceID
+	veadkSpanID trace.SpanID
+	deadline    time.Time
 }
 
 type toolCallInfo struct {
@@ -60,7 +62,6 @@ type toolCallInfo struct {
 
 type traceInfos struct {
 	veadkTraceID trace.TraceID
-	spanIDs      []trace.SpanID
 	toolCallIDs  []string
 }
 
@@ -75,7 +76,7 @@ func GetRegistry() *TraceRegistry {
 	once.Do(func() {
 		globalRegistry = &TraceRegistry{
 			adkTraceToVeadkTraceMap: make(map[trace.TraceID]*traceInfos),
-			cleanupQueue:            make(chan cleanupRequest, 512),
+			cleanupQueue:            make(chan cleanupRequest, traceCleanupQueueSize),
 			shutdownChan:            make(chan struct{}),
 		}
 		go globalRegistry.cleanupLoop()
@@ -94,7 +95,7 @@ func (r *TraceRegistry) Shutdown() {
 }
 
 func (r *TraceRegistry) cleanupLoop() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(traceCleanupTick)
 	defer ticker.Stop()
 
 	// Use a slice to store pending requests
@@ -107,31 +108,38 @@ func (r *TraceRegistry) cleanupLoop() {
 		case req := <-r.cleanupQueue:
 			pendingRequests = append(pendingRequests, req)
 		case <-ticker.C:
-			now := time.Now()
-			activeRequests := pendingRequests[:0]
-			for _, req := range pendingRequests {
-				if now.After(req.deadline) {
-					// Perform cleanup
-					r.UnregisterInvocationMapping(req.internalRunID, req.veadkSpanID)
-
-					r.resourcesMu.Lock()
-					if res, ok := r.adkTraceToVeadkTraceMap[req.adkTraceID]; ok {
-						for _, sid := range res.spanIDs {
-							r.adkSpanMap.Delete(sid)
-						}
-						for _, tcid := range res.toolCallIDs {
-							r.toolCallMap.Delete(tcid)
-						}
-						delete(r.adkTraceToVeadkTraceMap, req.adkTraceID)
-					}
-					r.resourcesMu.Unlock()
-				} else {
-					activeRequests = append(activeRequests, req)
-				}
-			}
-			pendingRequests = activeRequests
+			pendingRequests = r.cleanupExpiredRequests(pendingRequests, time.Now())
 		}
 	}
+}
+
+func (r *TraceRegistry) cleanupExpiredRequests(pending []cleanupRequest, now time.Time) []cleanupRequest {
+	activeRequests := pending[:0]
+	for _, req := range pending {
+		if now.After(req.deadline) {
+			r.cleanupByTraceID(req.adkTraceID, req.veadkSpanID)
+			continue
+		}
+		activeRequests = append(activeRequests, req)
+	}
+	return activeRequests
+}
+
+func (r *TraceRegistry) cleanupByTraceID(adkTraceID trace.TraceID, veadkSpanID trace.SpanID) {
+	r.activeInvocationSpans.Delete(veadkSpanID)
+
+	r.resourcesMu.Lock()
+	defer r.resourcesMu.Unlock()
+
+	res, ok := r.adkTraceToVeadkTraceMap[adkTraceID]
+	if !ok {
+		return
+	}
+
+	for _, tcid := range res.toolCallIDs {
+		r.toolCallMap.Delete(tcid)
+	}
+	delete(r.adkTraceToVeadkTraceMap, adkTraceID)
 }
 
 func (r *TraceRegistry) getOrCreateTraceInfos(adkTraceID trace.TraceID) *traceInfos {
@@ -146,59 +154,12 @@ func (r *TraceRegistry) getOrCreateTraceInfos(adkTraceID trace.TraceID) *traceIn
 	return res
 }
 
-// RegisterRunMapping links ADK's internal run span to our veadk invocation span.
-func (r *TraceRegistry) RegisterRunMapping(adkSpanID trace.SpanID, adkTraceID trace.TraceID, veadkSC trace.SpanContext, veadkSpan trace.Span) {
-	if !adkSpanID.IsValid() || !veadkSC.IsValid() {
+// RegisterInvocationSpan tracks a live invocation span for shutdown flushing.
+func (r *TraceRegistry) RegisterInvocationSpan(veadkSpan trace.Span) {
+	if veadkSpan == nil || !veadkSpan.SpanContext().IsValid() {
 		return
 	}
-	r.adkSpanMap.Store(adkSpanID, veadkSC)
-	r.activeInvocationSpans.Store(veadkSC.SpanID(), veadkSpan)
-
-	if adkTraceID.IsValid() {
-		res := r.getOrCreateTraceInfos(adkTraceID)
-		r.resourcesMu.Lock()
-		res.spanIDs = append(res.spanIDs, adkSpanID)
-		res.veadkTraceID = veadkSC.TraceID()
-		r.resourcesMu.Unlock()
-	}
-}
-
-// RegisterAgentMapping links ADK's internal agent span to our veadk agent span.
-func (r *TraceRegistry) RegisterAgentMapping(adkSpanID trace.SpanID, adkTraceID trace.TraceID, veadkSC trace.SpanContext) {
-	if !adkSpanID.IsValid() || !veadkSC.IsValid() {
-		return
-	}
-	r.adkSpanMap.Store(adkSpanID, veadkSC)
-
-	if adkTraceID.IsValid() {
-		res := r.getOrCreateTraceInfos(adkTraceID)
-		r.resourcesMu.Lock()
-		res.spanIDs = append(res.spanIDs, adkSpanID)
-		r.resourcesMu.Unlock()
-	}
-}
-
-// RegisterLLMMapping links ADK's internal LLM span to our veadk LLM span.
-func (r *TraceRegistry) RegisterLLMMapping(adkSpanID trace.SpanID, adkTraceID trace.TraceID, veadkSC trace.SpanContext) {
-	if !adkSpanID.IsValid() || !veadkSC.IsValid() {
-		return
-	}
-	r.adkSpanMap.Store(adkSpanID, veadkSC)
-
-	if adkTraceID.IsValid() {
-		res := r.getOrCreateTraceInfos(adkTraceID)
-		r.resourcesMu.Lock()
-		res.spanIDs = append(res.spanIDs, adkSpanID)
-		r.resourcesMu.Unlock()
-	}
-}
-
-// RegisterToolMapping links a tool span (started by ADK) to its veadk parent (LLM call).
-func (r *TraceRegistry) RegisterToolMapping(toolSpanID trace.SpanID, veadkParentSC trace.SpanContext) {
-	if !toolSpanID.IsValid() || !veadkParentSC.IsValid() {
-		return
-	}
-	r.adkSpanMap.Store(toolSpanID, veadkParentSC)
+	r.activeInvocationSpans.Store(veadkSpan.SpanContext().SpanID(), veadkSpan)
 }
 
 func (r *TraceRegistry) getOrCreateToolCallInfo(toolCallID string) *toolCallInfo {
@@ -219,9 +180,20 @@ func (r *TraceRegistry) RegisterToolCallMapping(toolCallID string, adkTraceID tr
 	if adkTraceID.IsValid() {
 		res := r.getOrCreateTraceInfos(adkTraceID)
 		r.resourcesMu.Lock()
-		res.toolCallIDs = append(res.toolCallIDs, toolCallID)
+		if !containsString(res.toolCallIDs, toolCallID) {
+			res.toolCallIDs = append(res.toolCallIDs, toolCallID)
+		}
 		r.resourcesMu.Unlock()
 	}
+}
+
+func containsString(items []string, target string) bool {
+	for _, item := range items {
+		if item == target {
+			return true
+		}
+	}
+	return false
 }
 
 // RegisterTraceMapping records a mapping from an internal adk TraceID to a veadk TraceID.
@@ -233,14 +205,6 @@ func (r *TraceRegistry) RegisterTraceMapping(adkTraceID trace.TraceID, veadkTrac
 	r.resourcesMu.Lock()
 	res.veadkTraceID = veadkTraceID
 	r.resourcesMu.Unlock()
-}
-
-// GetVeadkSpanContext finds the veadk replacement for an adk parent span ID.
-func (r *TraceRegistry) GetVeadkSpanContext(adkSpanID trace.SpanID) (trace.SpanContext, bool) {
-	if val, ok := r.adkSpanMap.Load(adkSpanID); ok {
-		return val.(trace.SpanContext), true
-	}
-	return trace.SpanContext{}, false
 }
 
 // GetVeadkParentContextByToolCallID finds the veadk parent for a tool span by its logical ToolCallID.
@@ -270,21 +234,14 @@ func (r *TraceRegistry) GetVeadkTraceID(adkTraceID trace.TraceID) (trace.TraceID
 	return trace.TraceID{}, false
 }
 
-// UnregisterInvocationMapping removes run-related mappings.
-func (r *TraceRegistry) UnregisterInvocationMapping(adkSpanID trace.SpanID, veadkSpanID trace.SpanID) {
-	r.adkSpanMap.Delete(adkSpanID)
-	r.activeInvocationSpans.Delete(veadkSpanID)
-}
-
 // ScheduleCleanup schedules cleanup of all mappings related to an internal TraceID.
 // This is typically called when the trace is considered complete.
-func (r *TraceRegistry) ScheduleCleanup(adkTraceID trace.TraceID, internalRunID trace.SpanID, veadkSpanID trace.SpanID) {
+func (r *TraceRegistry) ScheduleCleanup(adkTraceID trace.TraceID, veadkSpanID trace.SpanID) {
 	select {
 	case r.cleanupQueue <- cleanupRequest{
-		adkTraceID:    adkTraceID,
-		internalRunID: internalRunID,
-		veadkSpanID:   veadkSpanID,
-		deadline:      time.Now().Add(2 * time.Minute),
+		adkTraceID:  adkTraceID,
+		veadkSpanID: veadkSpanID,
+		deadline:    time.Now().Add(traceCleanupDelay),
 	}:
 	default:
 		log.Warn("trace cleanup queue is full")
