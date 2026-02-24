@@ -24,11 +24,11 @@ import (
 	"github.com/volcengine/veadk-go/apps/a2a_app"
 	"github.com/volcengine/veadk-go/apps/simple_app"
 	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/observability"
 	"google.golang.org/adk/cmd/launcher"
 	"google.golang.org/adk/cmd/launcher/web/webui"
 	"google.golang.org/adk/server/adkrest"
-)
-
+	)
 const serverName = "agentkit server"
 
 type agentkitServerApp struct {
@@ -97,9 +97,9 @@ func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 	// Wrap it with CORS middleware
 	corsHandler := corsWithArgs(a.GetWebUrl())(apiHandler)
 
-	router.Methods("GET", "POST", "DELETE", "OPTIONS").PathPrefix(fmt.Sprintf("%s/", a.ApiPathPrefix)).Handler(
-		http.StripPrefix(a.ApiPathPrefix, corsHandler),
-	)
+	// Wrap with OpenTelemetry instrumentation first, then add to router
+	wrappedHandler := observability.HTTPMiddleware(http.StripPrefix(a.ApiPathPrefix, corsHandler))
+	router.Methods("GET", "POST", "DELETE", "OPTIONS").PathPrefix(fmt.Sprintf("%s/", a.ApiPathPrefix)).Handler(wrappedHandler)
 
 	log.Infof("       api:  you can access API using %s", a.GetAPIPath())
 	log.Infof("       api:      for instance: %s/list-apps", a.GetAPIPath())

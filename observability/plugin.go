@@ -106,10 +106,10 @@ func (p *adkObservabilityPlugin) isMetricsEnabled() bool {
 // BeforeRun is called before an agent run starts.
 func (p *adkObservabilityPlugin) BeforeRun(ctx agent.InvocationContext) (*genai.Content, error) {
 	log.Debug("Before Run", "InvocationID", ctx.InvocationID(), "SessionID", ctx.Session().ID(), "UserID", ctx.Session().UserID())
-	// 1. Start the 'invocation' span
+	// 1. Start the 'invocation' span - ADK doesn't create this yet
+	// tracer.Start() automatically uses any existing span from context as parent
+	// (e.g. spans from HTTP middleware will be the parent)
 	_, span := p.tracer.Start(context.Context(ctx), SpanInvocation, trace.WithSpanKind(trace.SpanKindServer))
-
-	// 2. Store in state for AfterRun
 	_ = ctx.Session().State().Set(stateKeyInvocationSpan, span)
 	GetRegistry().RegisterInvocationSpan(span)
 
@@ -227,7 +227,6 @@ func (p *adkObservabilityPlugin) AfterRun(ctx agent.InvocationContext) {
 
 		span.End()
 	}
-
 }
 
 // BeforeModel is called before the LLM is called.
@@ -235,7 +234,7 @@ func (p *adkObservabilityPlugin) BeforeModel(ctx agent.CallbackContext, req *mod
 	log.Debug("BeforeModel",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	p.tryBridgeTraceMappingFromCallback(ctx, "BeforeModel")
-	// New ADK emits model/tool spans natively. Plugin only keeps metadata for metrics and invocation aggregation.
+	// ADK now emits model spans natively. Plugin only keeps metadata for metrics and invocation aggregation.
 	meta := p.getSpanMetadata(ctx.State())
 	meta.StartTime = time.Now()
 	meta.PrevPromptTokens = meta.PromptTokens
@@ -369,19 +368,23 @@ func mergeUsageTotals(prevPrompt, prevCandidate, prevTotal, currentPrompt, curre
 
 // BeforeTool is a lightweight debug-only callback.
 // Tool span metrics and token estimation are handled in span processor / translator paths.
-func (p *adkObservabilityPlugin) BeforeTool(ctx tool.Context, tool tool.Tool, args map[string]any) (map[string]any, error) {
+// BeforeTool is a lightweight debug-only callback.
+// Tool span metrics and token estimation are handled in span processor / translator paths.
+func (p *adkObservabilityPlugin) BeforeTool(ctx tool.Context, t tool.Tool, args map[string]any) (map[string]any, error) {
 	log.Debug("BeforeTool",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName(),
-		"ToolName", tool.Name(), "ToolArgs", args)
+		"ToolName", t.Name(), "ToolArgs", args)
 	return nil, nil
 }
 
 // AfterTool is a lightweight debug-only callback.
 // Tool span metrics and token estimation are handled in span processor / translator paths.
-func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, tool tool.Tool, args map[string]any, result map[string]any, err error) (map[string]any, error) {
+// AfterTool is a lightweight debug-only callback.
+// Tool span metrics and token estimation are handled in span processor / translator paths.
+func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, t tool.Tool, args map[string]any, result map[string]any, err error) (map[string]any, error) {
 	log.Debug("AfterTool",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName(),
-		"ToolName", tool.Name(), "ToolArgs", args, "ToolResult", result, "ToolError", err)
+		"ToolName", t.Name(), "ToolArgs", args, "ToolResult", result, "ToolError", err)
 
 	return nil, nil
 }
