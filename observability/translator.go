@@ -130,6 +130,15 @@ func (p *translatedSpan) Attributes() []attribute.KeyValue {
 	newAttrs = p.appendToolReconstructedAttributes(kind, newAttrs, raw)
 	newAttrs = appendToolSpanKindAttribute(newAttrs, raw)
 
+	// If it's an LLM span and has request model but no response model, set response model to request model
+	if kind == translatedSpanLLM {
+		reqModel := getStringAttrFromList(newAttrs, AttrGenAIRequestModel, "")
+		respModel := getStringAttrFromList(newAttrs, AttrGenAIResponseModel, "")
+		if reqModel != "" && respModel == "" {
+			newAttrs = append(newAttrs, attribute.String(AttrGenAIResponseModel, reqModel))
+		}
+	}
+
 	return newAttrs
 }
 
@@ -495,4 +504,16 @@ func (p *translatedSpan) InstrumentationScope() instrumentation.Scope {
 
 func (p *translatedSpan) InstrumentationLibrary() instrumentation.Scope {
 	return p.InstrumentationScope()
+}
+
+func getStringAttrFromList(attrs []attribute.KeyValue, key, fallback string) string {
+	for _, kv := range attrs {
+		if string(kv.Key) == key {
+			v := kv.Value.AsString()
+			if v != "" {
+				return v
+			}
+		}
+	}
+	return fallback
 }
