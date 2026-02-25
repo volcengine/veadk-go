@@ -444,11 +444,21 @@ func (p *translatedSpan) Parent() oteltrace.SpanContext {
 	parent := p.ReadOnlySpan.Parent()
 	registry := GetRegistry()
 
+	// 1. Check if this is an invoke_agent span - link to our invocation span if available
+	if classifyTranslatedSpanKind(p.ReadOnlySpan.Name()) == translatedSpanAgent {
+		adkTraceID := p.ReadOnlySpan.SpanContext().TraceID()
+		if invocationSC, ok := registry.GetInvocationSpanContext(adkTraceID); ok {
+			return invocationSC
+		}
+	}
+
+	// 2. Check for tool call ID mapping
 	toolCallID := findToolCallID(p.ReadOnlySpan.Attributes())
 	if remapped, ok := tryParentByToolCallID(registry, toolCallID); ok {
 		return remapped
 	}
 
+	// 3. Check for trace ID mapping
 	if remapped, ok := tryParentByTraceID(registry, parent); ok {
 		return remapped
 	}

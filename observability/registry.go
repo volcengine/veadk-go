@@ -62,6 +62,7 @@ type toolCallInfo struct {
 
 type traceInfos struct {
 	veadkTraceID trace.TraceID
+	invocationSC trace.SpanContext
 	toolCallIDs  []string
 }
 
@@ -259,4 +260,26 @@ func (r *TraceRegistry) EndAllInvocationSpans() {
 		r.activeInvocationSpans.Delete(key)
 		return true
 	})
+}
+
+// RegisterInvocationSpanContext links an adk TraceID to a VeADK invocation span context.
+// This allows us to set the invoke_agent span's parent to our invocation span in the translator.
+func (r *TraceRegistry) RegisterInvocationSpanContext(adkTraceID trace.TraceID, invocationSC trace.SpanContext) {
+	if !adkTraceID.IsValid() || !invocationSC.IsValid() {
+		return
+	}
+	res := r.getOrCreateTraceInfos(adkTraceID)
+	r.resourcesMu.Lock()
+	defer r.resourcesMu.Unlock()
+	res.invocationSC = invocationSC
+}
+
+// GetInvocationSpanContext gets the VeADK invocation span context for an adk TraceID.
+func (r *TraceRegistry) GetInvocationSpanContext(adkTraceID trace.TraceID) (trace.SpanContext, bool) {
+	r.resourcesMu.RLock()
+	defer r.resourcesMu.RUnlock()
+	if res, ok := r.adkTraceToVeadkTraceMap[adkTraceID]; ok && res.invocationSC.IsValid() {
+		return res.invocationSC, true
+	}
+	return trace.SpanContext{}, false
 }

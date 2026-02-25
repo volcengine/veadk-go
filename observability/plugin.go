@@ -107,7 +107,6 @@ func (p *adkObservabilityPlugin) isMetricsEnabled() bool {
 func (p *adkObservabilityPlugin) BeforeRun(ctx agent.InvocationContext) (*genai.Content, error) {
 	log.Debug("Before Run", "InvocationID", ctx.InvocationID(), "SessionID", ctx.Session().ID(), "UserID", ctx.Session().UserID())
 	// 1. Start the 'invocation' span - ADK doesn't create this yet
-	// tracer.Start() automatically uses any existing span from context as parent
 	// (e.g. spans from HTTP middleware will be the parent)
 	_, span := p.tracer.Start(context.Context(ctx), SpanInvocation, trace.WithSpanKind(trace.SpanKindServer))
 	_ = ctx.Session().State().Set(stateKeyInvocationSpan, span)
@@ -116,6 +115,11 @@ func (p *adkObservabilityPlugin) BeforeRun(ctx agent.InvocationContext) (*genai.
 	setCommonAttributesFromInvocation(ctx, span)
 	setWorkflowAttributes(span)
 
+	// 2. Link the adk trace ID to our invocation span
+	// This makes invoke_agent span's parent point to our invocation span
+	if adkSpan := trace.SpanFromContext(context.Context(ctx)); adkSpan.SpanContext().IsValid() {
+		GetRegistry().RegisterInvocationSpanContext(adkSpan.SpanContext().TraceID(), span.SpanContext())
+	}
 	// Record start time for metrics
 	meta := &spanMetadata{
 		StartTime: time.Now(),
@@ -227,6 +231,40 @@ func (p *adkObservabilityPlugin) AfterRun(ctx agent.InvocationContext) {
 
 		span.End()
 	}
+}
+
+// BeforeAgent is called before an agent execution.
+// This is the primary trace-bridging point for adk trace -> veadk invocation trace.
+// BeforeModel keeps an idempotent bridge as a secondary safety net.
+func (p *adkObservabilityPlugin) BeforeAgent(ctx agent.CallbackContext) (*genai.Content, error) {
+	log.Debug("BeforeAgent",
+		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
+	p.tryBridgeTraceMappingFromCallback(ctx, "BeforeAgent")
+	return nil, nil
+}
+
+func (p *adkObservabilityPlugin) tryBridgeTraceMappingFromCallback(ctx agent.CallbackContext, stage string) {
+	adkSC := trace.SpanFromContext(context.Context(ctx)).SpanContext()
+	veadkInvocationSC, ok := getInvocationSpanContextFromState(ctx.State())
+	if !ok {
+		log.Debug("Skip trace mapping bridge: invocation span missing in state", "stage", stage)
+		return
+	}
+
+	if registerTraceMappingIfPossible(GetRegistry(), adkSC, veadkInvocationSC) {
+		log.Debug("Bridged adk trace to veadk invocation trace",
+			"stage", stage,
+			"adk_trace_id", adkSC.TraceID().String(),
+			"veadk_trace_id", veadkInvocationSC.TraceID().String(),
+		)
+	}
+}
+
+// AfterAgent is called after an agent execution.
+func (p *adkObservabilityPlugin) AfterAgent(ctx agent.CallbackContext) (*genai.Content, error) {
+	log.Debug("AfterAgent",
+		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
+	return nil, nil
 }
 
 // BeforeModel is called before the LLM is called.
@@ -389,31 +427,16 @@ func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, t tool.Tool, args m
 	return nil, nil
 }
 
-// BeforeAgent is called before an agent execution.
-// This is the primary trace-bridging point for adk trace -> veadk invocation trace.
-// BeforeModel keeps an idempotent bridge as a secondary safety net.
-func (p *adkObservabilityPlugin) BeforeAgent(ctx agent.CallbackContext) (*genai.Content, error) {
-	log.Debug("BeforeAgent",
-		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
-	p.tryBridgeTraceMappingFromCallback(ctx, "BeforeAgent")
-	return nil, nil
+func (p *adkObservabilityPlugin) getSpanMetadata(state session.State) *spanMetadata {
+	val, _ := state.Get(stateKeyMetadata)
+	if meta, ok := val.(*spanMetadata); ok {
+		return meta
+	}
+	return &spanMetadata{}
 }
 
-func (p *adkObservabilityPlugin) tryBridgeTraceMappingFromCallback(ctx agent.CallbackContext, stage string) {
-	adkSC := trace.SpanFromContext(context.Context(ctx)).SpanContext()
-	veadkInvocationSC, ok := getInvocationSpanContextFromState(ctx.State())
-	if !ok {
-		log.Debug("Skip trace mapping bridge: invocation span missing in state", "stage", stage)
-		return
-	}
-
-	if registerTraceMappingIfPossible(GetRegistry(), adkSC, veadkInvocationSC) {
-		log.Debug("Bridged adk trace to veadk invocation trace",
-			"stage", stage,
-			"adk_trace_id", adkSC.TraceID().String(),
-			"veadk_trace_id", veadkInvocationSC.TraceID().String(),
-		)
-	}
+func (p *adkObservabilityPlugin) storeSpanMetadata(state session.State, meta *spanMetadata) {
+	_ = state.Set(stateKeyMetadata, meta)
 }
 
 func registerTraceMappingIfPossible(registry *TraceRegistry, adkSC, veadkSC trace.SpanContext) bool {
@@ -434,25 +457,6 @@ func getInvocationSpanContextFromState(state session.State) (trace.SpanContext, 
 		}
 	}
 	return trace.SpanContext{}, false
-}
-
-// AfterAgent is called after an agent execution.
-func (p *adkObservabilityPlugin) AfterAgent(ctx agent.CallbackContext) (*genai.Content, error) {
-	log.Debug("AfterAgent",
-		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
-	return nil, nil
-}
-
-func (p *adkObservabilityPlugin) getSpanMetadata(state session.State) *spanMetadata {
-	val, _ := state.Get(stateKeyMetadata)
-	if meta, ok := val.(*spanMetadata); ok {
-		return meta
-	}
-	return &spanMetadata{}
-}
-
-func (p *adkObservabilityPlugin) storeSpanMetadata(state session.State, meta *spanMetadata) {
-	_ = state.Set(stateKeyMetadata, meta)
 }
 
 const (
