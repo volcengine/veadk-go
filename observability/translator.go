@@ -137,6 +137,13 @@ func (p *translatedSpan) Attributes() []attribute.KeyValue {
 		if reqModel != "" && respModel == "" {
 			newAttrs = append(newAttrs, attribute.String(AttrGenAIResponseModel, reqModel))
 		}
+		// Calculate total tokens if input and output tokens are present but total is missing
+		inputTokens := getIntAttrFromList(newAttrs, AttrGenAIUsageInputTokens, 0)
+		outputTokens := getIntAttrFromList(newAttrs, AttrGenAIUsageOutputTokens, 0)
+		hasTotal := hasAttrFromList(newAttrs, AttrGenAIUsageTotalTokens)
+		if inputTokens > 0 && outputTokens > 0 && !hasTotal {
+			newAttrs = append(newAttrs, attribute.Int64(AttrGenAIUsageTotalTokens, inputTokens+outputTokens))
+		}
 	}
 
 	return newAttrs
@@ -516,4 +523,22 @@ func getStringAttrFromList(attrs []attribute.KeyValue, key, fallback string) str
 		}
 	}
 	return fallback
+}
+
+func getIntAttrFromList(attrs []attribute.KeyValue, key string, fallback int64) int64 {
+	for _, kv := range attrs {
+		if string(kv.Key) == key {
+			return kv.Value.AsInt64()
+		}
+	}
+	return fallback
+}
+
+func hasAttrFromList(attrs []attribute.KeyValue, key string) bool {
+	for _, kv := range attrs {
+		if string(kv.Key) == key {
+			return true
+		}
+	}
+	return false
 }
