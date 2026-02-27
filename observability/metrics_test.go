@@ -144,20 +144,9 @@ func TestMetricsRecording(t *testing.T) {
 	})
 }
 
-func TestRegisterLocalMetrics(t *testing.T) {
-	// Since registerLocalMetrics uses sync.Once, we can only test it doesn't panic.
-	// Logic verification is implicitly done via InitializeInstruments testing above.
+func TestRegisterMetrics(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
 	assert.NotPanics(t, func() {
-		registerLocalMetrics([]sdkmetric.Reader{reader})
-	})
-}
-
-// We cannot easily test registerGlobalMetrics side effects on otel.GetMeterProvider
-// without affecting other tests or global state, but basic execution safety check:
-func TestRegisterGlobalMetrics(t *testing.T) {
-	reader := sdkmetric.NewManualReader()
-	assert.NotPanics(t, func() {
-		registerGlobalMetrics([]sdkmetric.Reader{reader})
+		registerMetrics([]sdkmetric.Reader{reader})
 	})
 }

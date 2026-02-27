@@ -92,8 +92,7 @@ func SetupVeADKConfig() error {
 		},
 		Observability: &ObservabilityConfig{
 			OpenTelemetry: &OpenTelemetryConfig{
-				EnableGlobalProvider: true,  // use global trace provider by default, like veadk-python
-				EnableLocalProvider:  false, // disable adk-go's local provider
+				// traces are enabled automatically when at least one trace exporter is configured
 			},
 		},
 	}

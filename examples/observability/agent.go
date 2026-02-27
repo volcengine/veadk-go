@@ -50,6 +50,7 @@ func main() {
 		PluginConfig: runner.PluginConfig{
 			Plugins: []*plugin.Plugin{observability.NewPlugin()},
 		},
+		TelemetryOptions: observability.ADKTelemetryOptions(),
 	}
 
 	l := full.NewLauncher()

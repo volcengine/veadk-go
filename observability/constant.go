@@ -53,6 +53,10 @@ const (
 	SpanInvokeAgent = "invoke_agent" // Will be suffixed with name in code
 	SpanCallLLM     = "call_llm"
 	SpanExecuteTool = "execute_tool" // Will be suffixed with name in code
+
+	SpanPrefixInvokeAgent     = SpanInvokeAgent + " "
+	SpanPrefixGenerateContent = OperationNameGenerateContent + " "
+	SpanPrefixExecuteTool     = SpanExecuteTool + " "
 )
 
 // Metric names
@@ -95,6 +99,13 @@ const (
 	AttrCozeloopReportSource = "cozeloop.report.source" // Fixed value: veadk
 	AttrCozeloopCallType     = "cozeloop.call_type"     // CozeLoop call type
 
+	ADKAttributePrefix      = "gcp.vertex.agent."
+	ADKInstrumentationName  = "gcp.vertex.agent"
+	ADKLegacyScopeName      = "veadk"
+	ADKModelProvider        = "gcp.vertex.agent"
+	OpenInferenceScopeName  = "openinference.instrumentation.veadk"
+	ModelProviderVolcengine = "volcengine"
+
 	// Environment Variable Keys for Zero-Config Attributes
 	EnvModelProvider = "VEADK_MODEL_PROVIDER"
 	EnvAppName       = "VEADK_APP_NAME"
@@ -114,6 +125,31 @@ const (
 	SpanKindWorkflow = "workflow"
 	SpanKindLLM      = "llm"
 	SpanKindTool     = "tool"
+)
+
+// Operation names and types
+const (
+	OperationNameChain           = "chain"
+	OperationNameChat            = "chat"
+	OperationNameInvokeAgent     = SpanInvokeAgent
+	OperationNameGenerateContent = "generate_content"
+	OperationNameExecuteTool     = SpanExecuteTool
+
+	OperationTypeWorkflow = SpanKindWorkflow
+	OperationTypeLLM      = SpanKindLLM
+	OperationTypeTool     = SpanKindTool
+)
+
+// Metric attribute keys and values
+const (
+	MetricAttrGenAIOperationName = "gen_ai_operation_name"
+	MetricAttrGenAIOperationType = "gen_ai_operation_type"
+	MetricAttrErrorType          = "error_type"
+	MetricAttrTokenType          = "token_type"
+
+	TokenTypeInput  = "input"
+	TokenTypeOutput = "output"
+	ErrorTypeError  = "error"
 )
 
 // LLM attributes
@@ -151,10 +187,19 @@ const (
 const (
 	EventGenAIContentPrompt     = "gen_ai.content.prompt"
 	EventGenAIContentCompletion = "gen_ai.content.completion"
+	EventGenAIUserMessage       = "gen_ai.user.message"
+	EventGenAIChoice            = "gen_ai.choice"
 )
 
 // Tool attributes
 const (
+	ADKAttrLLMRequestName   = ADKAttributePrefix + "llm_request"
+	ADKAttrToolCallArgsName = ADKAttributePrefix + "tool_call_args"
+	ADKAttrToolResponseName = ADKAttributePrefix + "tool_response"
+	ADKAttrLLMResponseName  = ADKAttributePrefix + "llm_response"
+	ADKAttrInvocationID     = ADKAttributePrefix + "invocation_id"
+	ADKAttrSessionID        = ADKAttributePrefix + "session_id"
+
 	AttrGenAIOperationName   = "gen_ai.operation.name"
 	AttrGenAIOperationType   = "gen_ai.operation.type"
 	AttrGenAIToolName        = "gen_ai.tool.name"
