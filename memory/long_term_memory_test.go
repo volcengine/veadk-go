@@ -120,6 +120,76 @@ func TestNewLongTermMemory(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "redis backend default config",
+			backend: BackendLongTermRedis,
+			config:  nil,
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewRedisMemoryBackend).Return(nil, nil).Build()
+				mockey.Mock(long_term_memory_backends.LongTermMemoryFactory).Return(&mockMemoryServiceImpl{}).Build()
+			},
+			wantErr: false,
+		},
+		{
+			name:    "redis backend valid config",
+			backend: BackendLongTermRedis,
+			config:  &long_term_memory_backends.RedisMemoryConfig{Host: "localhost"},
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewRedisMemoryBackend).Return(nil, nil).Build()
+				mockey.Mock(long_term_memory_backends.LongTermMemoryFactory).Return(&mockMemoryServiceImpl{}).Build()
+			},
+			wantErr: false,
+		},
+		{
+			name:    "redis backend invalid config type",
+			backend: BackendLongTermRedis,
+			config:  "invalid",
+			wantErr: true,
+		},
+		{
+			name:    "redis backend constructor error",
+			backend: BackendLongTermRedis,
+			config:  nil,
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewRedisMemoryBackend).Return(nil, errors.New("init error")).Build()
+			},
+			wantErr: true,
+		},
+		{
+			name:    "opensearch backend default config",
+			backend: BackendLongTermOpenSearch,
+			config:  nil,
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewOpenSearchMemoryBackend).Return(nil, nil).Build()
+				mockey.Mock(long_term_memory_backends.LongTermMemoryFactory).Return(&mockMemoryServiceImpl{}).Build()
+			},
+			wantErr: false,
+		},
+		{
+			name:    "opensearch backend valid config",
+			backend: BackendLongTermOpenSearch,
+			config:  &long_term_memory_backends.OpenSearchMemoryConfig{Host: "localhost"},
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewOpenSearchMemoryBackend).Return(nil, nil).Build()
+				mockey.Mock(long_term_memory_backends.LongTermMemoryFactory).Return(&mockMemoryServiceImpl{}).Build()
+			},
+			wantErr: false,
+		},
+		{
+			name:    "opensearch backend invalid config type",
+			backend: BackendLongTermOpenSearch,
+			config:  "invalid",
+			wantErr: true,
+		},
+		{
+			name:    "opensearch backend constructor error",
+			backend: BackendLongTermOpenSearch,
+			config:  nil,
+			setupMock: func() {
+				mockey.Mock(long_term_memory_backends.NewOpenSearchMemoryBackend).Return(nil, errors.New("init error")).Build()
+			},
+			wantErr: true,
+		},
+		{
 			name:    "unsupported backend",
 			backend: "test",
 			wantErr: true,
