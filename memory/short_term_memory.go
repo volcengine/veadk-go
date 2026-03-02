@@ -27,6 +27,8 @@ type ShortTermBackendType string
 const (
 	BackendShortTermLocal      ShortTermBackendType = "local"
 	BackendShortTermPostgreSQL ShortTermBackendType = "postgresql"
+	BackendShortTermSQLite     ShortTermBackendType = "sqlite"
+	BackendShortTermMySQL      ShortTermBackendType = "mysql"
 )
 
 // NewShortTermMemoryService creates a new short term memory service.
@@ -55,6 +57,42 @@ func NewShortTermMemoryService(backend ShortTermBackendType, config interface{})
 			}
 		}
 		sessionService, err := short_term_memory_backends.NewPostgreSqlSTMBackend(pgCfg)
+		if err != nil {
+			return nil, err
+		}
+		return sessionService, nil
+	case BackendShortTermSQLite:
+		var sqliteCfg *short_term_memory_backends.SqliteBackendConfig
+		if config == nil {
+			sqliteCfg = &short_term_memory_backends.SqliteBackendConfig{
+				CommonDatabaseConfig: configs.GetGlobalConfig().Database.Sqlite,
+			}
+		} else {
+			var ok bool
+			sqliteCfg, ok = config.(*short_term_memory_backends.SqliteBackendConfig)
+			if !ok {
+				return nil, fmt.Errorf("sqlite backend requires *SqliteBackendConfig, got %T", config)
+			}
+		}
+		sessionService, err := short_term_memory_backends.NewSqliteSTMBackend(sqliteCfg)
+		if err != nil {
+			return nil, err
+		}
+		return sessionService, nil
+	case BackendShortTermMySQL:
+		var mysqlCfg *short_term_memory_backends.MysqlBackendConfig
+		if config == nil {
+			mysqlCfg = &short_term_memory_backends.MysqlBackendConfig{
+				CommonDatabaseConfig: configs.GetGlobalConfig().Database.Mysql,
+			}
+		} else {
+			var ok bool
+			mysqlCfg, ok = config.(*short_term_memory_backends.MysqlBackendConfig)
+			if !ok {
+				return nil, fmt.Errorf("mysql backend requires *MysqlBackendConfig, got %T", config)
+			}
+		}
+		sessionService, err := short_term_memory_backends.NewMysqlSTMBackend(mysqlCfg)
 		if err != nil {
 			return nil, err
 		}
