@@ -86,6 +86,8 @@ func SetupVeADKConfig() error {
 		LOGGING:        &Logging{},
 		Database: &DatabaseConfig{
 			Postgresql: &CommonDatabaseConfig{},
+			Sqlite:     &CommonDatabaseConfig{},
+			Mysql:      &CommonDatabaseConfig{},
 			Viking:     &VikingConfig{},
 			TOS:        &TosClientConf{},
 			Mem0:       &Mem0Config{},
