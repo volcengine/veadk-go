@@ -29,6 +29,8 @@ type CommonDatabaseConfig struct {
 }
 type DatabaseConfig struct {
 	Postgresql *CommonDatabaseConfig `yaml:"postgresql"`
+	Sqlite     *CommonDatabaseConfig `yaml:"sqlite"`
+	Mysql      *CommonDatabaseConfig `yaml:"mysql"`
 	Viking     *VikingConfig         `yaml:"viking"`
 	TOS        *TosClientConf        `yaml:"tos"`
 	Mem0       *Mem0Config           `yaml:"mem0"`
@@ -41,6 +43,15 @@ func (c *DatabaseConfig) MapEnvToConfig() {
 	c.Postgresql.Port = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_PORT)
 	c.Postgresql.Database = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_DATABASE)
 	c.Postgresql.DBUrl = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_DBURL)
+
+	c.Sqlite.DBUrl = utils.GetEnvWithDefault(common.DATABASE_SQLITE_DBURL)
+
+	c.Mysql.User = utils.GetEnvWithDefault(common.DATABASE_MYSQL_USER)
+	c.Mysql.Password = utils.GetEnvWithDefault(common.DATABASE_MYSQL_PASSWORD)
+	c.Mysql.Host = utils.GetEnvWithDefault(common.DATABASE_MYSQL_HOST)
+	c.Mysql.Port = utils.GetEnvWithDefault(common.DATABASE_MYSQL_PORT)
+	c.Mysql.Database = utils.GetEnvWithDefault(common.DATABASE_MYSQL_DATABASE)
+	c.Mysql.DBUrl = utils.GetEnvWithDefault(common.DATABASE_MYSQL_DBURL)
 
 	c.Viking.MapEnvToConfig()
 	c.TOS.MapEnvToConfig()
