@@ -89,6 +89,8 @@ func SetupVeADKConfig() error {
 			Viking:     &VikingConfig{},
 			TOS:        &TosClientConf{},
 			Mem0:       &Mem0Config{},
+			Redis:      &RedisConfig{},
+			OpenSearch: &OpenSearchConfig{},
 		},
 		Observability: &ObservabilityConfig{
 			OpenTelemetry: &OpenTelemetryConfig{
