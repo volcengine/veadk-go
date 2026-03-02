@@ -24,10 +24,12 @@ import (
 type LongTermBackendType string
 
 const (
-	BackendLongTermLocal  LongTermBackendType = "local"
-	BackendLongTermViking LongTermBackendType = "viking"
-	BackendLongTermMem0   LongTermBackendType = "mem0"
-	DefaultTopK                               = 5
+	BackendLongTermLocal      LongTermBackendType = "local"
+	BackendLongTermViking     LongTermBackendType = "viking"
+	BackendLongTermMem0       LongTermBackendType = "mem0"
+	BackendLongTermRedis      LongTermBackendType = "redis"
+	BackendLongTermOpenSearch LongTermBackendType = "opensearch"
+	DefaultTopK                                   = 5
 )
 
 // NewLongTermMemoryService creates a new long term memory service.
@@ -80,6 +82,38 @@ func NewLongTermMemoryService(backend LongTermBackendType, config interface{}, t
 			return nil, err
 		}
 		return long_term_memory_backends.LongTermMemoryFactory(mem0Backend, topK[0]), nil
+	case BackendLongTermRedis:
+		var redisConfig *long_term_memory_backends.RedisMemoryConfig
+		if config == nil {
+			redisConfig = &long_term_memory_backends.RedisMemoryConfig{}
+		} else {
+			var ok bool
+			redisConfig, ok = config.(*long_term_memory_backends.RedisMemoryConfig)
+			if !ok {
+				return nil, fmt.Errorf("redis backend requires *RedisMemoryConfig, got %T", config)
+			}
+		}
+		redisBackend, err := long_term_memory_backends.NewRedisMemoryBackend(redisConfig)
+		if err != nil {
+			return nil, err
+		}
+		return long_term_memory_backends.LongTermMemoryFactory(redisBackend, topK[0]), nil
+	case BackendLongTermOpenSearch:
+		var osConfig *long_term_memory_backends.OpenSearchMemoryConfig
+		if config == nil {
+			osConfig = &long_term_memory_backends.OpenSearchMemoryConfig{}
+		} else {
+			var ok bool
+			osConfig, ok = config.(*long_term_memory_backends.OpenSearchMemoryConfig)
+			if !ok {
+				return nil, fmt.Errorf("opensearch backend requires *OpenSearchMemoryConfig, got %T", config)
+			}
+		}
+		osBackend, err := long_term_memory_backends.NewOpenSearchMemoryBackend(osConfig)
+		if err != nil {
+			return nil, err
+		}
+		return long_term_memory_backends.LongTermMemoryFactory(osBackend, topK[0]), nil
 	default:
 		return nil, fmt.Errorf("unsupported backend type: %s", backend)
 	}
