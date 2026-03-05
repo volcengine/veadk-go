@@ -16,6 +16,7 @@ package configs
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/volcengine/veadk-go/utils"
 )
@@ -45,6 +46,7 @@ const (
 	EnvObservabilityOpenTelemetryTLSTopicID     = "OBSERVABILITY_OPENTELEMETRY_TLS_TOPIC_ID"
 	EnvObservabilityOpenTelemetryTLSAccessKey   = "OBSERVABILITY_OPENTELEMETRY_TLS_ACCESS_KEY"
 	EnvObservabilityOpenTelemetryTLSSecretKey   = "OBSERVABILITY_OPENTELEMETRY_TLS_SECRET_KEY"
+	EnvObservabilityOpenTelemetryTLSTimeout     = "OBSERVABILITY_OPENTELEMETRY_TLS_TIMEOUT"
 
 	// File
 	EnvObservabilityOpenTelemetryFilePath = "OBSERVABILITY_OPENTELEMETRY_FILE_PATH"
@@ -90,6 +92,7 @@ type TLSExporterConfig struct {
 	TopicID     string `yaml:"topic_id"`
 	AccessKey   string `yaml:"access_key"`
 	SecretKey   string `yaml:"secret_key"`
+	Timeout     int    `yaml:"timeout"` // timeout in seconds, default 10
 }
 
 type FileConfig struct {
@@ -215,6 +218,14 @@ func (c *ObservabilityConfig) MapEnvToConfig() {
 		}
 		ot.TLS.SecretKey = v
 	}
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSTimeout); v != "" {
+		if ot.TLS == nil {
+			ot.TLS = &TLSExporterConfig{}
+		}
+		if timeout, err := strconv.Atoi(v); err == nil {
+			ot.TLS.Timeout = timeout
+		}
+	}
 
 	// File
 	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryFilePath); v != "" {
@@ -310,6 +321,7 @@ func (c *TLSExporterConfig) Clone() *TLSExporterConfig {
 		TopicID:     c.TopicID,
 		AccessKey:   c.AccessKey,
 		SecretKey:   c.SecretKey,
+		Timeout:     c.Timeout,
 	}
 }
 
