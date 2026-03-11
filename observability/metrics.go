@@ -53,12 +53,10 @@ var (
 )
 
 var (
-	// Slices to hold instruments from multiple providers (Global, Local, etc.)
-	localOnce           sync.Once
-	globalOnce          sync.Once
-	instrumentsMu       sync.RWMutex
-	localMeterProvider  *sdkmetric.MeterProvider
-	globalMeterProvider *sdkmetric.MeterProvider
+	// Shared instruments bound to a single global meter provider.
+	meterOnce     sync.Once
+	instrumentsMu sync.RWMutex
+	meterProvider *sdkmetric.MeterProvider
 
 	// Standard Gen AI Metrics
 	tokenUsageHistograms        []metric.Float64Histogram
@@ -78,35 +76,18 @@ var (
 	agentkitDurationHistograms []metric.Float64Histogram
 )
 
-// registerLocalMetrics initializes the metrics system with a local isolated MeterProvider.
-// It does NOT overwrite the global OTel MeterProvider.
-func registerLocalMetrics(readers []sdkmetric.Reader) {
-	localOnce.Do(func() {
+// registerMetrics configures a single global OpenTelemetry MeterProvider.
+func registerMetrics(readers []sdkmetric.Reader) {
+	meterOnce.Do(func() {
 		options := []sdkmetric.Option{}
 		for _, r := range readers {
 			options = append(options, sdkmetric.WithReader(r))
 		}
 
 		mp := sdkmetric.NewMeterProvider(options...)
-		localMeterProvider = mp
-		initializeInstruments(mp.Meter(InstrumentationName))
-	})
-}
-
-// registerGlobalMetrics configures the global OpenTelemetry MeterProvider with the provided readers.
-// This is optional and used when you want unrelated OTel measurements to also be exported.
-func registerGlobalMetrics(readers []sdkmetric.Reader) {
-	globalOnce.Do(func() {
-		options := []sdkmetric.Option{}
-		for _, r := range readers {
-			options = append(options, sdkmetric.WithReader(r))
-		}
-
-		mp := sdkmetric.NewMeterProvider(options...)
-		globalMeterProvider = mp
+		meterProvider = mp
 		otel.SetMeterProvider(mp)
-		// No need to call registerMeter here, because the global proxy registered in init()
-		initializeInstruments(otel.GetMeterProvider().Meter(InstrumentationName))
+		initializeInstruments(mp.Meter(InstrumentationName))
 	})
 }
 

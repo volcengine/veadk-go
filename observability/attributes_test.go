@@ -43,26 +43,18 @@ func (m *MockSpan) SetAttributes(kv ...attribute.KeyValue) {
 }
 
 func TestSetSpecificAttributes(t *testing.T) {
-	t.Run("LLM", func(t *testing.T) {
+	t.Run("Workflow", func(t *testing.T) {
 		span := NewMockSpan()
-		setLLMAttributes(span)
-		assert.Equal(t, SpanKindLLM, span.Attributes[attribute.Key(AttrGenAISpanKind)].AsString())
-		assert.Equal(t, "chat", span.Attributes[attribute.Key(AttrGenAIOperationName)].AsString())
+		setWorkflowAttributes(span)
+		assert.Equal(t, SpanKindWorkflow, span.Attributes[attribute.Key(AttrGenAISpanKind)].AsString())
+		assert.Equal(t, OperationNameChain, span.Attributes[attribute.Key(AttrGenAIOperationName)].AsString())
 	})
 
-	t.Run("Tool", func(t *testing.T) {
+	t.Run("DynamicAttributeWithFallbackAndAliases", func(t *testing.T) {
 		span := NewMockSpan()
-		setToolAttributes(span, "my-tool")
-		assert.Equal(t, SpanKindTool, span.Attributes[attribute.Key(AttrGenAISpanKind)].AsString())
-		assert.Equal(t, "execute_tool", span.Attributes[attribute.Key(AttrGenAIOperationName)].AsString())
-		assert.Equal(t, "my-tool", span.Attributes[attribute.Key(AttrGenAIToolName)].AsString())
-	})
-
-	t.Run("Agent", func(t *testing.T) {
-		span := NewMockSpan()
-		setAgentAttributes(span, "my-agent")
-		assert.Equal(t, "my-agent", span.Attributes[attribute.Key(AttrGenAIAgentName)].AsString())
-		assert.Equal(t, "my-agent", span.Attributes[attribute.Key(AttrAgentName)].AsString())
-		assert.Equal(t, "my-agent", span.Attributes[attribute.Key(AttrAgentNameDot)].AsString())
+		setDynamicAttribute(span, AttrGenAIAgentName, "", FallbackAgentName, AttrAgentName, AttrAgentNameDot)
+		assert.Equal(t, FallbackAgentName, span.Attributes[attribute.Key(AttrGenAIAgentName)].AsString())
+		assert.Equal(t, FallbackAgentName, span.Attributes[attribute.Key(AttrAgentName)].AsString())
+		assert.Equal(t, FallbackAgentName, span.Attributes[attribute.Key(AttrAgentNameDot)].AsString())
 	})
 }

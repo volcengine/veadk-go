@@ -100,7 +100,6 @@ opentelemetry:
     endpoint: "http://apmplus-example.com"
     api_key: "test-key"
     service_name: "test-service"
-  enable_global_tracer: true
 `
 	var config ObservabilityConfig
 	err := yaml.Unmarshal([]byte(yamlData), &config)
@@ -111,18 +110,14 @@ opentelemetry:
 	assert.Equal(t, "http://apmplus-example.com", config.OpenTelemetry.ApmPlus.Endpoint)
 	assert.Equal(t, "test-key", config.OpenTelemetry.ApmPlus.APIKey)
 	assert.Equal(t, "test-service", config.OpenTelemetry.ApmPlus.ServiceName)
-	assert.True(t, config.OpenTelemetry.EnableGlobalProvider)
 
 	assert.Equal(t, "test-service", config.OpenTelemetry.ApmPlus.ServiceName)
-	assert.True(t, config.OpenTelemetry.EnableGlobalProvider)
 }
 
 func TestObservabilityConfig_EnvMapping(t *testing.T) {
 	os.Setenv("OBSERVABILITY_OPENTELEMETRY_APMPLUS_ENDPOINT", "http://env-endpoint")
-	os.Setenv("OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_PROVIDER", "true")
 	defer func() {
 		os.Unsetenv("OBSERVABILITY_OPENTELEMETRY_APMPLUS_ENDPOINT")
-		os.Unsetenv("OBSERVABILITY_OPENTELEMETRY_ENABLE_GLOBAL_PROVIDER")
 	}()
 
 	config := &ObservabilityConfig{}
@@ -131,7 +126,6 @@ func TestObservabilityConfig_EnvMapping(t *testing.T) {
 	assert.NotNil(t, config.OpenTelemetry)
 	assert.NotNil(t, config.OpenTelemetry.ApmPlus)
 	assert.Equal(t, "http://env-endpoint", config.OpenTelemetry.ApmPlus.Endpoint)
-	assert.True(t, config.OpenTelemetry.EnableGlobalProvider)
 }
 
 func TestObservabilityConfig_Priority(t *testing.T) {
