@@ -24,6 +24,7 @@ import (
 	"github.com/volcengine/veadk-go/knowledgebase"
 	"github.com/volcengine/veadk-go/model"
 	"github.com/volcengine/veadk-go/prompts"
+	adkmodel "google.golang.org/adk/model"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"github.com/volcengine/veadk-go/utils"
 	"google.golang.org/adk/agent"
@@ -72,20 +73,39 @@ func New(cfg *Config) (agent.Agent, error) {
 		if cfg.ModelName == "" {
 			cfg.ModelName = utils.GetEnvWithDefault(common.MODEL_AGENT_NAME, configs.GetGlobalConfig().Model.Agent.Name, common.DEFAULT_MODEL_AGENT_NAME)
 		}
+		if cfg.ModelProvider == "" {
+			cfg.ModelProvider = utils.GetEnvWithDefault(common.MODEL_AGENT_PROVIDER, configs.GetGlobalConfig().Model.Agent.Provider, common.DEFAULT_MODEL_AGENT_PROVIDER)
+		}
 		if cfg.ModelAPIKey == "" {
 			cfg.ModelAPIKey = utils.GetEnvWithDefault(common.MODEL_AGENT_API_KEY, configs.GetGlobalConfig().Model.Agent.ApiKey, utils.Must(veauth.GetArkToken(common.DEFAULT_MODEL_REGION)))
 		}
 		if cfg.ModelAPIBase == "" {
 			cfg.ModelAPIBase = utils.GetEnvWithDefault(common.MODEL_AGENT_API_BASE, configs.GetGlobalConfig().Model.Agent.ApiBase, common.DEFAULT_MODEL_AGENT_API_BASE)
 		}
-		veModel, err := model.NewOpenAIModel(
-			context.Background(),
-			cfg.ModelName,
-			&model.ClientConfig{
-				APIKey:    cfg.ModelAPIKey,
-				BaseURL:   cfg.ModelAPIBase,
-				ExtraBody: cfg.ModelExtraConfig,
-			})
+
+		var veModel adkmodel.LLM
+		var err error
+
+		switch cfg.ModelProvider {
+		case "ark":
+			veModel, err = model.NewArkModel(
+				context.Background(),
+				cfg.ModelName,
+				&model.ArkClientConfig{
+					APIKey:    cfg.ModelAPIKey,
+					BaseURL:   cfg.ModelAPIBase,
+					ExtraBody: cfg.ModelExtraConfig,
+				})
+		default: // "openai"
+			veModel, err = model.NewOpenAIModel(
+				context.Background(),
+				cfg.ModelName,
+				&model.ClientConfig{
+					APIKey:    cfg.ModelAPIKey,
+					BaseURL:   cfg.ModelAPIBase,
+					ExtraBody: cfg.ModelExtraConfig,
+				})
+		}
 		if err != nil {
 			return nil, err
 		}

@@ -15,6 +15,8 @@
 package configs
 
 import (
+	"strconv"
+
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/utils"
 )
@@ -29,9 +31,13 @@ type CommonDatabaseConfig struct {
 }
 type DatabaseConfig struct {
 	Postgresql *CommonDatabaseConfig `yaml:"postgresql"`
+	Sqlite     *CommonDatabaseConfig `yaml:"sqlite"`
+	Mysql      *CommonDatabaseConfig `yaml:"mysql"`
 	Viking     *VikingConfig         `yaml:"viking"`
 	TOS        *TosClientConf        `yaml:"tos"`
 	Mem0       *Mem0Config           `yaml:"mem0"`
+	Redis      *RedisConfig          `yaml:"redis"`
+	OpenSearch *OpenSearchConfig     `yaml:"opensearch"`
 }
 
 func (c *DatabaseConfig) MapEnvToConfig() {
@@ -42,9 +48,64 @@ func (c *DatabaseConfig) MapEnvToConfig() {
 	c.Postgresql.Database = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_DATABASE)
 	c.Postgresql.DBUrl = utils.GetEnvWithDefault(common.DATABASE_POSTGRESQL_DBURL)
 
+	c.Sqlite.DBUrl = utils.GetEnvWithDefault(common.DATABASE_SQLITE_DBURL)
+
+	c.Mysql.User = utils.GetEnvWithDefault(common.DATABASE_MYSQL_USER)
+	c.Mysql.Password = utils.GetEnvWithDefault(common.DATABASE_MYSQL_PASSWORD)
+	c.Mysql.Host = utils.GetEnvWithDefault(common.DATABASE_MYSQL_HOST)
+	c.Mysql.Port = utils.GetEnvWithDefault(common.DATABASE_MYSQL_PORT)
+	c.Mysql.Database = utils.GetEnvWithDefault(common.DATABASE_MYSQL_DATABASE)
+	c.Mysql.DBUrl = utils.GetEnvWithDefault(common.DATABASE_MYSQL_DBURL)
+
 	c.Viking.MapEnvToConfig()
 	c.TOS.MapEnvToConfig()
 	c.Mem0.MapEnvToConfig()
+	c.Redis.MapEnvToConfig()
+	c.OpenSearch.MapEnvToConfig()
+}
+
+// RedisConfig holds Redis connection configuration.
+type RedisConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	DB       int    `yaml:"db"`
+}
+
+func (r *RedisConfig) MapEnvToConfig() {
+	r.Host = utils.GetEnvWithDefault(common.DATABASE_REDIS_HOST)
+	if portStr := utils.GetEnvWithDefault(common.DATABASE_REDIS_PORT); portStr != "" {
+		r.Port, _ = strconv.Atoi(portStr)
+	}
+	r.Username = utils.GetEnvWithDefault(common.DATABASE_REDIS_USERNAME)
+	r.Password = utils.GetEnvWithDefault(common.DATABASE_REDIS_PASSWORD)
+	if dbStr := utils.GetEnvWithDefault(common.DATABASE_REDIS_DB); dbStr != "" {
+		r.DB, _ = strconv.Atoi(dbStr)
+	}
+}
+
+// OpenSearchConfig holds OpenSearch connection configuration.
+type OpenSearchConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	UseSSL   bool   `yaml:"use_ssl"`
+	CertPath string `yaml:"cert_path"`
+}
+
+func (o *OpenSearchConfig) MapEnvToConfig() {
+	o.Host = utils.GetEnvWithDefault(common.DATABASE_OPENSEARCH_HOST)
+	if portStr := utils.GetEnvWithDefault(common.DATABASE_OPENSEARCH_PORT); portStr != "" {
+		o.Port, _ = strconv.Atoi(portStr)
+	}
+	o.Username = utils.GetEnvWithDefault(common.DATABASE_OPENSEARCH_USERNAME)
+	o.Password = utils.GetEnvWithDefault(common.DATABASE_OPENSEARCH_PASSWORD)
+	if sslStr := utils.GetEnvWithDefault(common.DATABASE_OPENSEARCH_USE_SSL); sslStr != "" {
+		o.UseSSL, _ = strconv.ParseBool(sslStr)
+	}
+	o.CertPath = utils.GetEnvWithDefault(common.DATABASE_OPENSEARCH_CERT_PATH)
 }
 
 // Mem0Config

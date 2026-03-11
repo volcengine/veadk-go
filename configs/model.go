@@ -15,6 +15,8 @@
 package configs
 
 import (
+	"strconv"
+
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/utils"
 )
@@ -30,10 +32,16 @@ type AgentConfig struct {
 	CommonModelConfig
 }
 
+type EmbeddingModelConfig struct {
+	CommonModelConfig
+	Dim int
+}
+
 type ModelConfig struct {
-	Agent *AgentConfig
-	Image *CommonModelConfig
-	Video *CommonModelConfig
+	Agent     *AgentConfig
+	Image     *CommonModelConfig
+	Video     *CommonModelConfig
+	Embedding *EmbeddingModelConfig
 }
 
 func (c *ModelConfig) MapEnvToConfig() {
@@ -52,4 +60,15 @@ func (c *ModelConfig) MapEnvToConfig() {
 	c.Video.Name = utils.GetEnvWithDefault(common.MODEL_VIDEO_NAME, common.DEFAULT_MODEL_VIDEO_NAME)
 	c.Video.ApiBase = utils.GetEnvWithDefault(common.MODEL_VIDEO_API_BASE, common.DEFAULT_MODEL_VIDEO_API_BASE)
 	c.Video.ApiKey = utils.GetEnvWithDefault(common.MODEL_VIDEO_API_KEY)
+
+	// Embedding
+	c.Embedding.Name = utils.GetEnvWithDefault(common.MODEL_EMBEDDING_NAME, common.DEFAULT_MODEL_EMBEDDING_NAME)
+	c.Embedding.ApiBase = utils.GetEnvWithDefault(common.MODEL_EMBEDDING_API_BASE, common.DEFAULT_MODEL_EMBEDDING_API_BASE)
+	c.Embedding.ApiKey = utils.GetEnvWithDefault(common.MODEL_EMBEDDING_API_KEY)
+	if dimStr := utils.GetEnvWithDefault(common.MODEL_EMBEDDING_DIM); dimStr != "" {
+		c.Embedding.Dim, _ = strconv.Atoi(dimStr)
+	}
+	if c.Embedding.Dim == 0 {
+		c.Embedding.Dim = common.DEFAULT_MODEL_EMBEDDING_DIM
+	}
 }

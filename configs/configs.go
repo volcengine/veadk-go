@@ -69,9 +69,10 @@ func SetupVeADKConfig() error {
 	globalConfig = &VeADKConfig{
 		Volcengine: &Volcengine{},
 		Model: &ModelConfig{
-			Agent: &AgentConfig{},
-			Image: &CommonModelConfig{},
-			Video: &CommonModelConfig{},
+			Agent:     &AgentConfig{},
+			Image:     &CommonModelConfig{},
+			Video:     &CommonModelConfig{},
+			Embedding: &EmbeddingModelConfig{},
 		},
 		Tool: &BuiltinToolConfigs{
 			MCPRouter: &MCPRouter{},
@@ -85,9 +86,13 @@ func SetupVeADKConfig() error {
 		LOGGING:        &Logging{},
 		Database: &DatabaseConfig{
 			Postgresql: &CommonDatabaseConfig{},
+			Sqlite:     &CommonDatabaseConfig{},
+			Mysql:      &CommonDatabaseConfig{},
 			Viking:     &VikingConfig{},
 			TOS:        &TosClientConf{},
 			Mem0:       &Mem0Config{},
+			Redis:      &RedisConfig{},
+			OpenSearch: &OpenSearchConfig{},
 		},
 		Observability: &ObservabilityConfig{
 			OpenTelemetry: &OpenTelemetryConfig{
