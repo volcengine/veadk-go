@@ -457,7 +457,6 @@ func (c *Client) Download(objectKey string, savePath string) error {
 	}
 	if objectKey == "" || savePath == "" {
 		return fmt.Errorf("objectKey or savePath is empty")
-
 	}
 	if err := c.ensureClientAndBucket(); err != nil {
 		return err
@@ -485,6 +484,47 @@ func (c *Client) Download(objectKey string, savePath string) error {
 	}()
 	if _, err = io.Copy(f, rc.Content); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (c *Client) DownloadDir(prefix, localDir string) error {
+	if err := preCheckBucket(c.config.Bucket); err != nil {
+		return err
+	}
+	if prefix == "" || localDir == "" {
+		return fmt.Errorf("prefix or localDir is empty")
+	}
+	if err := c.ensureClientAndBucket(); err != nil {
+		return err
+	}
+
+	input := &tos.ListObjectsType2Input{
+		Bucket: c.config.Bucket,
+		Prefix: prefix,
+	}
+
+	output, err := c.client.ListObjectsType2(context.Background(), input)
+	if err != nil {
+		return fmt.Errorf("failed to list objects: %w", err)
+	}
+
+	for _, obj := range output.Contents {
+		key := obj.Key
+		relPath := strings.TrimPrefix(key, prefix)
+		if strings.HasPrefix(relPath, "/") {
+			relPath = relPath[1:]
+		}
+		if relPath == "" {
+			continue
+		}
+
+		fullLocalPath := filepath.Join(localDir, relPath)
+
+		err = c.Download(key, fullLocalPath)
+		if err != nil {
+			return fmt.Errorf("failed to download object %s,error: %w", key, err)
+		}
 	}
 	return nil
 }

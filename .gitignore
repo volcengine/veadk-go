@@ -23,8 +23,12 @@ go.work
 
 .idea/
 .trae
+.adk
+.adk/skills
 agent/.env
 examples/quickstart/config.yaml
+.skills_tools
+skills/skills_feat
 
 
 # MacOS system file

@@ -17,13 +17,12 @@ package veauth
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/volcengine/veadk-go/log"
-
 	"net/http"
 
 	"github.com/volcengine/veadk-go/common"
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/integrations/ve_sign"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/utils"
 )
 
