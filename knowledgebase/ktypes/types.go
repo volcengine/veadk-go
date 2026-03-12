@@ -23,5 +23,5 @@ const (
 
 type KnowledgeEntry struct {
 	Content  string
-	Metadata map[string]any
+	Metadata []map[string]any
 }

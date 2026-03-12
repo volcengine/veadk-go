@@ -15,7 +15,7 @@ type mockBackend struct{}
 
 func (m *mockBackend) Index() string { return "mock-index" }
 func (m *mockBackend) Search(query string, opts ...map[string]any) ([]ktypes.KnowledgeEntry, error) {
-	return []ktypes.KnowledgeEntry{{Content: "c", Metadata: map[string]any{"q": query}}}, nil
+	return []ktypes.KnowledgeEntry{{Content: "c", Metadata: []map[string]any{{"q": query}}}}, nil
 }
 func (m *mockBackend) AddFromText(text []string, opts ...map[string]any) error         { return nil }
 func (m *mockBackend) AddFromFiles(files []string, opts ...map[string]any) error       { return nil }

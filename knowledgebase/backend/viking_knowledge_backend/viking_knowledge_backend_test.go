@@ -127,7 +127,7 @@ func TestVikingKnowledgeBackend_Search(t *testing.T) {
 				Code: ve_viking.VikingKnowledgeBaseSuccessCode,
 				Data: &viking_knowledge.CollectionSearchKnowledgeResponseData{
 					ResultList: []*viking_knowledge.CollectionSearchResponseItem{
-						{Content: "c1", DocInfo: viking_knowledge.CollectionSearchResponseItemDocInfo{DocMeta: "{\"key\":\"v\"}"}},
+						{Content: "c1", DocInfo: viking_knowledge.CollectionSearchResponseItemDocInfo{DocMeta: "[{\"key\":\"v\"}]"}},
 						{Content: "c2", DocInfo: viking_knowledge.CollectionSearchResponseItemDocInfo{DocMeta: ""}},
 					},
 				},
