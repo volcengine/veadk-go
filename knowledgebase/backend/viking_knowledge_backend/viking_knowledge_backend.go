@@ -142,7 +142,7 @@ func (v *VikingKnowledgeBackend) Search(query string, opts ...map[string]any) ([
 
 	var entries []ktypes.KnowledgeEntry
 	for _, item := range chunks.Data.ResultList {
-		var metadata = make(map[string]any)
+		var metadata []map[string]any
 		if item.DocInfo.DocMeta != "" {
 			err = json.Unmarshal([]byte(item.DocInfo.DocMeta), &metadata)
 			if err != nil {
