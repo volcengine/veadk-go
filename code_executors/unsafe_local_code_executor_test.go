@@ -9,6 +9,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestUnsafeLocalCodeExecutor(t *testing.T) {
+	// Setup paths
+	cwd, _ := os.Getwd()
+	scriptsDir := filepath.Join(cwd, "test_scripts")
+	input := CodeExecutionInput{
+		ScriptPath: filepath.Join(scriptsDir, "multiply.py"),
+		Args:       []string{"2", "3", "4"},
+	}
+	executor := NewUnsafeLocalCodeExecutor(300 * time.Second)
+	// Invoke
+	result, err := executor.ExecuteCode(nil, input)
+	if err != nil {
+		t.Errorf("UnsafeLocalCodeExecutor should not return an error: %s", err.Error())
+		return
+	}
+	t.Logf("UnsafeLocalCodeExecutor result: %s", result.StdOut)
+}
+
 func TestSkillScriptExecutor_ExecuteCode(t *testing.T) {
 	// Setup paths
 	cwd, _ := os.Getwd()
@@ -67,11 +85,17 @@ func TestSkillScriptExecutor_ExecuteCode(t *testing.T) {
 			scriptPath:     "test.txt",
 			expectedStderr: "UNSUPPORTED_SCRIPT_TYPE: Unsupported script type '.txt'. Supported types: .py, .sh, .bash",
 		},
+		{
+			name:           "Args List",
+			scriptPath:     filepath.Join(scriptsDir, "multiply.py"),
+			args:           []string{"2", "3", "4"},
+			expectedStdout: "24.0",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor := NewSkillScriptExecutor(tt.timeout, nil)
+			executor := NewUnsafeLocalCodeExecutor(tt.timeout)
 			input := CodeExecutionInput{
 				ScriptPath: tt.scriptPath,
 				Args:       tt.args,

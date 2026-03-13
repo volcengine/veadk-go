@@ -1,7 +1,9 @@
-package tool
+package skilltool
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/volcengine/veadk-go/code_executors"
@@ -10,8 +12,8 @@ import (
 	"google.golang.org/adk/tool"
 )
 
-var mockSkills = []*skills.Skill{
-	{
+var mockSkills = map[string]*skills.Skill{
+	"multiplication-calculator": {
 		Frontmatter: &skills.Frontmatter{
 			Name:        "multiplication-calculator",
 			Description: "提供乘法数值计算功能。当需要执行乘法运算任务时使用此技能。",
@@ -70,18 +72,20 @@ if __name__ == "__main__":
 func createMockSkill(t *testing.T) []*skills.Skill {
 	tmpDir := t.TempDir()
 	log.Info("Created temp dir: " + tmpDir)
+	var skillList []*skills.Skill
 	for _, sk := range mockSkills {
 		err := sk.WriteSkill(tmpDir)
 		if err != nil {
 			t.Fatalf("write skill %s to %s error:%s", sk.Name(), tmpDir, err)
 		}
+		skillList = append(skillList, sk)
 	}
-	return mockSkills
+	return skillList
 }
 
 func TestListSkillsTool(t *testing.T) {
 	skillList := createMockSkill(t)
-	toolset, err := NewSkillToolset(skillList, nil, 0)
+	toolset, err := NewSkillToolset(skillList, code_executors.NewUnsafeLocalCodeExecutor(300*time.Second))
 	assert.NoError(t, err)
 
 	listTool := toolset.listSkillsTool()
@@ -94,12 +98,12 @@ func TestListSkillsTool(t *testing.T) {
 	xmlResult, ok := outputMap["result"].(string)
 	assert.True(t, ok)
 	assert.Contains(t, xmlResult, "multiplication-calculator")
-	assert.Contains(t, xmlResult, "提供乘法数值计算功能")
+	assert.Contains(t, xmlResult, "提供乘法数值计算功能。当需要执行乘法运算任务时使用此技能。")
 }
 
 func TestLoadSkillTool(t *testing.T) {
-	mockSkill := createMockSkill(t)
-	toolset, err := NewSkillToolset([]*skills.Skill{mockSkill}, nil, 0)
+	skillList := createMockSkill(t)
+	toolset, err := NewSkillToolset(skillList, nil)
 	assert.NoError(t, err)
 
 	loadTool := toolset.loadSkillTool()
@@ -122,13 +126,13 @@ func TestLoadSkillTool(t *testing.T) {
 	assert.NoError(t, err)
 	outputMap = result
 	assert.Equal(t, "multiplication-calculator", outputMap["skill_name"])
-	assert.Equal(t, skillMDContent, outputMap["instructions"])
+	assert.Equal(t, mockSkills["multiplication-calculator"].Instructions, outputMap["instructions"])
 	assert.NotEmpty(t, outputMap["frontmatter"])
 }
 
 func TestLoadSkillResourceTool(t *testing.T) {
-	mockSkill := createMockSkill(t)
-	toolset, err := NewSkillToolset([]*skills.Skill{mockSkill}, nil, 0)
+	skillList := createMockSkill(t)
+	toolset, err := NewSkillToolset(skillList, nil)
 	assert.NoError(t, err)
 
 	resourceTool := toolset.loadSkillResourceTool()
@@ -154,7 +158,7 @@ func TestLoadSkillResourceTool(t *testing.T) {
 	outputMap = result
 	assert.Equal(t, "multiplication-calculator", outputMap["skill_name"])
 	assert.Equal(t, "scripts/multiply.py", outputMap["path"])
-	assert.Equal(t, multiplyPyContent, outputMap["content"])
+	assert.Equal(t, mockSkills["multiplication-calculator"].Resources.Scripts["multiply.py"].String(), outputMap["content"])
 
 	// Test not found
 	result, err = toolset.loadSkillResourceToolHandler(nil, loadSkillResourceArgs{
@@ -175,10 +179,11 @@ func (m *mockToolContext) InvocationID() string {
 }
 
 func TestRunSkillScriptTool(t *testing.T) {
-	mockSkill := createMockSkill(t)
-	mockExecutor := code_executors.NewSkillScriptExecutor(0, nil)
+	skillList := createMockSkill(t)
 
-	toolset, err := NewSkillToolset([]*skills.Skill{mockSkill}, mockExecutor, 0)
+	mockExecutor := code_executors.NewUnsafeLocalCodeExecutor(300 * time.Second)
+
+	toolset, err := NewSkillToolset(skillList, mockExecutor)
 	assert.NoError(t, err)
 
 	runTool := toolset.runSkillScriptTool()
@@ -194,10 +199,12 @@ func TestRunSkillScriptTool(t *testing.T) {
 	result, err = toolset.runSkillScriptToolHandler(&mockToolContext{}, runSkillScriptArgs{
 		SkillName:  "multiplication-calculator",
 		ScriptPath: "scripts/multiply.py",
-		Args:       map[string]any{"a": 2, "b": 3, "c": 4},
+		Args:       []string{"2", "3", "4"},
 	})
 	assert.NoError(t, err)
 	outputMap = result
+	str, _ := json.Marshal(outputMap)
+	println(string(str))
 	assert.Equal(t, "success", outputMap["status"])
 	assert.Equal(t, "24.0\n", outputMap["stdout"])
 }

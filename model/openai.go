@@ -858,4 +858,3 @@ func parseToolCallsFromText(text string) ([]toolCall, string) {
 
 	return toolCalls, strings.TrimSpace(remainder.String())
 }
-

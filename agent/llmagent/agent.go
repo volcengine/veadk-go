@@ -24,11 +24,11 @@ import (
 	"github.com/volcengine/veadk-go/knowledgebase"
 	"github.com/volcengine/veadk-go/model"
 	"github.com/volcengine/veadk-go/prompts"
-	adkmodel "google.golang.org/adk/model"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"github.com/volcengine/veadk-go/utils"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
+	adkmodel "google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
 )
 

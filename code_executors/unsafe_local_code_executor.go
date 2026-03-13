@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/volcengine/veadk-go/log"
 	"google.golang.org/adk/agent"
 )
 
@@ -47,10 +48,6 @@ func (s *UnsafeLocalCodeExecutor) ExecuteCode(ctx agent.InvocationContext, input
 		return CodeExecutionResult{
 			StdErr: fmt.Sprintf("UNSUPPORTED_SCRIPT_TYPE: Unsupported script type '%s'. Supported types: .py, .sh, .bash", extMsg),
 		}, nil
-	}
-
-	if input.ScriptPath == "" {
-		// todo build tmp wrappered scripts file
 	}
 
 	var cmd *exec.Cmd
@@ -91,6 +88,8 @@ func (s *UnsafeLocalCodeExecutor) ExecuteCode(ctx agent.InvocationContext, input
 		cmd = exec.CommandContext(excCtx, "bash", argv...)
 	}
 
+	log.Infof("UnsafeLocalCodeExecutor cmd  is %s", cmd.String())
+
 	var stdoutBuf, stderrBuf strings.Builder
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
@@ -102,14 +101,19 @@ func (s *UnsafeLocalCodeExecutor) ExecuteCode(ctx agent.InvocationContext, input
 	rc := 0
 
 	if runErr != nil {
+		log.Errorf("UnsafeLocalCodeExecutor cmd executed error: %s", runErr.Error())
 		var ee *exec.ExitError
 		if errors.As(runErr, &ee) {
 			rc = ee.ExitCode()
 			if rc != 0 && stderr == "" {
-				stderr = fmt.Sprintf("Exit code %d", rc)
+				stderr += "\n" + fmt.Sprintf("Exit code %d", rc)
 			}
+		} else {
+			stderr += "\n" + fmt.Sprintf("cmd {%s} run error:%s", cmd.String(), runErr.Error())
 		}
 	}
+
+	log.Infof("UnsafeLocalCodeExecutor result: %s", stdout)
 
 	return CodeExecutionResult{
 		StdOut: stdout,
@@ -117,15 +121,12 @@ func (s *UnsafeLocalCodeExecutor) ExecuteCode(ctx agent.InvocationContext, input
 	}, nil
 }
 
-func NewSkillScriptExecutor(timeout time.Duration, baseCodeExecutor *BaseCodeExecutor) *UnsafeLocalCodeExecutor {
+func NewUnsafeLocalCodeExecutor(timeout time.Duration) *UnsafeLocalCodeExecutor {
 	if timeout == 0 {
 		timeout = DEFAULT_SCRIPT_TIMEOUT
 	}
-	if baseCodeExecutor == nil {
-		baseCodeExecutor = DefaultBaseCodeExecutor()
-	}
 	return &UnsafeLocalCodeExecutor{
 		Timeout:          timeout,
-		BaseCodeExecutor: baseCodeExecutor,
+		BaseCodeExecutor: DefaultBaseCodeExecutor(),
 	}
 }

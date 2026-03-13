@@ -512,9 +512,8 @@ func (c *Client) DownloadDir(prefix, localDir string) error {
 	for _, obj := range output.Contents {
 		key := obj.Key
 		relPath := strings.TrimPrefix(key, prefix)
-		if strings.HasPrefix(relPath, "/") {
-			relPath = relPath[1:]
-		}
+		relPath = strings.TrimPrefix(relPath, "/")
+
 		if relPath == "" {
 			continue
 		}

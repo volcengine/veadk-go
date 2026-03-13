@@ -189,15 +189,15 @@ func LoadSkillFromDir(skillDir string) (*Skill, error) {
 	}
 	refs, err := loadDir(filepath.Join(abs, "references"))
 	if err != nil {
-		log.Warnf("failed to load references from skill directory '%s' error:%v", abs, err)
+		return skill, fmt.Errorf("failed to load references dir '%s' error:%w", abs, err)
 	}
 	assets, err := loadDir(filepath.Join(abs, "assets"))
 	if err != nil {
-		log.Warnf("failed to load assets from skill directory '%s' error:%v", abs, err)
+		return skill, fmt.Errorf("failed to load assets dir '%s' error:%w", abs, err)
 	}
 	rawScripts, err := loadDir(filepath.Join(abs, "scripts"))
 	if err != nil {
-		log.Warnf("failed to load raw scripts from skill directory '%s' error:%v", abs, err)
+		return skill, fmt.Errorf("failed to load scripts dir '%s' error:%w", abs, err)
 	}
 	scripts := make(map[string]*Script, len(rawScripts))
 	for k, v := range rawScripts {

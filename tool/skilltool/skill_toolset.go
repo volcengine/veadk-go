@@ -12,22 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tool
+package skilltool
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/volcengine/veadk-go/code_executors"
+	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/skills"
+	"google.golang.org/adk/agent"
+	"google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/genai"
 )
 
-const DEFAULT_SCRIPT_TIMEOUT = 300
 const MAX_SKILL_PAYLOAD_BYTES = 16 * 1024 * 1024 // 16 MB
 const DEFAULT_SKILL_SYSTEM_INSTRUCTION = "" +
 	"You can use specialized 'skills' to help you with complex tasks. You MUST use the skill tools to interact with these skills.\n\n" +
@@ -44,13 +47,12 @@ const DEFAULT_SKILL_SYSTEM_INSTRUCTION = "" +
 
 // SkillToolset A toolset for managing and interacting with agent skills.
 type SkillToolset struct {
-	skills        map[string]*skills.Skill
-	tools         []tool.Tool
-	codeExecutor  code_executors.CodeExecutor
-	scriptTimeout time.Duration
+	skills       map[string]*skills.Skill
+	tools        []tool.Tool
+	codeExecutor code_executors.CodeExecutor
 }
 
-func NewSkillToolset(skillList []*skills.Skill, codeExecutor code_executors.CodeExecutor, scriptTimeout time.Duration) (*SkillToolset, error) {
+func NewSkillToolset(skillList []*skills.Skill, codeExecutor code_executors.CodeExecutor) (*SkillToolset, error) {
 	m := make(map[string]*skills.Skill, len(skillList))
 	for _, s := range skillList {
 		if _, dup := m[s.Name()]; dup {
@@ -58,13 +60,9 @@ func NewSkillToolset(skillList []*skills.Skill, codeExecutor code_executors.Code
 		}
 		m[s.Name()] = s
 	}
-	if scriptTimeout == 0 {
-		scriptTimeout = DEFAULT_SCRIPT_TIMEOUT
-	}
 	st := &SkillToolset{
-		skills:        m,
-		codeExecutor:  codeExecutor,
-		scriptTimeout: scriptTimeout,
+		skills:       m,
+		codeExecutor: codeExecutor,
 	}
 	st.tools = []tool.Tool{
 		st.listSkillsTool(),
@@ -75,8 +73,42 @@ func NewSkillToolset(skillList []*skills.Skill, codeExecutor code_executors.Code
 	return st, nil
 }
 
-func (s *SkillToolset) GetTools() []tool.Tool {
-	return s.tools
+func (s *SkillToolset) Name() string {
+	return "SkillToolset"
+}
+
+func (s *SkillToolset) Tools(ctx agent.ReadonlyContext) ([]tool.Tool, error) {
+	return s.tools, nil
+}
+
+//func (s *SkillToolset) GetTools() []tool.Tool {
+//	return s.tools
+//}
+
+func (s *SkillToolset) ProcessRequest(ctx tool.Context, req *model.LLMRequest) error {
+	skillList := s.listSkills()
+	skillXML := skills.FormatSkillsAsXML(skillList)
+	instruction := []string{DEFAULT_SKILL_SYSTEM_INSTRUCTION, skillXML}
+	if req.Config.SystemInstruction == nil {
+		req.Config.SystemInstruction = &genai.Content{
+			Parts: []*genai.Part{
+				{
+					Text: strings.Join(instruction, "\n\n"),
+				},
+			},
+			Role: "user",
+		}
+
+	} else {
+		req.Config.SystemInstruction.Parts = append(req.Config.SystemInstruction.Parts,
+			&genai.Part{
+				Text: strings.Join(instruction, "\n\n"),
+			},
+		)
+	}
+	systemInstructionStr, _ := json.Marshal(req.Config.SystemInstruction)
+	log.Debugf("SkillToolset After ProcessRequest SystemInstruction is %s", systemInstructionStr)
+	return nil
 }
 
 func (s *SkillToolset) getSkill(name string) (*skills.Skill, bool) {
@@ -91,10 +123,6 @@ func (s *SkillToolset) listSkills() []*skills.Skill {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name() < out[j].Name() })
 	return out
-}
-
-func (s *SkillToolset) ProcessLlmRequest() {
-	// todo process_llm_request
 }
 
 type listSkillsArgs struct{}
@@ -207,9 +235,9 @@ func (s *SkillToolset) loadSkillResourceTool() tool.Tool {
 }
 
 type runSkillScriptArgs struct {
-	SkillName  string         `json:"skill_name" jsonschema:"The name of the skill."`
-	ScriptPath string         `json:"script_path" jsonschema:"The relative path to the script (e.g., 'scripts/setup.py')."`
-	Args       map[string]any `json:"args" jsonschema:"Optional arguments to pass to the script as key-value pairs."`
+	SkillName  string   `json:"skill_name" jsonschema:"The name of the skill."`
+	ScriptPath string   `json:"script_path" jsonschema:"The relative path to the script (e.g., 'scripts/setup.py')."`
+	Args       []string `json:"args_list" jsonschema:"Optional arguments to pass to the script as list."`
 }
 
 func (s *SkillToolset) runSkillScriptToolHandler(ctx tool.Context, args runSkillScriptArgs) (map[string]any, error) {
@@ -237,12 +265,16 @@ func (s *SkillToolset) runSkillScriptToolHandler(ctx tool.Context, args runSkill
 			"error_code": "NO_CODE_EXECUTOR",
 		}, nil
 	}
+	argsStr, _ := json.Marshal(args)
+	log.Debugf("runSkillScriptToolHandler args is %s", string(argsStr))
 	codeExecutorResult, err := s.codeExecutor.ExecuteCode(nil, code_executors.CodeExecutionInput{
 		Args:        args.Args,
 		ScriptPath:  filepath.Join(sk.GetSkillPath(), "scripts", name),
 		InputFiles:  nil,
 		ExecutionID: ctx.InvocationID(),
 	})
+	resultStr, _ := json.Marshal(codeExecutorResult)
+	log.Debugf("codeExecutor result is %s", string(resultStr))
 	if err != nil {
 		return map[string]any{
 			"error":      fmt.Sprintf("Failed to execute script '%s':\n%s", args.ScriptPath, err.Error()),

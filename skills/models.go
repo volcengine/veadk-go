@@ -225,13 +225,7 @@ func (s *Skill) WriteSkill(path string) error {
 	}
 
 	// Write SKILL.md
-	frontmatterData, err := yaml.Marshal(s.Frontmatter)
-	if err != nil {
-		return fmt.Errorf("failed to marshal frontmatter: %w", err)
-	}
-
-	skillMDContent := fmt.Sprintf("---\n%s---\n\n%s", string(frontmatterData), s.Instructions)
-	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(skillMDContent), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte(s.Instructions), 0644); err != nil {
 		return fmt.Errorf("failed to write SKILL.md: %w", err)
 	}
 
@@ -246,7 +240,11 @@ func (s *Skill) WriteSkill(path string) error {
 			return fmt.Errorf("failed to create references directory: %w", err)
 		}
 		for name, content := range s.Resources.References {
-			if err := os.WriteFile(filepath.Join(refDir, name), []byte(content), 0644); err != nil {
+			targetPath := filepath.Join(refDir, name)
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+				return fmt.Errorf("failed to create directory for reference %s: %w", name, err)
+			}
+			if err := os.WriteFile(targetPath, []byte(content), 0644); err != nil {
 				return fmt.Errorf("failed to write reference %s: %w", name, err)
 			}
 		}
@@ -259,7 +257,11 @@ func (s *Skill) WriteSkill(path string) error {
 			return fmt.Errorf("failed to create assets directory: %w", err)
 		}
 		for name, content := range s.Resources.Assets {
-			if err := os.WriteFile(filepath.Join(assetsDir, name), []byte(content), 0644); err != nil {
+			targetPath := filepath.Join(assetsDir, name)
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+				return fmt.Errorf("failed to create directory for asset %s: %w", name, err)
+			}
+			if err := os.WriteFile(targetPath, []byte(content), 0644); err != nil {
 				return fmt.Errorf("failed to write asset %s: %w", name, err)
 			}
 		}
@@ -275,11 +277,17 @@ func (s *Skill) WriteSkill(path string) error {
 			if script == nil {
 				continue
 			}
-			if err := os.WriteFile(filepath.Join(scriptsDir, name), []byte(script.Src), 0755); err != nil {
+			targetPath := filepath.Join(scriptsDir, name)
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+				return fmt.Errorf("failed to create directory for script %s: %w", name, err)
+			}
+			if err := os.WriteFile(targetPath, []byte(script.Src), 0755); err != nil {
 				return fmt.Errorf("failed to write script %s: %w", name, err)
 			}
 		}
 	}
+
+	s.SkillMDPath = filepath.Join(skillDir, "SKILL.md")
 
 	return nil
 }
