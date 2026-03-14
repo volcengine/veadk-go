@@ -47,6 +47,7 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 		}),
 	)
 }
+
 // StartSpan starts a new span as a child of the span in the context.
 // This can be used within an HTTP handler to start a span for a specific operation.
 //
