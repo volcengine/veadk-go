@@ -351,10 +351,10 @@ func TestArkModel_ConvertRequest(t *testing.T) {
 		req := &model.LLMRequest{
 			Contents: genai.Text("Hello"),
 			Config: &genai.GenerateContentConfig{
-				Temperature:    float32Ptr(0.5),
+				Temperature:     float32Ptr(0.5),
 				MaxOutputTokens: 100,
-				TopP:           float32Ptr(0.9),
-				StopSequences:  []string{"END"},
+				TopP:            float32Ptr(0.9),
+				StopSequences:   []string{"END"},
 			},
 		}
 

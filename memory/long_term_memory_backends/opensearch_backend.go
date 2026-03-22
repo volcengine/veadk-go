@@ -41,7 +41,7 @@ const (
 
 var (
 	ErrInvalidIndexName = errors.New("invalid OpenSearch index name")
-	indexNameRegexp      = regexp.MustCompile(`^[a-z0-9][a-z0-9_\-.]*$`)
+	indexNameRegexp     = regexp.MustCompile(`^[a-z0-9][a-z0-9_\-.]*$`)
 )
 
 // OpenSearchMemoryConfig holds configuration for the OpenSearch long-term memory backend.
