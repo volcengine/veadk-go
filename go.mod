@@ -3,7 +3,7 @@ module github.com/volcengine/veadk-go
 go 1.24.4
 
 require (
-	github.com/a2aproject/a2a-go v0.3.3
+	github.com/a2aproject/a2a-go v0.3.12
 	github.com/bytedance/mockey v1.3.2
 	github.com/coze-dev/cozeloop-go v0.1.20
 	github.com/google/go-cmp v0.7.0
@@ -61,7 +61,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-sql-driver/mysql v1.8.1 // indirect
+	github.com/go-sql-driver/mysql v1.9.3 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
