@@ -40,11 +40,28 @@ type EmbeddingModelConfig struct {
 type ModelConfig struct {
 	Agent     *AgentConfig
 	Image     *CommonModelConfig
+	Edit      *CommonModelConfig
 	Video     *CommonModelConfig
 	Embedding *EmbeddingModelConfig
 }
 
 func (c *ModelConfig) MapEnvToConfig() {
+	if c.Agent == nil {
+		c.Agent = &AgentConfig{}
+	}
+	if c.Image == nil {
+		c.Image = &CommonModelConfig{}
+	}
+	if c.Edit == nil {
+		c.Edit = &CommonModelConfig{}
+	}
+	if c.Video == nil {
+		c.Video = &CommonModelConfig{}
+	}
+	if c.Embedding == nil {
+		c.Embedding = &EmbeddingModelConfig{}
+	}
+
 	// Agent
 	c.Agent.Name = utils.GetEnvWithDefault(common.MODEL_AGENT_NAME, common.DEFAULT_MODEL_AGENT_NAME)
 	c.Agent.Provider = utils.GetEnvWithDefault(common.MODEL_AGENT_PROVIDER, common.DEFAULT_MODEL_AGENT_PROVIDER)
@@ -55,6 +72,11 @@ func (c *ModelConfig) MapEnvToConfig() {
 	c.Image.Name = utils.GetEnvWithDefault(common.MODEL_IMAGE_NAME, common.DEFAULT_MODEL_IMAGE_NAME)
 	c.Image.ApiBase = utils.GetEnvWithDefault(common.MODEL_IMAGE_API_BASE, common.DEFAULT_MODEL_IMAGE_API_BASE)
 	c.Image.ApiKey = utils.GetEnvWithDefault(common.MODEL_IMAGE_API_KEY)
+
+	// Edit
+	c.Edit.Name = utils.GetEnvWithDefault(common.MODEL_EDIT_NAME, common.DEFAULT_MODEL_EDIT_NAME)
+	c.Edit.ApiBase = utils.GetEnvWithDefault(common.MODEL_EDIT_API_BASE, common.DEFAULT_MODEL_EDIT_API_BASE)
+	c.Edit.ApiKey = utils.GetEnvWithDefault(common.MODEL_EDIT_API_KEY)
 
 	// Video
 	c.Video.Name = utils.GetEnvWithDefault(common.MODEL_VIDEO_NAME, common.DEFAULT_MODEL_VIDEO_NAME)

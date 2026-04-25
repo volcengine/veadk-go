@@ -71,6 +71,7 @@ func SetupVeADKConfig() error {
 		Model: &ModelConfig{
 			Agent:     &AgentConfig{},
 			Image:     &CommonModelConfig{},
+			Edit:      &CommonModelConfig{},
 			Video:     &CommonModelConfig{},
 			Embedding: &EmbeddingModelConfig{},
 		},

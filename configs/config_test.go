@@ -93,6 +93,20 @@ func TestSetupVeADKConfig(t *testing.T) {
 	assert.Equal(t, "doubao-seed-1-6-250615", os.Getenv(common.MODEL_AGENT_NAME))
 }
 
+func TestModelConfig_EditEnvMapping(t *testing.T) {
+	t.Setenv(common.MODEL_EDIT_NAME, "edit-model")
+	t.Setenv(common.MODEL_EDIT_API_BASE, "https://edit.example.com")
+	t.Setenv(common.MODEL_EDIT_API_KEY, "edit-key")
+
+	config := &ModelConfig{}
+	config.MapEnvToConfig()
+
+	assert.NotNil(t, config.Edit)
+	assert.Equal(t, "edit-model", config.Edit.Name)
+	assert.Equal(t, "https://edit.example.com", config.Edit.ApiBase)
+	assert.Equal(t, "edit-key", config.Edit.ApiKey)
+}
+
 func TestObservabilityConfig_YamlMapping(t *testing.T) {
 	yamlData := `
 opentelemetry:

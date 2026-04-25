@@ -25,6 +25,10 @@ const (
 	DEFAULT_MODEL_IMAGE_NAME     = "doubao-seedream-4-5-251128"
 	DEFAULT_MODEL_IMAGE_API_BASE = "https://ark.cn-beijing.volces.com/api/v3/"
 
+	// Edit
+	DEFAULT_MODEL_EDIT_NAME     = "doubao-seededit-3-0-i2i-250628"
+	DEFAULT_MODEL_EDIT_API_BASE = "https://ark.cn-beijing.volces.com/api/v3/"
+
 	// Video
 	DEFAULT_MODEL_VIDEO_NAME     = "doubao-seedance-1-0-pro-250528"
 	DEFAULT_MODEL_VIDEO_API_BASE = "https://ark.cn-beijing.volces.com/api/v3/"
