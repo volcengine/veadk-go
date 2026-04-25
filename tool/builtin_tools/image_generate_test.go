@@ -15,6 +15,8 @@
 package builtin_tools
 
 import (
+	"encoding/base64"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -162,4 +164,84 @@ func TestImageGenerateToolHandler(t *testing.T) {
 			assert.NotNil(t, tool)
 		})
 	}
+}
+
+func TestDecodeImageGenerateB64(t *testing.T) {
+	encoded := base64.StdEncoding.EncodeToString([]byte("image-data"))
+
+	decoded, err := decodeImageGenerateB64(encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("image-data"), decoded)
+
+	decoded, err = decodeImageGenerateB64("data:image/png;base64," + encoded)
+	assert.NoError(t, err)
+	assert.Equal(t, []byte("image-data"), decoded)
+
+	_, err = decodeImageGenerateB64("not-valid-base64")
+	assert.Error(t, err)
+
+	_, err = decodeImageGenerateB64("")
+	assert.Error(t, err)
+}
+
+func TestBuildImageGenerateObjectKey(t *testing.T) {
+	assert.Equal(t, "image_generate/task_0_image_0.png", buildImageGenerateObjectKey("task_0_image_0"))
+	assert.Equal(t, "image_generate/task_0_image_0.png", buildImageGenerateObjectKey("task/0:image\\0"))
+	assert.Equal(t, "image_generate/image.png", buildImageGenerateObjectKey(" "))
+}
+
+func TestUploadImageGenerateB64Result(t *testing.T) {
+	encoded := base64.StdEncoding.EncodeToString([]byte("image-data"))
+	uploader := &mockImageGenerateUploader{}
+
+	url, err := uploadImageGenerateB64Result(func() (imageGenerateUploader, error) {
+		return uploader, nil
+	}, encoded, "task/0:image\\0")
+
+	assert.NoError(t, err)
+	assert.Equal(t, "tos://image_generate/task_0_image_0.png", url)
+	assert.Equal(t, []byte("image-data"), uploader.data)
+	assert.Equal(t, "image_generate/task_0_image_0.png", uploader.objectKey)
+}
+
+func TestUploadImageGenerateB64ResultErrors(t *testing.T) {
+	encoded := base64.StdEncoding.EncodeToString([]byte("image-data"))
+
+	_, err := uploadImageGenerateB64Result(func() (imageGenerateUploader, error) {
+		return nil, errors.New("new uploader failed")
+	}, encoded, "image")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "new TOS client error")
+
+	_, err = uploadImageGenerateB64Result(func() (imageGenerateUploader, error) {
+		return &mockImageGenerateUploader{err: errors.New("upload failed")}, nil
+	}, encoded, "image")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "upload image to TOS error")
+
+	_, err = uploadImageGenerateB64Result(func() (imageGenerateUploader, error) {
+		return &mockImageGenerateUploader{}, nil
+	}, "not-valid-base64", "image")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "decode image b64_json error")
+}
+
+type mockImageGenerateUploader struct {
+	data      []byte
+	objectKey string
+	err       error
+}
+
+func (m *mockImageGenerateUploader) UploadBytes(data []byte, objectKey string, metadata map[string]string) error {
+	_ = metadata
+	if m.err != nil {
+		return m.err
+	}
+	m.data = append([]byte(nil), data...)
+	m.objectKey = objectKey
+	return nil
+}
+
+func (m *mockImageGenerateUploader) BuildTOSURL(objectKey string) string {
+	return "tos://" + objectKey
 }
