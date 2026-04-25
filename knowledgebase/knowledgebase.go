@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/volcengine/veadk-go/knowledgebase/backend/local_knowledge_backend"
 	"github.com/volcengine/veadk-go/knowledgebase/backend/viking_knowledge_backend"
 	_interface "github.com/volcengine/veadk-go/knowledgebase/interface"
 	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
@@ -42,12 +43,20 @@ type KnowledgeBase struct {
 
 func getKnowledgeBackend(backend string, backendConfig any) (_interface.KnowledgeBackend, error) {
 	switch backend {
+	case ktypes.LocalBackend:
+		if backendConfig == nil {
+			return local_knowledge_backend.NewLocalKnowledgeBackend(nil)
+		}
+		if config, ok := backendConfig.(*local_knowledge_backend.Config); ok {
+			return local_knowledge_backend.NewLocalKnowledgeBackend(config)
+		}
+		return nil, ErrInvalidKnowledgeBackendConfig
 	case ktypes.VikingBackend:
 		if config, ok := backendConfig.(*viking_knowledge_backend.Config); ok {
 			return viking_knowledge_backend.NewVikingKnowledgeBackend(config)
 		}
 		return nil, ErrInvalidKnowledgeBackendConfig
-	case ktypes.RedisBackend, ktypes.LocalBackend, ktypes.OpensearchBackend:
+	case ktypes.RedisBackend, ktypes.OpensearchBackend:
 		return nil, fmt.Errorf("%w: %s", ErrInvalidKnowledgeBackend, backend)
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrInvalidKnowledgeBackend, backend)
