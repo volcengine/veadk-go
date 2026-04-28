@@ -106,6 +106,9 @@ If a large agent takes a long time to run, you can increase the timeout paramete
 go run agent.go web -read-timeout 3m -write-timeout 3m api webui
 ```
 
+## Security and privacy
+This project takes security seriously.
+For vulnerability reporting and supported versions, see [SECURITY.md](SECURITY.md)
 
 
 ## License
