@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/volcengine/veadk-go/auth/veauth"
 	"github.com/volcengine/veadk-go/common"
@@ -40,6 +41,10 @@ const (
 )
 
 var ErrWebSearchConfig = errors.New("web search config error")
+
+var doWebSearchRequest = func(client *ve_sign.VeRequest) ([]byte, error) {
+	return client.DoRequest()
+}
 
 func NewClient() *ve_sign.VeRequest {
 	return &ve_sign.VeRequest{
@@ -62,56 +67,81 @@ type WebSearchResult struct {
 	Result []string `json:"result,omitempty"`
 }
 
+type ParallelWebSearchArgs struct {
+	Queries []string `json:"queries" jsonschema:"The queries to search in parallel"`
+}
+
+type ParallelWebSearchResult struct {
+	Result map[string][]string `json:"result,omitempty"`
+	Errors map[string]string   `json:"errors,omitempty"`
+}
+
 type Config struct {
 	TopK int
 }
 
-func (c Config) webSearchHandler(ctx tool.Context, args WebSearchArgs) (WebSearchResult, error) {
-	var ak string
-	var sk string
+type webSearchCredential struct {
+	AK     string
+	SK     string
+	Header map[string]string
+}
+
+func resolveWebSearchCredential(ctx tool.Context) webSearchCredential {
 	var header map[string]string
-	var result *WebSearchResponse
-	var out = WebSearchResult{Result: make([]string, 0)}
-
-	client := NewClient()
+	credential := webSearchCredential{}
 	if ctx != nil {
-		client.AK = utils.GetStringFromToolContext(ctx, common.VOLCENGINE_ACCESS_KEY)
-		client.SK = utils.GetStringFromToolContext(ctx, common.VOLCENGINE_SECRET_KEY)
+		credential.AK = utils.GetStringFromToolContext(ctx, common.VOLCENGINE_ACCESS_KEY)
+		credential.SK = utils.GetStringFromToolContext(ctx, common.VOLCENGINE_SECRET_KEY)
 	}
 
-	if strings.TrimSpace(ak) == "" || strings.TrimSpace(sk) == "" {
-		client.AK = utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
-		client.SK = utils.GetEnvWithDefault(common.VOLCENGINE_SECRET_KEY, configs.GetGlobalConfig().Volcengine.SK)
+	if strings.TrimSpace(credential.AK) == "" {
+		credential.AK = utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
+	}
+	if strings.TrimSpace(credential.SK) == "" {
+		credential.SK = utils.GetEnvWithDefault(common.VOLCENGINE_SECRET_KEY, configs.GetGlobalConfig().Volcengine.SK)
 	}
 
-	if strings.TrimSpace(client.AK) == "" || strings.TrimSpace(client.SK) == "" {
+	if strings.TrimSpace(credential.AK) == "" || strings.TrimSpace(credential.SK) == "" {
 		iam, err := veauth.GetCredentialFromVeFaaSIAM()
 		if err != nil {
 			log.Warn(fmt.Sprintf("%s : GetCredential error: %s", ErrWebSearchConfig.Error(), err.Error()))
 		} else {
-			client.AK = iam.AccessKeyID
-			client.SK = iam.SecretAccessKey
+			credential.AK = iam.AccessKeyID
+			credential.SK = iam.SecretAccessKey
 			if iam.SessionToken != "" {
 				header = map[string]string{"X-Security-Token": iam.SessionToken}
 			}
 		}
 	}
+	credential.Header = header
+	return credential
+}
 
-	client.Header = header
-
+func (c Config) topK() int {
 	if c.TopK <= 0 {
-		c.TopK = DefaultTopK
+		return DefaultTopK
 	}
+	return c.TopK
+}
+
+func (c Config) search(query string, credential webSearchCredential) ([]string, error) {
+	var result *WebSearchResponse
+	out := make([]string, 0)
+
+	client := NewClient()
+	client.AK = credential.AK
+	client.SK = credential.SK
+	client.Header = credential.Header
 
 	body := map[string]any{
-		"Query":       args.Query,
+		"Query":       query,
 		"SearchType":  "web",
-		"Count":       c.TopK,
+		"Count":       c.topK(),
 		"NeedSummary": true,
 	}
 	client.Body = body
 
-	resp, err := client.DoRequest()
+	resp, err := doWebSearchRequest(client)
 	if err != nil {
 		return out, err
 	}
@@ -124,13 +154,63 @@ func (c Config) webSearchHandler(ctx tool.Context, args WebSearchArgs) (WebSearc
 		return out, fmt.Errorf("web search result is empty")
 	}
 	for _, item := range result.Result.WebResults {
-		out.Result = append(out.Result, item.Summary)
+		out = append(out, item.Summary)
 	}
 
 	return out, nil
 }
 
+func (c Config) webSearchHandler(ctx tool.Context, args WebSearchArgs) (WebSearchResult, error) {
+	result, err := c.search(args.Query, resolveWebSearchCredential(ctx))
+	if err != nil {
+		return WebSearchResult{Result: make([]string, 0)}, err
+	}
+	return WebSearchResult{Result: result}, nil
+}
+
+func (c Config) parallelWebSearchHandler(ctx tool.Context, args ParallelWebSearchArgs) (ParallelWebSearchResult, error) {
+	out := ParallelWebSearchResult{
+		Result: make(map[string][]string),
+		Errors: make(map[string]string),
+	}
+	if len(args.Queries) == 0 {
+		return out, nil
+	}
+
+	credential := resolveWebSearchCredential(ctx)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	for _, query := range args.Queries {
+		query = strings.TrimSpace(query)
+		if query == "" {
+			continue
+		}
+
+		wg.Add(1)
+		go func(q string) {
+			defer wg.Done()
+			result, err := c.search(q, credential)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				out.Errors[q] = err.Error()
+				return
+			}
+			out.Result[q] = result
+		}(query)
+	}
+	wg.Wait()
+
+	if len(out.Errors) == 0 {
+		out.Errors = nil
+	}
+	return out, nil
+}
+
 func NewWebSearchTool(cfg *Config) (tool.Tool, error) {
+	if cfg == nil {
+		cfg = &Config{}
+	}
 	return functiontool.New(
 		functiontool.Config{
 			Name: "web_search",
@@ -141,4 +221,20 @@ Returns:
 	A list of result documents.`,
 		},
 		cfg.webSearchHandler)
+}
+
+func NewParallelWebSearchTool(cfg *Config) (tool.Tool, error) {
+	if cfg == nil {
+		cfg = &Config{}
+	}
+	return functiontool.New(
+		functiontool.Config{
+			Name: "parallel_web_search",
+			Description: `Search multiple queries from websites in parallel.
+Args:
+queries: The queries to search. Each query will be searched in parallel.
+Returns:
+A map of query to result documents, plus per-query errors if any.`,
+		},
+		cfg.parallelWebSearchHandler)
 }
