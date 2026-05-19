@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/adk/model"
 	"google.golang.org/genai"
 )
@@ -172,6 +173,45 @@ func newTestModel(t *testing.T, server *httptest.Server) model.LLM {
 		t.Fatalf("failed to create model: %v", err)
 	}
 	return llm
+}
+
+func TestOpenAIModel_GenerateContentSkipsInvalidExtraBody(t *testing.T) {
+	tests := []struct {
+		name      string
+		extraBody any
+	}{
+		{
+			name:      "string",
+			extraBody: "not-a-map",
+		},
+		{
+			name: "map_string_string",
+			extraBody: map[string]string{
+				"foo": "bar",
+			},
+		},
+	}
+
+	req := &model.LLMRequest{
+		Contents: genai.Text("hello"),
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			llm, err := NewOpenAIModel(context.Background(), "test-model", &ClientConfig{
+				APIKey:  "dummy-api-key",
+				BaseURL: "http://example.com",
+				ExtraBody: map[string]any{
+					"extra_body": tt.extraBody,
+				},
+			})
+			require.NoError(t, err)
+
+			require.NotPanics(t, func() {
+				_ = llm.GenerateContent(t.Context(), req, false)
+			})
+		})
+	}
 }
 
 func TestModel_Generate(t *testing.T) {

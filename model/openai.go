@@ -93,7 +93,9 @@ func (m *openAIModel) GenerateContent(ctx context.Context, req *model.LLMRequest
 		}
 	}
 	if extraBody, ok := m.config.ExtraBody["extra_body"]; ok {
-		openaiReq.ExtraBody = extraBody.(map[string]any)
+		if eb, ok := extraBody.(map[string]any); ok {
+			openaiReq.ExtraBody = eb
+		}
 	}
 
 	if stream {
