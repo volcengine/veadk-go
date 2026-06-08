@@ -59,13 +59,13 @@ func (*basicLongTermMemory) filterAndConvertEvents(s session.Session) []string {
 	return eventList
 }
 
-func (b *basicLongTermMemory) AddSession(ctx context.Context, s session.Session) error {
+func (b *basicLongTermMemory) AddSessionToMemory(ctx context.Context, s session.Session) error {
 	userId := s.UserID()
 	events := b.filterAndConvertEvents(s)
 	return b.backend.SaveMemory(ctx, userId, events)
 }
 
-func (b *basicLongTermMemory) Search(ctx context.Context, req *memory.SearchRequest) (*memory.SearchResponse, error) {
+func (b *basicLongTermMemory) SearchMemory(ctx context.Context, req *memory.SearchRequest) (*memory.SearchResponse, error) {
 	result, err := b.backend.SearchMemory(ctx, req.UserID, req.Query, b.topK)
 	if err != nil {
 		return nil, err
