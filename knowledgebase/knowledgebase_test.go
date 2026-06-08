@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/volcengine/veadk-go/knowledgebase/backend/local_knowledge_backend"
 	"github.com/volcengine/veadk-go/knowledgebase/backend/opensearch_knowledge_backend"
+	"github.com/volcengine/veadk-go/knowledgebase/backend/redis_knowledge_backend"
 	"github.com/volcengine/veadk-go/knowledgebase/backend/viking_knowledge_backend"
 	_interface "github.com/volcengine/veadk-go/knowledgebase/interface"
 	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
@@ -75,6 +76,22 @@ func TestNewKnowledgeBase_WithStringBackendAndValidConfig(t *testing.T) {
 		assert.Equal(t, "d", kb.Description)
 		assert.Equal(t, m, kb.Backend)
 	})
+	mockey.PatchConvey("redis backend with valid config via mock constructor", t, func() {
+		var m _interface.KnowledgeBackend = &mockBackend{}
+		mockey.Mock(redis_knowledge_backend.NewRedisKnowledgeBackend).Return(m, nil).Build()
+
+		kb, err := NewKnowledgeBase(
+			ktypes.RedisBackend,
+			WithBackendConfig(&redis_knowledge_backend.Config{Index: "idx"}),
+			WithName("n"),
+			WithDescription("d"),
+		)
+		assert.Nil(t, err)
+		assert.NotNil(t, kb)
+		assert.Equal(t, "n", kb.Name)
+		assert.Equal(t, "d", kb.Description)
+		assert.Equal(t, m, kb.Backend)
+	})
 }
 
 func TestNewKnowledgeBase_WithLocalBackend(t *testing.T) {
@@ -132,11 +149,19 @@ func TestNewKnowledgeBase_InvalidConfigType(t *testing.T) {
 		assert.Nil(t, kb)
 		assert.True(t, errors.Is(err, ErrInvalidKnowledgeBackendConfig))
 	})
+	mockey.PatchConvey("redis backend with invalid config type", t, func() {
+		kb, err := NewKnowledgeBase(
+			ktypes.RedisBackend,
+			WithBackendConfig(struct{}{}),
+		)
+		assert.Nil(t, kb)
+		assert.True(t, errors.Is(err, ErrInvalidKnowledgeBackendConfig))
+	})
 }
 
 func TestGetKnowledgeBackend_Unsupported(t *testing.T) {
 	mockey.PatchConvey("unsupported backend types return wrapped error", t, func() {
-		for _, b := range []string{ktypes.RedisBackend, "unknown"} {
+		for _, b := range []string{"unknown"} {
 			kb, err := getKnowledgeBackend(b, nil)
 			assert.Nil(t, kb)
 			assert.True(t, errors.Is(err, ErrInvalidKnowledgeBackend))
