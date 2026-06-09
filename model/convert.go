@@ -139,5 +139,103 @@ func schemaToMap(schema *genai.Schema) map[string]any {
 	if len(schema.Enum) > 0 {
 		result["enum"] = schema.Enum
 	}
+	if len(schema.Required) > 0 {
+		result["required"] = schema.Required
+	}
+	if schema.Title != "" {
+		result["title"] = schema.Title
+	}
+	if schema.Format != "" {
+		result["format"] = schema.Format
+	}
+	if len(schema.AnyOf) > 0 {
+		anyOf := make([]any, 0, len(schema.AnyOf))
+		for _, item := range schema.AnyOf {
+			anyOf = append(anyOf, schemaToMap(item))
+		}
+		result["anyOf"] = anyOf
+	}
+	if schema.Default != nil {
+		result["default"] = schema.Default
+	}
+	if schema.Minimum != nil {
+		result["minimum"] = *schema.Minimum
+	}
+	if schema.Maximum != nil {
+		result["maximum"] = *schema.Maximum
+	}
+	if schema.MinLength != nil {
+		result["minLength"] = *schema.MinLength
+	}
+	if schema.MaxLength != nil {
+		result["maxLength"] = *schema.MaxLength
+	}
+	if schema.MinItems != nil {
+		result["minItems"] = *schema.MinItems
+	}
+	if schema.MaxItems != nil {
+		result["maxItems"] = *schema.MaxItems
+	}
+	if schema.Pattern != "" {
+		result["pattern"] = schema.Pattern
+	}
 	return result
+}
+
+type structuredOutputSchema struct {
+	Name        string
+	Description string
+	Schema      map[string]any
+}
+
+func convertResponseSchema(config *genai.GenerateContentConfig) *structuredOutputSchema {
+	if config == nil {
+		return nil
+	}
+
+	var schema map[string]any
+	if config.ResponseJsonSchema != nil {
+		schema = tryConvertJsonSchema(config.ResponseJsonSchema)
+	}
+	if schema == nil && config.ResponseSchema != nil {
+		schema = schemaToMap(config.ResponseSchema)
+	}
+	if schema == nil {
+		return nil
+	}
+
+	name, _ := schema["title"].(string)
+	description, _ := schema["description"].(string)
+	return &structuredOutputSchema{
+		Name:        sanitizeResponseSchemaName(name),
+		Description: description,
+		Schema:      schema,
+	}
+}
+
+func sanitizeResponseSchemaName(name string) string {
+	if name == "" {
+		return "response"
+	}
+
+	var sanitized strings.Builder
+	for _, r := range name {
+		if sanitized.Len() >= 64 {
+			break
+		}
+		switch {
+		case r >= 'a' && r <= 'z',
+			r >= 'A' && r <= 'Z',
+			r >= '0' && r <= '9',
+			r == '_',
+			r == '-':
+			sanitized.WriteRune(r)
+		default:
+			sanitized.WriteByte('_')
+		}
+	}
+	if sanitized.Len() == 0 {
+		return "response"
+	}
+	return sanitized.String()
 }
