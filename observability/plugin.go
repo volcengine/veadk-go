@@ -312,6 +312,7 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 		if m, ok := resp.CustomMetadata["response_model"].(string); ok && m != "" {
 			finalModelName = m
 		}
+		setResponseIDAttribute(context.Context(ctx), resp.CustomMetadata)
 	}
 
 	if resp.UsageMetadata != nil {
@@ -343,6 +344,14 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 	}
 
 	return nil, nil
+}
+
+func setResponseIDAttribute(ctx context.Context, metadata map[string]any) {
+	responseID, ok := metadata["response_id"].(string)
+	if !ok || responseID == "" {
+		return
+	}
+	trace.SpanFromContext(ctx).SetAttributes(attribute.String(AttrGenAIResponseID, responseID))
 }
 
 func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.CallbackContext, meta *spanMetadata, finalModelName string) {

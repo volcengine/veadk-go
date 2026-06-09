@@ -1,9 +1,13 @@
 package observability
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/attribute"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -60,4 +64,17 @@ func TestRegisterTraceMappingIfPossible(t *testing.T) {
 		ok := registerTraceMappingIfPossible(registry, trace.SpanContext{}, veadkSC)
 		assert.False(t, ok)
 	})
+}
+
+func TestSetResponseIDAttribute(t *testing.T) {
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	ctx, span := provider.Tracer("test").Start(context.Background(), "model")
+
+	setResponseIDAttribute(ctx, map[string]any{"response_id": "chatcmpl-test"})
+	span.End()
+
+	spans := recorder.Ended()
+	assert.Len(t, spans, 1)
+	assert.Contains(t, spans[0].Attributes(), attribute.String(AttrGenAIResponseID, "chatcmpl-test"))
 }
