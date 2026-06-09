@@ -65,6 +65,18 @@ func extractTextFromContent(content *genai.Content) string {
 	return strings.Join(texts, "\n")
 }
 
+func marshalFunctionCallArgs(args map[string]any) (string, error) {
+	if len(args) == 0 {
+		return "{}", nil
+	}
+
+	argsJSON, err := json.Marshal(args)
+	if err != nil {
+		return "", err
+	}
+	return string(argsJSON), nil
+}
+
 // convertFunctionParameters converts a genai.FunctionDeclaration's parameters to a map.
 func convertFunctionParameters(fn *genai.FunctionDeclaration) map[string]any {
 	if fn.ParametersJsonSchema != nil {
