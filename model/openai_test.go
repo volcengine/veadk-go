@@ -2081,6 +2081,37 @@ func TestConvertContent(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "function_call_with_nil_args",
+			content: &genai.Content{
+				Role: "model",
+				Parts: []*genai.Part{
+					{
+						FunctionCall: &genai.FunctionCall{
+							ID:   "call_empty",
+							Name: "get_time",
+							Args: nil,
+						},
+					},
+				},
+			},
+			want: []message{
+				{
+					Role: "assistant",
+					ToolCalls: []toolCall{
+						{
+							ID:   "call_empty",
+							Type: "function",
+							Function: functionCall{
+								Name:      "get_time",
+								Arguments: `{}`,
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "inline_image_data",
 			content: &genai.Content{
 				Role: "user",
