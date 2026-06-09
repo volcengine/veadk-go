@@ -163,7 +163,15 @@ func (r openAIRequest) MarshalJSON() ([]byte, error) {
 }
 
 type responseFormat struct {
-	Type string `json:"type"`
+	Type       string                    `json:"type"`
+	JSONSchema *jsonSchemaResponseFormat `json:"json_schema,omitempty"`
+}
+
+type jsonSchemaResponseFormat struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Schema      map[string]any `json:"schema"`
+	Strict      bool           `json:"strict"`
 }
 
 type message struct {
@@ -276,7 +284,17 @@ func (m *openAIModel) convertOpenAIRequest(req *model.LLMRequest) (*openAIReques
 		if len(req.Config.StopSequences) > 0 {
 			openaiReq.Stop = req.Config.StopSequences
 		}
-		if req.Config.ResponseMIMEType == "application/json" {
+		if schema := convertResponseSchema(req.Config); schema != nil {
+			openaiReq.ResponseFormat = &responseFormat{
+				Type: "json_schema",
+				JSONSchema: &jsonSchemaResponseFormat{
+					Name:        schema.Name,
+					Description: schema.Description,
+					Schema:      schema.Schema,
+					Strict:      true,
+				},
+			}
+		} else if req.Config.ResponseMIMEType == "application/json" {
 			openaiReq.ResponseFormat = &responseFormat{Type: "json_object"}
 		}
 	}

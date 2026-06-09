@@ -159,7 +159,17 @@ func (m *arkModel) convertArkRequest(req *model.LLMRequest) (*arkmodel.CreateCha
 		if len(req.Config.StopSequences) > 0 {
 			arkReq.Stop = req.Config.StopSequences
 		}
-		if req.Config.ResponseMIMEType == "application/json" {
+		if schema := convertResponseSchema(req.Config); schema != nil {
+			arkReq.ResponseFormat = &arkmodel.ResponseFormat{
+				Type: arkmodel.ResponseFormatJSONSchema,
+				JSONSchema: &arkmodel.ResponseFormatJSONSchemaJSONSchemaParam{
+					Name:        schema.Name,
+					Description: schema.Description,
+					Schema:      schema.Schema,
+					Strict:      true,
+				},
+			}
+		} else if req.Config.ResponseMIMEType == "application/json" {
 			arkReq.ResponseFormat = &arkmodel.ResponseFormat{
 				Type: arkmodel.ResponseFormatJsonObject,
 			}
