@@ -16,6 +16,7 @@ package configs
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/volcengine/veadk-go/utils"
 )
@@ -37,12 +38,19 @@ const (
 	EnvObservabilityOpenTelemetryCozeLoopServiceName = "OBSERVABILITY_OPENTELEMETRY_COZELOOP_SERVICE_NAME"
 
 	// TLS
-	EnvObservabilityOpenTelemetryTLSEndpoint    = "OBSERVABILITY_OPENTELEMETRY_TLS_ENDPOINT"
-	EnvObservabilityOpenTelemetryTLSServiceName = "OBSERVABILITY_OPENTELEMETRY_TLS_SERVICE_NAME"
-	EnvObservabilityOpenTelemetryTLSRegion      = "OBSERVABILITY_OPENTELEMETRY_TLS_REGION"
-	EnvObservabilityOpenTelemetryTLSTopicID     = "OBSERVABILITY_OPENTELEMETRY_TLS_TOPIC_ID"
-	EnvObservabilityOpenTelemetryTLSAccessKey   = "OBSERVABILITY_OPENTELEMETRY_TLS_ACCESS_KEY"
-	EnvObservabilityOpenTelemetryTLSSecretKey   = "OBSERVABILITY_OPENTELEMETRY_TLS_SECRET_KEY"
+	EnvObservabilityOpenTelemetryTLSEndpoint          = "OBSERVABILITY_OPENTELEMETRY_TLS_ENDPOINT"
+	EnvObservabilityOpenTelemetryTLSServiceName       = "OBSERVABILITY_OPENTELEMETRY_TLS_SERVICE_NAME"
+	EnvObservabilityOpenTelemetryTLSRegion            = "OBSERVABILITY_OPENTELEMETRY_TLS_REGION"
+	EnvObservabilityOpenTelemetryTLSTopicID           = "OBSERVABILITY_OPENTELEMETRY_TLS_TOPIC_ID"
+	EnvObservabilityOpenTelemetryTLSAccessKey         = "OBSERVABILITY_OPENTELEMETRY_TLS_ACCESS_KEY"
+	EnvObservabilityOpenTelemetryTLSSecretKey         = "OBSERVABILITY_OPENTELEMETRY_TLS_SECRET_KEY"
+	EnvObservabilityOpenTelemetryTLSProjectID         = "OBSERVABILITY_OPENTELEMETRY_TLS_PROJECT_ID"
+	EnvObservabilityOpenTelemetryTLSProjectName       = "OBSERVABILITY_OPENTELEMETRY_TLS_PROJECT_NAME"
+	EnvObservabilityOpenTelemetryTLSTraceInstanceID   = "OBSERVABILITY_OPENTELEMETRY_TLS_TRACE_INSTANCE_ID"
+	EnvObservabilityOpenTelemetryTLSTraceInstanceName = "OBSERVABILITY_OPENTELEMETRY_TLS_TRACE_INSTANCE_NAME"
+	EnvObservabilityOpenTelemetryTLSAPIEndpoint       = "OBSERVABILITY_OPENTELEMETRY_TLS_API_ENDPOINT"
+	EnvObservabilityOpenTelemetryTLSAutoCreate        = "OBSERVABILITY_OPENTELEMETRY_TLS_AUTO_CREATE"
+	EnvObservabilityOpenTelemetryTLSSessionToken      = "OBSERVABILITY_OPENTELEMETRY_TLS_SESSION_TOKEN"
 
 	// File
 	EnvObservabilityOpenTelemetryFilePath = "OBSERVABILITY_OPENTELEMETRY_FILE_PATH"
@@ -80,12 +88,19 @@ type CozeLoopExporterConfig struct {
 }
 
 type TLSExporterConfig struct {
-	Endpoint    string `yaml:"endpoint"`
-	ServiceName string `yaml:"service_name"`
-	Region      string `yaml:"region"`
-	TopicID     string `yaml:"topic_id"`
-	AccessKey   string `yaml:"access_key"`
-	SecretKey   string `yaml:"secret_key"`
+	Endpoint          string `yaml:"endpoint"`
+	ServiceName       string `yaml:"service_name"`
+	Region            string `yaml:"region"`
+	TopicID           string `yaml:"topic_id"`
+	AccessKey         string `yaml:"access_key"`
+	SecretKey         string `yaml:"secret_key"`
+	SessionToken      string `yaml:"session_token"`
+	ProjectID         string `yaml:"project_id"`
+	ProjectName       string `yaml:"project_name"`
+	TraceInstanceID   string `yaml:"trace_instance_id"`
+	TraceInstanceName string `yaml:"trace_instance_name"`
+	APIEndpoint       string `yaml:"api_endpoint"`
+	AutoCreate        *bool  `yaml:"auto_create"`
 }
 
 type FileConfig struct {
@@ -211,6 +226,50 @@ func (c *ObservabilityConfig) MapEnvToConfig() {
 		}
 		ot.TLS.SecretKey = v
 	}
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSSessionToken); v != "" {
+		if ot.TLS == nil {
+			ot.TLS = &TLSExporterConfig{}
+		}
+		ot.TLS.SessionToken = v
+	}
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSProjectID); v != "" {
+		if ot.TLS == nil {
+			ot.TLS = &TLSExporterConfig{}
+		}
+		ot.TLS.ProjectID = v
+	}
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSProjectName); v != "" {
+		if ot.TLS == nil {
+			ot.TLS = &TLSExporterConfig{}
+		}
+		ot.TLS.ProjectName = v
+	}
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSTraceInstanceID); v != "" {
+		if ot.TLS == nil {
+			ot.TLS = &TLSExporterConfig{}
+		}
+		ot.TLS.TraceInstanceID = v
+	}
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSTraceInstanceName); v != "" {
+		if ot.TLS == nil {
+			ot.TLS = &TLSExporterConfig{}
+		}
+		ot.TLS.TraceInstanceName = v
+	}
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSAPIEndpoint); v != "" {
+		if ot.TLS == nil {
+			ot.TLS = &TLSExporterConfig{}
+		}
+		ot.TLS.APIEndpoint = v
+	}
+	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryTLSAutoCreate); v != "" {
+		if ot.TLS == nil {
+			ot.TLS = &TLSExporterConfig{}
+		}
+		ot.TLS.AutoCreate = new(bool)
+		parsed, err := strconv.ParseBool(v)
+		*ot.TLS.AutoCreate = err != nil || parsed
+	}
 
 	// File
 	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryFilePath); v != "" {
@@ -287,14 +346,25 @@ func (c *TLSExporterConfig) Clone() *TLSExporterConfig {
 	if c == nil {
 		return nil
 	}
-	return &TLSExporterConfig{
-		Endpoint:    c.Endpoint,
-		ServiceName: c.ServiceName,
-		Region:      c.Region,
-		TopicID:     c.TopicID,
-		AccessKey:   c.AccessKey,
-		SecretKey:   c.SecretKey,
+	clone := &TLSExporterConfig{
+		Endpoint:          c.Endpoint,
+		ServiceName:       c.ServiceName,
+		Region:            c.Region,
+		TopicID:           c.TopicID,
+		AccessKey:         c.AccessKey,
+		SecretKey:         c.SecretKey,
+		SessionToken:      c.SessionToken,
+		ProjectID:         c.ProjectID,
+		ProjectName:       c.ProjectName,
+		TraceInstanceID:   c.TraceInstanceID,
+		TraceInstanceName: c.TraceInstanceName,
+		APIEndpoint:       c.APIEndpoint,
 	}
+	if c.AutoCreate != nil {
+		clone.AutoCreate = new(bool)
+		*clone.AutoCreate = *c.AutoCreate
+	}
+	return clone
 }
 
 func (c *FileConfig) Clone() *FileConfig {
