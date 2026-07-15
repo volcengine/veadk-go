@@ -93,7 +93,17 @@ func (a *agentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 
 	// setup web api routers
 	// Create the ADK REST API handler
-	apiHandler := adkrest.NewHandler(launchConfig, a.SEEWriteTimeout)
+	apiHandler, err := adkrest.NewServer(adkrest.ServerConfig{
+		SessionService:  config.SessionService,
+		MemoryService:   config.MemoryService,
+		AgentLoader:     config.AgentLoader,
+		ArtifactService: config.ArtifactService,
+		SSEWriteTimeout: a.SEEWriteTimeout,
+		PluginConfig:    config.PluginConfig,
+	})
+	if err != nil {
+		return fmt.Errorf("create adk rest server failed: %w", err)
+	}
 
 	// Wrap it with CORS middleware
 	corsHandler := corsWithArgs(a.GetWebUrl())(apiHandler)

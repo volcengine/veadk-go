@@ -51,7 +51,7 @@ func main() {
 			log.Errorf("Failed to get completed session: %v", err)
 			return nil, fmt.Errorf("failed to get completed session: %v", err)
 		}
-		if err := memoryServer.AddSession(ctx, resp.Session); err != nil {
+		if err := memoryServer.AddSessionToMemory(ctx, resp.Session); err != nil {
 			log.Errorf("Failed to add session to memory: %v", err)
 			return nil, fmt.Errorf("failed to add session to memory: %v", err)
 		}
@@ -116,7 +116,7 @@ func main() {
 		log.Errorf("Failed to get completed session: %v", err)
 		return
 	}
-	if err := memoryServer.AddSession(ctx, resp.Session); err != nil {
+	if err := memoryServer.AddSessionToMemory(ctx, resp.Session); err != nil {
 		log.Errorf("Failed to add session to memory: %v", err)
 		return
 	}

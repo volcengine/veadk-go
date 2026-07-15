@@ -369,7 +369,7 @@ func (m *openAIModel) convertGenAIContent(content *genai.Content) ([]message, er
 				},
 			})
 		} else if part.FunctionCall != nil {
-			argsJSON, err := json.Marshal(part.FunctionCall.Args)
+			argsJSON, err := marshalFunctionCallArgs(part.FunctionCall.Args)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal function args: %w", err)
 			}
@@ -382,7 +382,7 @@ func (m *openAIModel) convertGenAIContent(content *genai.Content) ([]message, er
 				Type: "function",
 				Function: functionCall{
 					Name:      part.FunctionCall.Name,
-					Arguments: string(argsJSON),
+					Arguments: argsJSON,
 				},
 			})
 		}

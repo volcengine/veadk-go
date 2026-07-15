@@ -20,6 +20,7 @@ import (
 
 	"github.com/volcengine/veadk-go/knowledgebase/backend/local_knowledge_backend"
 	"github.com/volcengine/veadk-go/knowledgebase/backend/opensearch_knowledge_backend"
+	"github.com/volcengine/veadk-go/knowledgebase/backend/redis_knowledge_backend"
 	"github.com/volcengine/veadk-go/knowledgebase/backend/viking_knowledge_backend"
 	_interface "github.com/volcengine/veadk-go/knowledgebase/interface"
 	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
@@ -63,7 +64,10 @@ func getKnowledgeBackend(backend string, backendConfig any) (_interface.Knowledg
 		}
 		return nil, ErrInvalidKnowledgeBackendConfig
 	case ktypes.RedisBackend:
-		return nil, fmt.Errorf("%w: %s", ErrInvalidKnowledgeBackend, backend)
+		if config, ok := backendConfig.(*redis_knowledge_backend.Config); ok {
+			return redis_knowledge_backend.NewRedisKnowledgeBackend(config)
+		}
+		return nil, ErrInvalidKnowledgeBackendConfig
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrInvalidKnowledgeBackend, backend)
 	}

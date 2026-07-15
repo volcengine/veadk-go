@@ -131,6 +131,7 @@ type CollectionSearchResponseItemDocInfo struct {
 	DocMeta    string `json:"doc_meta,omitempty"`
 	Source     string `json:"source"`
 	Title      string `json:"title,omitempty"`
+	Url        string `json:"url,omitempty"`
 }
 
 type ChunkAttachment struct {

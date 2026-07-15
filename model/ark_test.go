@@ -441,6 +441,28 @@ func TestArkModel_ConvertContentWithFunctionResponse(t *testing.T) {
 	assert.Equal(t, "call_abc123", msgs[0].ToolCallID)
 }
 
+func TestArkModel_ConvertContentWithNilFunctionCallArgs(t *testing.T) {
+	am := &arkModel{name: "test-model", config: &ArkClientConfig{}}
+	content := &genai.Content{
+		Role: "model",
+		Parts: []*genai.Part{
+			{
+				FunctionCall: &genai.FunctionCall{
+					ID:   "call_empty",
+					Name: "get_time",
+					Args: nil,
+				},
+			},
+		},
+	}
+
+	msgs, err := am.convertGenAIContentToArk(content)
+	assert.NoError(t, err)
+	assert.Len(t, msgs, 1)
+	assert.Len(t, msgs[0].ToolCalls, 1)
+	assert.Equal(t, "{}", msgs[0].ToolCalls[0].Function.Arguments)
+}
+
 func TestArkModel_BuildUsageMetadata(t *testing.T) {
 	t.Run("normal_usage", func(t *testing.T) {
 		usage := &arkmodel.Usage{

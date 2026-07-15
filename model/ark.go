@@ -257,7 +257,7 @@ func (m *arkModel) convertGenAIContentToArk(content *genai.Content) ([]*arkmodel
 				textParts = append(textParts, string(part.InlineData.Data))
 			}
 		} else if part.FunctionCall != nil {
-			argsJSON, err := json.Marshal(part.FunctionCall.Args)
+			argsJSON, err := marshalFunctionCallArgs(part.FunctionCall.Args)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal function args: %w", err)
 			}
@@ -270,7 +270,7 @@ func (m *arkModel) convertGenAIContentToArk(content *genai.Content) ([]*arkmodel
 				Type: arkmodel.ToolTypeFunction,
 				Function: arkmodel.FunctionCall{
 					Name:      part.FunctionCall.Name,
-					Arguments: string(argsJSON),
+					Arguments: argsJSON,
 				},
 			})
 		}
