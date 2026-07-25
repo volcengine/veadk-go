@@ -15,8 +15,8 @@
 package viking_knowledge
 
 import (
-	"fmt"
 	"net/http"
+	"reflect"
 
 	"github.com/volcengine/veadk-go/integrations/ve_sign"
 	"github.com/volcengine/veadk-go/integrations/ve_viking"
@@ -73,7 +73,7 @@ func (c *Client) generateSearchKnowledgeReqParams(query string, topK int32, meta
 			ChunkDiffusionCount: chunkDiffusionCount,
 		},
 	}
-	if metadata != nil {
+	if len(metadata) > 0 {
 		reqObj.QueryParam = &QueryParamInfo{
 			DocFilter: c.buildDocFilterQuery(metadata),
 		}
@@ -86,13 +86,37 @@ func (c *Client) buildDocFilterQuery(metadata map[string]any) map[string]any {
 	for k, v := range metadata {
 		conds = append(conds, map[string]any{
 			"op":    "must",
-			"field": fmt.Sprintf("%v", k),
-			"conds": []string{fmt.Sprintf("%v", v)},
+			"field": k,
+			"conds": normalizeDocFilterConds(v),
 		})
+	}
+	if len(conds) == 1 {
+		return conds[0]
 	}
 	return map[string]any{
 		"op":    "and",
 		"conds": conds,
+	}
+}
+
+func normalizeDocFilterConds(value any) []any {
+	if value == nil {
+		return []any{nil}
+	}
+	if conds, ok := value.([]any); ok {
+		return conds
+	}
+
+	rv := reflect.ValueOf(value)
+	switch rv.Kind() {
+	case reflect.Slice, reflect.Array:
+		conds := make([]any, 0, rv.Len())
+		for i := 0; i < rv.Len(); i++ {
+			conds = append(conds, rv.Index(i).Interface())
+		}
+		return conds
+	default:
+		return []any{value}
 	}
 }
 
