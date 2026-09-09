@@ -41,9 +41,11 @@ var (
 	DefaultRerank              bool  = true
 )
 
-var ErrNewVikingKnowledgeBase = errors.New("NewVikingKnowledgeBase error")
-var ErrVikingKnowledgeBaseSearch = errors.New("VikingKnowledgeBase search error")
-var ErrVikingKnowledgeBaseAddDocs = errors.New("VikingKnowledgeBase add docs error")
+var (
+	ErrNewVikingKnowledgeBase     = errors.New("NewVikingKnowledgeBase error")
+	ErrVikingKnowledgeBaseSearch  = errors.New("VikingKnowledgeBase search error")
+	ErrVikingKnowledgeBaseAddDocs = errors.New("VikingKnowledgeBase add docs error")
+)
 
 type Config struct {
 	AK                  string
@@ -130,7 +132,7 @@ func (v *VikingKnowledgeBackend) Search(query string, opts ...map[string]any) ([
 		utils.ExtractOptsValueWithDefault[int32]("topK", v.config.TopK, opts...),
 		utils.ExtractOptsValueWithDefault[bool]("rerank", *v.config.Rerank, opts...),
 		utils.ExtractOptsValueWithDefault[int32]("chunkDiffusionCount", *v.config.ChunkDiffusionCount, opts...),
-		nil,
+		utils.ExtractOptsValueWithDefault[map[string]any]("metadata", nil, opts...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("%w : %w", ErrVikingKnowledgeBaseSearch, err)

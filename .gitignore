@@ -29,7 +29,7 @@ agent/.env
 examples/quickstart/config.yaml
 .skills_tools
 skills/skills_feat
-
+tests
 
 # MacOS system file
 .DS_Store
