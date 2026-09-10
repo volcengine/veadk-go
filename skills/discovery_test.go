@@ -134,6 +134,62 @@ func TestLoadSkillFromDirKeepsLegacyLowercaseFilenameCompatibility(t *testing.T)
 	}
 }
 
+func TestParseSkillDocumentSupportsExtendedFrontmatter(t *testing.T) {
+	document := `---
+name: extended-skill
+version: 1.3.0
+description: |
+  这是一个用于验证扩展 frontmatter 的多行中文描述。
+  它包含较长文本、英文 token、尖括号 <tag>、路径 references/example.md 和若干标点。
+  解析器应完整保留该描述，并按 Unicode 字符数执行长度校验。
+allowed-tools:
+  - ToolA
+  - ToolB
+  - ToolC
+triggers:
+  - extended-skill
+  - 示例触发词
+  - example trigger
+metadata:
+  license: Apache-2.0
+  requires:
+    bins:
+      - example-bin
+    optional:
+      - optional-bin
+  runtimes:
+    - runtime-a
+    - runtime-b
+---
+# Extended Skill
+`
+
+	skill, err := parseSkillDocument([]byte(document))
+	if err != nil {
+		t.Fatalf("parseSkillDocument() error = %v", err)
+	}
+	if got, want := skill.Frontmatter.Version, "1.3.0"; got != want {
+		t.Fatalf("Version = %q, want %q", got, want)
+	}
+	if got, want := skill.Frontmatter.AllowedTools, "ToolA ToolB ToolC"; got != want {
+		t.Fatalf("AllowedTools = %q, want %q", got, want)
+	}
+	if got, want := skill.Frontmatter.AllowedToolsList, []string{"ToolA", "ToolB", "ToolC"}; !slices.Equal(got, want) {
+		t.Fatalf("AllowedToolsList = %v, want %v", got, want)
+	}
+	if got, want := skill.Frontmatter.Triggers, []string{"extended-skill", "示例触发词", "example trigger"}; !slices.Equal(got, want) {
+		t.Fatalf("Triggers = %v, want %v", got, want)
+	}
+	requires, ok := skill.Frontmatter.Metadata["requires"].(map[string]any)
+	if !ok {
+		t.Fatalf("metadata.requires = %#v, want map[string]any", skill.Frontmatter.Metadata["requires"])
+	}
+	bins, ok := requires["bins"].([]any)
+	if !ok || len(bins) != 1 || bins[0] != "example-bin" {
+		t.Fatalf("metadata.requires.bins = %#v, want [example-bin]", requires["bins"])
+	}
+}
+
 func TestDiscoverSkillsFromDirReportsUnreadableSkill(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root can read files regardless of permission bits")

@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 )
@@ -35,29 +36,37 @@ var validNameRegex = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 //
 //	name: Skill name in kebab-case (required).
 //	description: What the skill does and when the model should use it (required).
+//	version: Skill version (optional).
 //	license: License for the skill (optional).
 //	compatibility: Compatibility information for the skill (optional).
 //	allowed_tools: Tool patterns the skill requires (optional, experimental).
-//		Accepts both ``allowed_tools`` and the YAML-friendly ``allowed-tools`` key.
-//	metadata: Key-value pairs for client-specific properties (defaults to empty dict).
+//		Accepts both ``allowed_tools`` and the YAML-friendly ``allowed-tools`` key,
+//		as either a string or a list of strings.
+//	triggers: Phrases that should make the skill easier to select (optional).
+//	metadata: Client-specific properties, including nested values (defaults to empty dict).
 type Frontmatter struct {
-	Name          string            `yaml:"name"`
-	Description   string            `yaml:"description"`
-	License       string            `yaml:"license,omitempty"`
-	Compatibility string            `yaml:"compatibility,omitempty"`
-	AllowedTools  string            `yaml:"allowed_tools,omitempty"`
-	Metadata      map[string]string `yaml:"metadata,omitempty"`
+	Name             string         `yaml:"name" json:"name"`
+	Description      string         `yaml:"description" json:"description"`
+	Version          string         `yaml:"version,omitempty" json:"version,omitempty"`
+	License          string         `yaml:"license,omitempty" json:"license,omitempty"`
+	Compatibility    string         `yaml:"compatibility,omitempty" json:"compatibility,omitempty"`
+	AllowedTools     string         `yaml:"allowed_tools,omitempty" json:"allowed_tools,omitempty"`
+	AllowedToolsList []string       `yaml:"-" json:"allowed_tools_list,omitempty"`
+	Triggers         []string       `yaml:"triggers,omitempty" json:"triggers,omitempty"`
+	Metadata         map[string]any `yaml:"metadata,omitempty" json:"metadata,omitempty"`
 }
 
 func (f *Frontmatter) UnmarshalYAML(node *yaml.Node) error {
 	type tempFrontmatter struct {
-		Name          string            `yaml:"name"`
-		Description   string            `yaml:"description"`
-		License       string            `yaml:"license,omitempty"`
-		Compatibility string            `yaml:"compatibility,omitempty"`
-		AllowedTools  string            `yaml:"allowed_tools,omitempty"`
-		AllowedTools2 string            `yaml:"allowed-tools,omitempty"`
-		Metadata      map[string]string `yaml:"metadata,omitempty"`
+		Name          string         `yaml:"name"`
+		Description   string         `yaml:"description"`
+		Version       string         `yaml:"version,omitempty"`
+		License       string         `yaml:"license,omitempty"`
+		Compatibility string         `yaml:"compatibility,omitempty"`
+		AllowedTools  stringList     `yaml:"allowed_tools,omitempty"`
+		AllowedTools2 stringList     `yaml:"allowed-tools,omitempty"`
+		Triggers      stringList     `yaml:"triggers,omitempty"`
+		Metadata      map[string]any `yaml:"metadata,omitempty"`
 	}
 
 	var temp tempFrontmatter
@@ -65,23 +74,31 @@ func (f *Frontmatter) UnmarshalYAML(node *yaml.Node) error {
 		return err
 	}
 
-	if temp.AllowedTools != "" {
-		f.AllowedTools = temp.AllowedTools
+	allowedTools := []string(temp.AllowedTools)
+	if len(allowedTools) == 0 {
+		allowedTools = []string(temp.AllowedTools2)
+	}
+	if len(allowedTools) != 0 {
+		f.AllowedTools = strings.Join(allowedTools, " ")
+		f.AllowedToolsList = allowedTools
 	} else {
-		f.AllowedTools = temp.AllowedTools2
+		f.AllowedTools = ""
+		f.AllowedToolsList = nil
 	}
 
 	f.Name = temp.Name
 	f.Description = temp.Description
+	f.Version = temp.Version
 	f.License = temp.License
 	f.Compatibility = temp.Compatibility
+	f.Triggers = []string(temp.Triggers)
 	f.Metadata = temp.Metadata
 
 	return nil
 }
 
 func (f *Frontmatter) Validate() error {
-	if len(f.Name) < 1 || len(f.Name) > 64 {
+	if utf8.RuneCountInString(f.Name) < 1 || utf8.RuneCountInString(f.Name) > 64 {
 		return fmt.Errorf("name must be 1-64 characters")
 	}
 	if !validNameRegex.MatchString(f.Name) {
@@ -95,8 +112,8 @@ func (f *Frontmatter) Validate() error {
 	if strings.TrimSpace(f.Description) == "" {
 		return fmt.Errorf("description must not be empty")
 	}
-	if len(f.Description) > 1024 {
-		return fmt.Errorf("description must be at most 1024 characters")
+	if utf8.RuneCountInString(f.Description) > 4096 {
+		return fmt.Errorf("description must be at most 4096 characters")
 	}
 
 	if f.Compatibility != "" && len(f.Compatibility) > 500 {
@@ -107,7 +124,56 @@ func (f *Frontmatter) Validate() error {
 	return nil
 }
 
+type stringList []string
+
+func (s *stringList) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		var value string
+		if err := node.Decode(&value); err != nil {
+			return err
+		}
+		value = strings.TrimSpace(value)
+		if value == "" {
+			*s = nil
+			return nil
+		}
+		*s = []string{value}
+		return nil
+	case yaml.SequenceNode:
+		values := make([]string, 0, len(node.Content))
+		for _, child := range node.Content {
+			var value string
+			if err := child.Decode(&value); err != nil {
+				return err
+			}
+			value = strings.TrimSpace(value)
+			if value != "" {
+				values = append(values, value)
+			}
+		}
+		*s = values
+		return nil
+	case 0:
+		return nil
+	default:
+		return fmt.Errorf("expected string or list of strings")
+	}
+}
+
 func (f *Frontmatter) SkillPromptEntry() string {
+	if len(f.Triggers) != 0 {
+		triggers := make([]string, 0, len(f.Triggers))
+		for _, trigger := range f.Triggers {
+			trigger = strings.TrimSpace(trigger)
+			if trigger != "" {
+				triggers = append(triggers, trigger)
+			}
+		}
+		if len(triggers) != 0 {
+			return fmt.Sprintf("- name: %s, description: %s, triggers: %s", f.Name, f.Description, strings.Join(triggers, ", "))
+		}
+	}
 	return fmt.Sprintf("- name: %s, description: %s", f.Name, f.Description)
 }
 

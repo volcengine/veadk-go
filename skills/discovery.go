@@ -188,11 +188,22 @@ func parseSkillRoot(ctx context.Context, root *os.Root, skillDir string, maxByte
 		file     *os.File
 		fileName string
 	)
+	entries, err := fs.ReadDir(root.FS(), ".")
+	if err != nil {
+		return nil, fmt.Errorf("read skill directory: %w", err)
+	}
+	names := make(map[string]struct{}, len(entries))
+	for _, entry := range entries {
+		names[entry.Name()] = struct{}{}
+	}
 	candidates := []string{"SKILL.md"}
 	if allowLegacyFilename {
 		candidates = append(candidates, "skill.md")
 	}
 	for _, candidate := range candidates {
+		if _, ok := names[candidate]; !ok {
+			continue
+		}
 		opened, err := root.Open(candidate)
 		if err == nil {
 			file = opened
