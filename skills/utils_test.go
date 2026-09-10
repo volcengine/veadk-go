@@ -13,7 +13,7 @@ var mockSkill = &Skill{
 	Frontmatter: &Frontmatter{
 		Name:        "test-skill",
 		Description: "A test skill for unit testing",
-		Metadata: map[string]string{
+		Metadata: map[string]any{
 			"version": "1.0.0",
 		},
 	},

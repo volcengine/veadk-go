@@ -29,6 +29,14 @@ func TestSkill_Valid(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid multibyte description uses character count",
+			skill: Frontmatter{
+				Name:        "chinese-description",
+				Description: strings.Repeat("示例", 600),
+			},
+			wantErr: false,
+		},
+		{
 			name: "invalid name - empty",
 			skill: Frontmatter{
 				Name:        "",
@@ -88,7 +96,7 @@ func TestSkill_Valid(t *testing.T) {
 			name: "invalid description - too long",
 			skill: Frontmatter{
 				Name:        "valid-name",
-				Description: strings.Repeat("a", 1025),
+				Description: strings.Repeat("a", 4097),
 			},
 			wantErr: true,
 		},
@@ -115,7 +123,7 @@ func TestSkill_Valid(t *testing.T) {
 			skill: Frontmatter{
 				Name:        "valid-name",
 				Description: "Valid description",
-				Metadata: map[string]string{
+				Metadata: map[string]any{
 					"author":  "example-org",
 					"version": "1.0",
 				},
@@ -139,5 +147,19 @@ func TestSkill_Valid(t *testing.T) {
 				t.Errorf("Skill.Valid() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestFrontmatterSkillPromptEntryIncludesTriggers(t *testing.T) {
+	frontmatter := Frontmatter{
+		Name:        "extended-skill",
+		Description: "Handle an extended skill fixture.",
+		Triggers:    []string{"示例触发词", "example trigger"},
+	}
+
+	got := frontmatter.SkillPromptEntry()
+	want := "- name: extended-skill, description: Handle an extended skill fixture., triggers: 示例触发词, example trigger"
+	if got != want {
+		t.Fatalf("SkillPromptEntry() = %q, want %q", got, want)
 	}
 }
