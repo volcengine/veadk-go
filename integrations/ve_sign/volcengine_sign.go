@@ -240,3 +240,9 @@ func hashSHA256(data []byte) []byte {
 
 	return hash.Sum(nil)
 }
+
+// BuildRequestWithContext builds a signed Action/Version request without sending
+// it. The caller owns redirect policy, response limits and response body lifetime.
+func (vr VeRequest) BuildRequestWithContext(ctx context.Context) (*http.Request, error) {
+	return vr.buildSignRequestWithContext(ctx)
+}
