@@ -1,5 +1,7 @@
 # VeADK Go 可观测性包
 
+标准 OpenTelemetry Collector 导出（HTTP protobuf/gRPC）、OTEL 配置及有界关闭见 [OTLP 使用说明](OTLP.md)。
+
 本包为 VeADK Go SDK 提供全面的可观测性功能插件，与 [VeADK Python SDK](https://volcengine.github.io/veadk-python/observation/span-attributes/) 和 [OpenTelemetry GenAI 语义约定](https://opentelemetry.io/docs/specs/semconv/gen-ai/) 对齐。
 
 ## 功能特性

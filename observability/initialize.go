@@ -18,11 +18,13 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/log"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -45,10 +47,13 @@ func Init(ctx context.Context, cfg *configs.ObservabilityConfig) error {
 			otelCfg = cfg.OpenTelemetry
 		}
 
-		if otelCfg == nil {
-			log.Info("No observability config found, observability data will not be exported")
+		if sdkDisabled() {
 			initErr = ErrNoExporters
 			return
+		}
+
+		if otelCfg == nil {
+			otelCfg = &configs.OpenTelemetryConfig{}
 		}
 
 		initErr = initWithConfig(ctx, otelCfg)
@@ -61,6 +66,8 @@ func Init(ctx context.Context, cfg *configs.ObservabilityConfig) error {
 
 // Shutdown shuts down the observability system, flushing all spans and metrics.
 func Shutdown(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	log.Info("Shut down TracerProvider and MeterProvider")
 	var errs []error
 
@@ -98,9 +105,12 @@ func Shutdown(ctx context.Context) error {
 // initWithConfig automatically initializes the observability system based on the provided configuration.
 // It creates the appropriate exporter and calls RegisterExporter.
 func initWithConfig(ctx context.Context, cfg *configs.OpenTelemetryConfig) error {
+	if sdkDisabled() {
+		return ErrNoExporters
+	}
 	var errs []error
 	traceInitialized, err := initializeTraceProvider(ctx, cfg)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrNoExporters) {
 		errs = append(errs, err)
 	}
 
@@ -111,7 +121,7 @@ func initWithConfig(ctx context.Context, cfg *configs.OpenTelemetryConfig) error
 
 	if !traceInitialized && !metricsInitialized {
 		log.Info("No observability exporters are configured, observability data will not be exported")
-		return ErrNoExporters
+		return errors.Join(append(errs, ErrNoExporters)...)
 	}
 
 	return errors.Join(errs...)
@@ -156,18 +166,17 @@ func setGlobalTracerProvider(exp sdktrace.SpanExporter, spanProcessors ...sdktra
 		opts = append(opts, sdktrace.WithSpanProcessor(sp))
 	}
 
+	// Build a fresh resource so initialization observes the current environment.
+	res, _ := resource.New(context.Background(), resource.WithTelemetrySDK(), resource.WithFromEnv())
+	res, _ = resource.Merge(resource.Default(), res)
 	tp := sdktrace.NewTracerProvider(
-		append(opts, sdktrace.WithSpanProcessor(finalProcessor))...,
+		append(opts, sdktrace.WithSpanProcessor(finalProcessor), sdktrace.WithResource(res))...,
 	)
 
 	otel.SetTracerProvider(tp)
 }
 
 func initializeTraceProvider(ctx context.Context, cfg *configs.OpenTelemetryConfig) (bool, error) {
-	if cfg == nil {
-		return false, nil
-	}
-
 	exp, err := NewMultiExporter(ctx, cfg)
 	if err != nil {
 		return false, err
@@ -198,4 +207,19 @@ func initializeMeterProvider(ctx context.Context, cfg *configs.OpenTelemetryConf
 
 	registerMetrics(readers)
 	return true, nil
+}
+
+// ForceFlush exports queued telemetry within both the caller deadline and a
+// five-second upper bound. Export failures do not affect Agent execution.
+func ForceFlush(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	var errs []error
+	if tp, ok := otel.GetTracerProvider().(*sdktrace.TracerProvider); ok {
+		errs = append(errs, tp.ForceFlush(ctx))
+	}
+	if meterProvider != nil {
+		errs = append(errs, meterProvider.ForceFlush(ctx))
+	}
+	return errors.Join(errs...)
 }

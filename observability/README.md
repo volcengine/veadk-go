@@ -1,5 +1,7 @@
 # VeADK Go Observability Package
 
+Standard OpenTelemetry Collector export (HTTP protobuf/gRPC), OTEL configuration and bounded shutdown: [OTLP guide](OTLP.md).
+
 This package provides comprehensive observability features for the VeADK Go SDK, fully aligned with the [VeADK Python SDK](https://volcengine.github.io/veadk-python/observation/span-attributes/) and [OpenTelemetry GenAI Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/).
 
 ## Features

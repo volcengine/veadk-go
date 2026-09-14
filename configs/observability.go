@@ -15,7 +15,9 @@
 package configs
 
 import (
+	"maps"
 	"os"
+	"time"
 
 	"github.com/volcengine/veadk-go/utils"
 )
@@ -59,11 +61,33 @@ type ObservabilityConfig struct {
 type OpenTelemetryConfig struct {
 	EnableMetrics *bool `yaml:"enable_metrics"`
 
+	// OTLP enables the standard trace exporter. Endpoint is a complete trace URL.
+	OTLP *OTLPConfig `yaml:"otlp"`
+
 	File     *FileConfig             `yaml:"file"`
 	Stdout   *StdoutConfig           `yaml:"stdout"`
 	ApmPlus  *ApmPlusConfig          `yaml:"apmplus"`
 	CozeLoop *CozeLoopExporterConfig `yaml:"cozeloop"`
 	TLS      *TLSExporterConfig      `yaml:"tls"`
+}
+
+// OTLPConfig configures the standard trace exporter. Nonempty standard OTEL
+// environment variables override these fields. A non-nil config enables OTLP.
+// Endpoint is the complete trace URL, unlike OTEL_EXPORTER_OTLP_ENDPOINT.
+type OTLPConfig struct {
+	Endpoint string            `yaml:"endpoint"`
+	Protocol string            `yaml:"protocol"`
+	Headers  map[string]string `yaml:"headers"`
+	Timeout  time.Duration     `yaml:"timeout"`
+}
+
+func (c *OTLPConfig) Clone() *OTLPConfig {
+	if c == nil {
+		return nil
+	}
+	clone := *c
+	clone.Headers = maps.Clone(c.Headers)
+	return &clone
 }
 
 type ApmPlusConfig struct {
@@ -101,6 +125,19 @@ func (c *ObservabilityConfig) MapEnvToConfig() {
 		c.OpenTelemetry = &OpenTelemetryConfig{}
 	}
 	ot := c.OpenTelemetry
+	// YAML configuration is flattened to environment variables by the config loader.
+	for _, field := range []string{"ENDPOINT", "PROTOCOL"} {
+		if v := os.Getenv("OBSERVABILITY_OPENTELEMETRY_OTLP_" + field); v != "" {
+			if ot.OTLP == nil {
+				ot.OTLP = &OTLPConfig{}
+			}
+			if field == "ENDPOINT" {
+				ot.OTLP.Endpoint = v
+			} else {
+				ot.OTLP.Protocol = v
+			}
+		}
+	}
 
 	// APMPlus
 	if v := utils.GetEnvWithDefault(EnvObservabilityOpenTelemetryApmPlusEndpoint); v != "" {
@@ -252,6 +289,7 @@ func (c *OpenTelemetryConfig) Clone() *OpenTelemetryConfig {
 
 	return &OpenTelemetryConfig{
 		EnableMetrics: c.EnableMetrics,
+		OTLP:          c.OTLP.Clone(),
 		ApmPlus:       c.ApmPlus.Clone(),
 		CozeLoop:      c.CozeLoop.Clone(),
 		TLS:           c.TLS.Clone(),
