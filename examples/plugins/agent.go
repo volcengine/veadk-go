@@ -24,7 +24,6 @@ import (
 	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/tool/builtin_tools"
 	"github.com/volcengine/veadk-go/tool/builtin_tools/web_search"
-	"github.com/volcengine/veadk-go/utils"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/model"
@@ -36,6 +35,11 @@ import (
 
 func main() {
 	ctx := context.Background()
+	shieldPlugins, err := builtin_tools.LLMShieldPluginsFromEnv()
+	if err != nil {
+		log.Errorf("Configure LLM Shield failed: %v", err)
+		return
+	}
 
 	webSearch, err := web_search.NewWebSearchTool(&web_search.Config{})
 	if err != nil {
@@ -103,10 +107,7 @@ func main() {
 		AgentLoader:    agent.NewSingleLoader(rootAgent),
 		SessionService: session.InMemoryService(),
 		PluginConfig: runner.PluginConfig{
-			Plugins: []*plugin.Plugin{
-				//NewTestPlugins(),
-				utils.Must(builtin_tools.NewLLMShieldPlugins()),
-			},
+			Plugins: shieldPlugins,
 		},
 	})
 	if err != nil {
