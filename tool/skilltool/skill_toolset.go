@@ -60,6 +60,7 @@ type SkillToolset struct {
 	tools        []tool.Tool
 	codeExecutor code_executors.CodeExecutor
 	instruction  string
+	localRuntime *LocalRuntime
 }
 
 func NewSkillToolset(skillList []*skills.Skill, codeExecutor code_executors.CodeExecutor) (*SkillToolset, error) {
@@ -117,6 +118,9 @@ func (s *SkillToolset) ProcessRequest(ctx tool.Context, req *model.LLMRequest) e
 	skillList := s.listSkills()
 	skillXML := skills.FormatSkillsAsXML(skillList)
 	instruction := []string{s.instruction, skillXML}
+	if s.localRuntime != nil {
+		instruction = append(instruction, localRuntimeInstruction)
+	}
 	if req.Config.SystemInstruction == nil {
 		req.Config.SystemInstruction = &genai.Content{
 			Parts: []*genai.Part{
@@ -293,6 +297,12 @@ func (s *SkillToolset) runSkillScriptToolHandler(ctx tool.Context, args runSkill
 	sk, ok := s.getSkill(args.SkillName)
 	if !ok {
 		return map[string]any{"error": fmt.Sprintf("Skill '%s' not found.", args.SkillName), "error_code": "SKILL_NOT_FOUND"}, nil
+	}
+	if s.localRuntime != nil {
+		result := s.localRuntime.runSkillScript(ctx, sk, args.ScriptPath, args.Args)
+		result["skill_name"] = sk.Name()
+		result["script_path"] = args.ScriptPath
+		return result, nil
 	}
 	name := args.ScriptPath
 	if strings.HasPrefix(args.ScriptPath, "scripts/") {
