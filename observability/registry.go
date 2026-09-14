@@ -25,6 +25,7 @@ import (
 // TraceRegistry manages the mapping between ADK-go's spans and VeADK spans.
 // It ensures thread-safe access and proper cleanup of resources.
 type TraceRegistry struct {
+	shutdownOnce sync.Once
 	// toolCallMap tracks ToolCallID (string) -> *toolCallInfo
 	// Consolidates: toolCallToVeadkLLMMap, toolInputs, toolOutputs
 	toolCallMap sync.Map
@@ -87,12 +88,7 @@ func GetRegistry() *TraceRegistry {
 
 // Shutdown stops the cleanup loop and closes the shutdown channel.
 func (r *TraceRegistry) Shutdown() {
-	select {
-	case <-r.shutdownChan:
-		// Already closed
-	default:
-		close(r.shutdownChan)
-	}
+	r.shutdownOnce.Do(func() { close(r.shutdownChan) })
 }
 
 func (r *TraceRegistry) cleanupLoop() {

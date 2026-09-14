@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/volcengine/veadk-go/configs"
 	"github.com/volcengine/veadk-go/log"
@@ -177,7 +178,39 @@ func NewFileExporter(ctx context.Context, cfg *configs.FileConfig) (trace.SpanEx
 
 // NewMultiExporter creates a span exporter that can export to multiple platforms simultaneously.
 func NewMultiExporter(ctx context.Context, cfg *configs.OpenTelemetryConfig) (trace.SpanExporter, error) {
+	useOTLP, console, explicit, disabled, err := traceExportSelection(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if disabled {
+		return nil, ErrNoExporters
+	}
+	if cfg == nil {
+		cfg = &configs.OpenTelemetryConfig{}
+	}
+	otlpCfg := cfg.OTLP
+	if explicit {
+		cfg = &configs.OpenTelemetryConfig{Stdout: &configs.StdoutConfig{Enable: console}}
+	}
 	var exporters []trace.SpanExporter
+	// If a later exporter fails to initialize, close the exporters already created.
+	success := false
+	defer func() {
+		if !success {
+			closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			for _, exp := range exporters {
+				_ = exp.Shutdown(closeCtx)
+			}
+		}
+	}()
+	if useOTLP {
+		exp, err := NewOTLPExporter(ctx, otlpCfg)
+		if err != nil {
+			return nil, err
+		}
+		exporters = append(exporters, exp)
+	}
 	if cfg.Stdout != nil && cfg.Stdout.Enable {
 		if exp, err := NewStdoutExporter(); err == nil {
 			exporters = append(exporters, exp)
@@ -239,6 +272,7 @@ func NewMultiExporter(ctx context.Context, cfg *configs.OpenTelemetryConfig) (tr
 		return nil, ErrNoExporters
 	}
 
+	success = true
 	if len(exporters) == 1 {
 		return exporters[0], nil
 	}
