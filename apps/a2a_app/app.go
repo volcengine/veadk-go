@@ -26,6 +26,7 @@ import (
 	"github.com/a2aproject/a2a-go/a2asrv"
 	"github.com/gorilla/mux"
 	"github.com/volcengine/veadk-go/apps"
+	adkagent "google.golang.org/adk/agent"
 	"google.golang.org/adk/cmd/launcher/web/a2a"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/server/adka2a"
@@ -76,6 +77,10 @@ func (a *agentkitA2AServerApp) SetupRouters(router *mux.Router, config *apps.Run
 
 	agent := config.AgentLoader.RootAgent()
 	executor := adka2a.NewExecutor(adka2a.ExecutorConfig{
+		// Stream model output for A2A events; message/send aggregates the result.
+		RunConfig: adkagent.RunConfig{
+			StreamingMode: adkagent.StreamingModeSSE,
+		},
 		RunnerConfig: runner.Config{
 			AppName:         agent.Name(),
 			Agent:           agent,
