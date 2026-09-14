@@ -76,6 +76,7 @@ func TestLLMShieldServerProcess(t *testing.T) {
 	defer shield.Close()
 	modelServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
+			Stream   bool
 			Messages []struct {
 				Role    string
 				Content string
@@ -93,6 +94,13 @@ func TestLLMShieldServerProcess(t *testing.T) {
 		mu.Lock()
 		modelCalls[prompt]++
 		mu.Unlock()
+		if body.Stream {
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, _ = io.WriteString(w, "data: ")
+			_ = json.NewEncoder(w).Encode(map[string]any{"id": "completion", "object": "chat.completion.chunk", "model": "test-model", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "content": "model-result:" + prompt}, "finish_reason": "stop"}}})
+			_, _ = io.WriteString(w, "\ndata: [DONE]\n\n")
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"id": "completion", "object": "chat.completion", "model": "test-model", "choices": []any{map[string]any{"index": 0, "message": map[string]any{"role": "assistant", "content": "model-result:" + prompt}, "finish_reason": "stop"}}})
 	}))
