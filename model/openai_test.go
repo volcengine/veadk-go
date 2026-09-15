@@ -866,6 +866,78 @@ func TestConvertLegacyParameters(t *testing.T) {
 	}
 }
 
+func TestConvertResponseSchema(t *testing.T) {
+	legacySchema := &genai.Schema{
+		Type:        genai.TypeObject,
+		Title:       "weather response",
+		Description: "Structured weather data",
+		Properties: map[string]*genai.Schema{
+			"location": {
+				Type: genai.TypeString,
+			},
+			"forecast": {
+				Type: genai.TypeObject,
+				Properties: map[string]*genai.Schema{
+					"temperature": {Type: genai.TypeNumber},
+				},
+				Required: []string{"temperature"},
+			},
+		},
+		Required: []string{"location", "forecast"},
+	}
+
+	got := convertResponseSchema(&genai.GenerateContentConfig{ResponseSchema: legacySchema})
+	require.NotNil(t, got)
+	require.Equal(t, "weather_response", got.Name)
+	require.Equal(t, "Structured weather data", got.Description)
+	require.Equal(t, []string{"location", "forecast"}, got.Schema["required"])
+	forecast := got.Schema["properties"].(map[string]any)["forecast"].(map[string]any)
+	require.Equal(t, []string{"temperature"}, forecast["required"])
+
+	jsonSchema := map[string]any{
+		"title": "custom-schema",
+		"type":  "object",
+	}
+	got = convertResponseSchema(&genai.GenerateContentConfig{
+		ResponseSchema:     legacySchema,
+		ResponseJsonSchema: jsonSchema,
+	})
+	require.Equal(t, "custom-schema", got.Name)
+	require.Equal(t, jsonSchema, got.Schema)
+}
+
+func TestOpenAIModel_ConvertStructuredOutput(t *testing.T) {
+	m := &openAIModel{name: "test-model"}
+	req := &model.LLMRequest{
+		Contents: genai.Text("Return weather data"),
+		Config: &genai.GenerateContentConfig{
+			ResponseMIMEType: "application/json",
+			ResponseSchema: &genai.Schema{
+				Type:  genai.TypeObject,
+				Title: "weather",
+				Properties: map[string]*genai.Schema{
+					"temperature": {Type: genai.TypeNumber},
+				},
+				Required: []string{"temperature"},
+			},
+		},
+	}
+
+	got, err := m.convertOpenAIRequest(req)
+	require.NoError(t, err)
+	require.NotNil(t, got.ResponseFormat)
+	require.Equal(t, "json_schema", got.ResponseFormat.Type)
+	require.NotNil(t, got.ResponseFormat.JSONSchema)
+	require.Equal(t, "weather", got.ResponseFormat.JSONSchema.Name)
+	require.True(t, got.ResponseFormat.JSONSchema.Strict)
+	require.Equal(t, []string{"temperature"}, got.ResponseFormat.JSONSchema.Schema["required"])
+
+	req.Config.ResponseSchema = nil
+	got, err = m.convertOpenAIRequest(req)
+	require.NoError(t, err)
+	require.Equal(t, &responseFormat{Type: "json_object"}, got.ResponseFormat)
+}
+
 func TestModel_StreamingToolCalls(t *testing.T) {
 	// Test server that streams tool calls with Index field
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
