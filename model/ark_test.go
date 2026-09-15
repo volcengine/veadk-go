@@ -119,6 +119,7 @@ func TestArkModel_Generate(t *testing.T) {
 			},
 			CustomMetadata: map[string]any{
 				"response_model": "test-model",
+				"response_id":    "chatcmpl-test",
 			},
 			FinishReason: genai.FinishReasonStop,
 		}
@@ -326,6 +327,7 @@ func TestArkModel_GenerateStream(t *testing.T) {
 		assert.Equal(t, genai.FinishReasonStop, finalResp.FinishReason)
 		assert.NotNil(t, finalResp.UsageMetadata)
 		assert.Equal(t, int32(10), finalResp.UsageMetadata.PromptTokenCount)
+		assert.Equal(t, "chatcmpl-test", finalResp.CustomMetadata["response_id"])
 	})
 }
 

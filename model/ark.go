@@ -438,6 +438,7 @@ func (m *arkModel) generateStream(ctx context.Context, arkReq *arkmodel.CreateCh
 		var accToolCalls []*arkmodel.ToolCall
 		var finalUsage *arkmodel.Usage
 		var finishReason arkmodel.FinishReason
+		var responseID string
 
 		for {
 			chunk, err := stream.Recv()
@@ -447,6 +448,10 @@ func (m *arkModel) generateStream(ctx context.Context, arkReq *arkmodel.CreateCh
 			if err != nil {
 				yield(nil, fmt.Errorf("ark: stream recv failed: %w", err))
 				return
+			}
+
+			if chunk.ID != "" {
+				responseID = chunk.ID
 			}
 
 			if chunk.Usage != nil {
@@ -525,7 +530,7 @@ func (m *arkModel) generateStream(ctx context.Context, arkReq *arkmodel.CreateCh
 			if finishReason == "" {
 				finishReason = arkmodel.FinishReasonStop
 			}
-			finalResp := m.buildArkFinalResponse(textBuffer.String(), reasoningBuffer.String(), accToolCalls, finalUsage, finishReason)
+			finalResp := m.buildArkFinalResponse(textBuffer.String(), reasoningBuffer.String(), accToolCalls, finalUsage, finishReason, responseID)
 			yield(finalResp, nil)
 		}
 	}
@@ -579,6 +584,7 @@ func (m *arkModel) convertArkResponse(resp *arkmodel.ChatCompletionResponse) (*m
 		UsageMetadata: buildArkUsageMetadata(&resp.Usage),
 		CustomMetadata: map[string]any{
 			"response_model": resp.Model,
+			"response_id":    resp.ID,
 		},
 	}
 
@@ -586,7 +592,7 @@ func (m *arkModel) convertArkResponse(resp *arkmodel.ChatCompletionResponse) (*m
 }
 
 // buildArkFinalResponse builds the final LLMResponse at end of stream.
-func (m *arkModel) buildArkFinalResponse(text, reasoningText string, toolCalls []*arkmodel.ToolCall, usage *arkmodel.Usage, finishReason arkmodel.FinishReason) *model.LLMResponse {
+func (m *arkModel) buildArkFinalResponse(text, reasoningText string, toolCalls []*arkmodel.ToolCall, usage *arkmodel.Usage, finishReason arkmodel.FinishReason, responseID string) *model.LLMResponse {
 	var parts []*genai.Part
 
 	if reasoningText != "" {
@@ -619,6 +625,7 @@ func (m *arkModel) buildArkFinalResponse(text, reasoningText string, toolCalls [
 		UsageMetadata: buildArkUsageMetadata(usage),
 		CustomMetadata: map[string]any{
 			"response_model": m.name,
+			"response_id":    responseID,
 		},
 	}
 }
