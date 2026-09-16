@@ -15,10 +15,10 @@
 package loopagent
 
 import (
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/prompts"
-	"google.golang.org/adk/agent"
-	googleADKLoopAgent "google.golang.org/adk/agent/workflowagents/loopagent"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/prompts"
+	"google.golang.org/adk/v2/agent"
+	googleADKLoopAgent "google.golang.org/adk/v2/agent/workflowagents/loopagent"
 )
 
 // Config defines the configuration for a veLoopAgent.

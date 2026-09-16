@@ -6,7 +6,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"google.golang.org/adk/agent"
+	"google.golang.org/adk/v2/agent"
 )
 
 type veadkSpanProcessor struct{}
@@ -88,7 +88,7 @@ func (p *veadkSpanProcessor) setCommonAttributes(ctx context.Context, span sdktr
 		}
 	}
 
-	if cctx, ok := ctx.(agent.CallbackContext); ok {
+	if cctx, ok := ctx.(agent.Context); ok {
 		if cctx.SessionID() != "" {
 			sessionID = cctx.SessionID()
 		}

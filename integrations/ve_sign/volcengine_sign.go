@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/v2/log"
 )
 
 const (

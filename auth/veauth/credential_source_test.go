@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/v2/common"
 )
 
 func TestRoleCredentialSourceIsLazyAndPrefersExplicitCredential(t *testing.T) {

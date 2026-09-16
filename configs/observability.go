@@ -17,7 +17,7 @@ package configs
 import (
 	"os"
 
-	"github.com/volcengine/veadk-go/utils"
+	"github.com/volcengine/veadk-go/v2/utils"
 )
 
 const (

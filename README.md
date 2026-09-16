@@ -13,11 +13,11 @@ For more details, see our [documents](https://agentkit.gitbook.io/docs/veadk-go)
 ## Installation
 
 Before you start, make sure you have the following installed:
-- Go 1.24.4 or later
+- Go 1.26.5 or later
 
 
 ```bash
-go get github.com/volcengine/veadk-go
+go get github.com/volcengine/veadk-go/v2
 ```
 
 ## Configuration
@@ -45,13 +45,13 @@ import (
 	"fmt"
 	"os"
 	
-	_ "github.com/volcengine/veadk-go/agent"
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/log"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/full"
-	"google.golang.org/adk/session"
+	_ "github.com/volcengine/veadk-go/v2/agent"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/log"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/cmd/launcher"
+	"google.golang.org/adk/v2/cmd/launcher/full"
+	"google.golang.org/adk/v2/session"
 )
 
 func main() {

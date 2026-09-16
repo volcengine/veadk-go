@@ -18,18 +18,18 @@ import (
 	"context"
 	"encoding/json"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/agent/workflowagents/parallelagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	"github.com/volcengine/veadk-go/log"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/model"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/agent/workflowagents/parallelagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/v2/log"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/model"
 )
 
-//func beforeAgentCallback() func(agent.CallbackContext) (*genai.Content, error) {
-//	return func(ctx agent.CallbackContext) (*genai.Content, error) {
+//func beforeAgentCallback() func(agent.Context) (*genai.Content, error) {
+//	return func(ctx agent.Context) (*genai.Content, error) {
 //		userCtx := ctx.UserContent()
 //		cstr, _ := json.Marshal(userCtx)
 //		fmt.Printf("%s Before Agent callback called: %s \n", ctx.AgentName(), string(cstr))
@@ -37,7 +37,7 @@ import (
 //	}
 //}
 
-func onBeforeModel(ctx agent.CallbackContext, req *model.LLMRequest) (*model.LLMResponse, error) {
+func onBeforeModel(ctx agent.Context, req *model.LLMRequest) (*model.LLMResponse, error) {
 	reqStr, _ := json.Marshal(req)
 	log.Infof("%s [Callback] BeforeModel req: %s", ctx.AgentName(), string(reqStr))
 	return nil, nil

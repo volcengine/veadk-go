@@ -22,13 +22,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/volcengine/veadk-go/integrations/ve_tos"
-	"github.com/volcengine/veadk-go/integrations/ve_viking"
-	"github.com/volcengine/veadk-go/integrations/ve_viking/viking_knowledge"
-	_interface "github.com/volcengine/veadk-go/knowledgebase/interface"
-	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/utils"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_tos"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_viking"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_viking/viking_knowledge"
+	_interface "github.com/volcengine/veadk-go/v2/knowledgebase/interface"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/ktypes"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/utils"
 )
 
 const (

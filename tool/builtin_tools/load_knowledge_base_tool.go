@@ -15,10 +15,11 @@
 package builtin_tools
 
 import (
-	"github.com/volcengine/veadk-go/knowledgebase"
-	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/volcengine/veadk-go/v2/knowledgebase"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/ktypes"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 type QueryKnowledgeReq struct {
@@ -36,7 +37,7 @@ type KnowledgeBaseResult struct {
 // Returns:
 // A list of knowledge base results.
 func LoadKnowledgeBaseTool(knowledge *knowledgebase.KnowledgeBase) (tool.Tool, error) {
-	handler := func(ctx tool.Context, req *QueryKnowledgeReq) (KnowledgeBaseResult, error) {
+	handler := func(ctx agent.Context, req *QueryKnowledgeReq) (KnowledgeBaseResult, error) {
 		result, err := knowledge.Backend.Search(req.Query)
 		if err != nil {
 			return KnowledgeBaseResult{}, err

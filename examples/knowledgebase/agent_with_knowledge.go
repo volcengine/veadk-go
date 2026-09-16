@@ -21,19 +21,19 @@ import (
 	"strings"
 	"time"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	"github.com/volcengine/veadk-go/integrations/ve_tos"
-	"github.com/volcengine/veadk-go/knowledgebase"
-	"github.com/volcengine/veadk-go/knowledgebase/backend/viking_knowledge_backend"
-	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
-	"github.com/volcengine/veadk-go/log"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_tos"
+	"github.com/volcengine/veadk-go/v2/knowledgebase"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/backend/viking_knowledge_backend"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/ktypes"
+	"github.com/volcengine/veadk-go/v2/log"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 func main() {
@@ -106,7 +106,7 @@ type CalculateDateDifferenceArgs struct {
 }
 
 func CalculateDateDifferenceTool() (tool.Tool, error) {
-	handler := func(ctx tool.Context, args CalculateDateDifferenceArgs) (map[string]any, error) {
+	handler := func(ctx agent.Context, args CalculateDateDifferenceArgs) (map[string]any, error) {
 		diff, err := CalculateDateDifference(args.Date1, args.Date2)
 		if err != nil {
 			return nil, err

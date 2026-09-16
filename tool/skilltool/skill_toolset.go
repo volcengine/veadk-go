@@ -28,13 +28,13 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/volcengine/veadk-go/code_executors"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/skills"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/volcengine/veadk-go/v2/code_executors"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/skills"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"google.golang.org/genai"
 )
 
@@ -113,7 +113,7 @@ func (s *SkillToolset) Tools(ctx agent.ReadonlyContext) ([]tool.Tool, error) {
 //	return s.tools
 //}
 
-func (s *SkillToolset) ProcessRequest(ctx tool.Context, req *model.LLMRequest) error {
+func (s *SkillToolset) ProcessRequest(ctx agent.Context, req *model.LLMRequest) error {
 	skillList := s.listSkills()
 	skillXML := skills.FormatSkillsAsXML(skillList)
 	instruction := []string{s.instruction, skillXML}
@@ -155,7 +155,7 @@ func (s *SkillToolset) listSkills() []*skills.Skill {
 
 type listSkillsArgs struct{}
 
-func (s *SkillToolset) listSkillsToolHandler(ctx tool.Context, args listSkillsArgs) (map[string]any, error) {
+func (s *SkillToolset) listSkillsToolHandler(ctx agent.Context, args listSkillsArgs) (map[string]any, error) {
 	xml := skills.FormatSkillsAsXML(s.listSkills())
 	return map[string]any{"result": xml}, nil
 }
@@ -173,7 +173,7 @@ type loadSkillArgs struct {
 	Name string `json:"name" jsonschema:"The name of the skill to load."`
 }
 
-func (s *SkillToolset) loadSkillToolHandler(ctx tool.Context, args loadSkillArgs) (map[string]any, error) {
+func (s *SkillToolset) loadSkillToolHandler(ctx agent.Context, args loadSkillArgs) (map[string]any, error) {
 	if strings.TrimSpace(args.Name) == "" {
 		return map[string]any{
 			"error":      "Skill name is required.",
@@ -209,7 +209,7 @@ type loadSkillResourceArgs struct {
 	Path      string `json:"path" jsonschema:"The relative path to the resource (e.g., 'references/x.md', 'assets/template.txt', 'scripts/setup.sh')."`
 }
 
-func (s *SkillToolset) loadSkillResourceToolHandler(ctx tool.Context, args loadSkillResourceArgs) (map[string]any, error) {
+func (s *SkillToolset) loadSkillResourceToolHandler(ctx agent.Context, args loadSkillResourceArgs) (map[string]any, error) {
 	if strings.TrimSpace(args.SkillName) == "" {
 		return map[string]any{"error": "Skill name is required.", "error_code": "MISSING_SKILL_NAME"}, nil
 	}
@@ -283,7 +283,7 @@ type runSkillScriptArgs struct {
 	Args       []string `json:"args_list" jsonschema:"Optional arguments to pass to the script as list."`
 }
 
-func (s *SkillToolset) runSkillScriptToolHandler(ctx tool.Context, args runSkillScriptArgs) (map[string]any, error) {
+func (s *SkillToolset) runSkillScriptToolHandler(ctx agent.Context, args runSkillScriptArgs) (map[string]any, error) {
 	if strings.TrimSpace(args.SkillName) == "" {
 		return map[string]any{"error": "Skill name is required.", "error_code": "MISSING_SKILL_NAME"}, nil
 	}

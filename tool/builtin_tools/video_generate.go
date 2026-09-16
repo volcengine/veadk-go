@@ -19,16 +19,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/utils"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/utils"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 	"github.com/volcengine/volcengine-go-sdk/volcengine"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 var videoGenerateToolDescription = `
@@ -194,7 +195,7 @@ func NewVideoGenerateTool(config *VideoGenerateConfig) (tool.Tool, error) {
 
 	log.Debug("Initializing video generation tool", "model", config.ModelName, "base_url", config.BaseURL)
 
-	handler := func(ctx tool.Context, toolRequest VideoGenerateToolRequest) (*VideoGenerateResult, error) {
+	handler := func(ctx agent.Context, toolRequest VideoGenerateToolRequest) (*VideoGenerateResult, error) {
 		client := arkruntime.NewClientWithApiKey(
 			config.APIKey,
 			arkruntime.WithBaseUrl(config.BaseURL),

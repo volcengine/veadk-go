@@ -22,8 +22,8 @@ import (
 
 	"github.com/bytedance/mockey"
 	"github.com/stretchr/testify/assert"
-	"github.com/volcengine/veadk-go/auth/veauth"
-	mem0 "github.com/volcengine/veadk-go/integrations/ve_mem0"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	mem0 "github.com/volcengine/veadk-go/v2/integrations/ve_mem0"
 )
 
 func TestNewMem0MemoryBackend(t *testing.T) {

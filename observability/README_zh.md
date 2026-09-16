@@ -87,10 +87,10 @@ observability:
 
 ```go
 import (
-    "github.com/volcengine/veadk-go/observability"
-    "google.golang.org/adk/cmd/launcher/full"
-    "google.golang.org/adk/runner"
-    "google.golang.org/adk/plugin"
+    "github.com/volcengine/veadk-go/v2/observability"
+    "google.golang.org/adk/v2/cmd/launcher/full"
+    "google.golang.org/adk/v2/runner"
+    "google.golang.org/adk/v2/plugin"
 )
 
 func main() {

@@ -19,8 +19,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/log"
 
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"

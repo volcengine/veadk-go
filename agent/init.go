@@ -15,9 +15,9 @@
 package agents
 
 import (
-	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/v2/log"
 
-	"github.com/volcengine/veadk-go/configs"
+	"github.com/volcengine/veadk-go/v2/configs"
 )
 
 func init() {

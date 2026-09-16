@@ -18,17 +18,17 @@ import (
 	"context"
 	"fmt"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	"github.com/volcengine/veadk-go/log"
-	vem "github.com/volcengine/veadk-go/memory"
-	"github.com/volcengine/veadk-go/tool/builtin_tools"
-	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/v2/log"
+	vem "github.com/volcengine/veadk-go/v2/memory"
+	"github.com/volcengine/veadk-go/v2/tool/builtin_tools"
+	"github.com/volcengine/veadk-go/v2/utils"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 )
 
@@ -44,7 +44,7 @@ func main() {
 		return
 	}
 
-	onBeforeAgent := func(ctx agent.CallbackContext) (*genai.Content, error) {
+	onBeforeAgent := func(ctx agent.Context) (*genai.Content, error) {
 		resp, err := sessionServer.Get(ctx, &session.GetRequest{AppName: ctx.AppName(), UserID: ctx.UserID(), SessionID: ctx.SessionID()})
 		if err != nil {
 			log.Errorf("Failed to get completed session: %v", err)

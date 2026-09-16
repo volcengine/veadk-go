@@ -18,11 +18,11 @@ import (
 	"context"
 	"flag"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/a2a_app"
-	"github.com/volcengine/veadk-go/log"
-	"google.golang.org/adk/agent"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/a2a_app"
+	"github.com/volcengine/veadk-go/v2/log"
+	"google.golang.org/adk/v2/agent"
 )
 
 func main() {

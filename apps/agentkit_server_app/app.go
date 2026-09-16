@@ -20,14 +20,14 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/a2a_app"
-	"github.com/volcengine/veadk-go/apps/simple_app"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/observability"
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/web/webui"
-	"google.golang.org/adk/server/adkrest"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/a2a_app"
+	"github.com/volcengine/veadk-go/v2/apps/simple_app"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/observability"
+	"google.golang.org/adk/v2/cmd/launcher"
+	"google.golang.org/adk/v2/cmd/launcher/web/webui"
+	"google.golang.org/adk/v2/server/adkrest"
 )
 
 const serverName = "agentkit server"

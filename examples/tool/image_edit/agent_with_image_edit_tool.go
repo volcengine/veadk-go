@@ -17,14 +17,14 @@ package main
 import (
 	"context"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/tool/builtin_tools"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/tool"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/tool/builtin_tools"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/tool"
 )
 
 func main() {

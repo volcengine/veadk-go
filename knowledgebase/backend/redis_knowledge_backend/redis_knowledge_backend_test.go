@@ -23,7 +23,7 @@ import (
 	"github.com/bytedance/mockey"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
-	"github.com/volcengine/veadk-go/model"
+	"github.com/volcengine/veadk-go/v2/model"
 )
 
 func TestRedisKnowledgeBackend_New(t *testing.T) {

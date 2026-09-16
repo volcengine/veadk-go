@@ -18,15 +18,15 @@ import (
 	"context"
 	"fmt"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/utils"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 // CalculatorAddArgs 定义加法工具的入参。使用静态类型，便于 LLM 以 JSON 方式调用。
@@ -38,7 +38,7 @@ type CalculatorAddArgs struct {
 // CalculatorAddTool 返回一个符合 ADK functiontool 规范的工具。
 // 该工具用于执行两数相加，并返回 result 字段。
 func CalculatorAddTool() (tool.Tool, error) {
-	handler := func(ctx tool.Context, args CalculatorAddArgs) (map[string]any, error) {
+	handler := func(ctx agent.Context, args CalculatorAddArgs) (map[string]any, error) {
 		result := args.A + args.B
 		return map[string]any{
 			"result":  result,
@@ -60,7 +60,7 @@ type MessageCheckerArgs struct {
 }
 
 func NewMessageCheckerTool() (tool.Tool, error) {
-	messageCheckerHandler := func(ctx tool.Context, args MessageCheckerArgs) (map[string]any, error) {
+	messageCheckerHandler := func(ctx agent.Context, args MessageCheckerArgs) (map[string]any, error) {
 		return map[string]any{
 			"result": fmt.Sprintf("Checked message: %s", args.UserMessage),
 			"explain": map[string]string{

@@ -18,17 +18,17 @@ import (
 	"context"
 	"time"
 
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/log"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/plugin"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/plugin"
+	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 )
 
@@ -236,14 +236,14 @@ func (p *adkObservabilityPlugin) AfterRun(ctx agent.InvocationContext) {
 // BeforeAgent is called before an agent execution.
 // This is the primary trace-bridging point for adk trace -> veadk invocation trace.
 // BeforeModel keeps an idempotent bridge as a secondary safety net.
-func (p *adkObservabilityPlugin) BeforeAgent(ctx agent.CallbackContext) (*genai.Content, error) {
+func (p *adkObservabilityPlugin) BeforeAgent(ctx agent.Context) (*genai.Content, error) {
 	log.Debug("BeforeAgent",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	p.tryBridgeTraceMappingFromCallback(ctx, "BeforeAgent")
 	return nil, nil
 }
 
-func (p *adkObservabilityPlugin) tryBridgeTraceMappingFromCallback(ctx agent.CallbackContext, stage string) {
+func (p *adkObservabilityPlugin) tryBridgeTraceMappingFromCallback(ctx agent.Context, stage string) {
 	adkSC := trace.SpanFromContext(context.Context(ctx)).SpanContext()
 	veadkInvocationSC, ok := getInvocationSpanContextFromState(ctx.State())
 	if !ok {
@@ -261,14 +261,14 @@ func (p *adkObservabilityPlugin) tryBridgeTraceMappingFromCallback(ctx agent.Cal
 }
 
 // AfterAgent is called after an agent execution.
-func (p *adkObservabilityPlugin) AfterAgent(ctx agent.CallbackContext) (*genai.Content, error) {
+func (p *adkObservabilityPlugin) AfterAgent(ctx agent.Context) (*genai.Content, error) {
 	log.Debug("AfterAgent",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	return nil, nil
 }
 
 // BeforeModel is called before the LLM is called.
-func (p *adkObservabilityPlugin) BeforeModel(ctx agent.CallbackContext, req *model.LLMRequest) (*model.LLMResponse, error) {
+func (p *adkObservabilityPlugin) BeforeModel(ctx agent.Context, req *model.LLMRequest) (*model.LLMResponse, error) {
 	log.Debug("BeforeModel",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	p.tryBridgeTraceMappingFromCallback(ctx, "BeforeModel")
@@ -284,7 +284,7 @@ func (p *adkObservabilityPlugin) BeforeModel(ctx agent.CallbackContext, req *mod
 }
 
 // AfterModel is called after the LLM returns.
-func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *model.LLMResponse, err error) (*model.LLMResponse, error) {
+func (p *adkObservabilityPlugin) AfterModel(ctx agent.Context, resp *model.LLMResponse, err error) (*model.LLMResponse, error) {
 	log.Debug("AfterModel",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	meta := p.getSpanMetadata(ctx.State())
@@ -345,7 +345,7 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 	return nil, nil
 }
 
-func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.CallbackContext, meta *spanMetadata, finalModelName string) {
+func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.Context, meta *spanMetadata, finalModelName string) {
 	if !meta.StartTime.IsZero() {
 		duration := time.Since(meta.StartTime).Seconds()
 		metricAttrs := []attribute.KeyValue{
@@ -365,7 +365,7 @@ func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.CallbackCo
 // then emits LLM usage metrics for the current response.
 //
 // This remains in plugin callbacks because invocation-level accumulation requires cross-callback state.
-func (p *adkObservabilityPlugin) accumulateLLMUsageAndRecordMetrics(ctx agent.CallbackContext, resp *model.LLMResponse, modelName string) {
+func (p *adkObservabilityPlugin) accumulateLLMUsageAndRecordMetrics(ctx agent.Context, resp *model.LLMResponse, modelName string) {
 	meta := p.getSpanMetadata(ctx.State())
 
 	currentPrompt := int64(resp.UsageMetadata.PromptTokenCount)
@@ -408,7 +408,7 @@ func mergeUsageTotals(prevPrompt, prevCandidate, prevTotal, currentPrompt, curre
 // Tool span metrics and token estimation are handled in span processor / translator paths.
 // BeforeTool is a lightweight debug-only callback.
 // Tool span metrics and token estimation are handled in span processor / translator paths.
-func (p *adkObservabilityPlugin) BeforeTool(ctx tool.Context, t tool.Tool, args map[string]any) (map[string]any, error) {
+func (p *adkObservabilityPlugin) BeforeTool(ctx agent.Context, t tool.Tool, args map[string]any) (map[string]any, error) {
 	log.Debug("BeforeTool",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName(),
 		"ToolName", t.Name(), "ToolArgs", args)
@@ -419,7 +419,7 @@ func (p *adkObservabilityPlugin) BeforeTool(ctx tool.Context, t tool.Tool, args 
 // Tool span metrics and token estimation are handled in span processor / translator paths.
 // AfterTool is a lightweight debug-only callback.
 // Tool span metrics and token estimation are handled in span processor / translator paths.
-func (p *adkObservabilityPlugin) AfterTool(ctx tool.Context, t tool.Tool, args map[string]any, result map[string]any, err error) (map[string]any, error) {
+func (p *adkObservabilityPlugin) AfterTool(ctx agent.Context, t tool.Tool, args map[string]any, result map[string]any, err error) (map[string]any, error) {
 	log.Debug("AfterTool",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName(),
 		"ToolName", t.Name(), "ToolArgs", args, "ToolResult", result, "ToolError", err)

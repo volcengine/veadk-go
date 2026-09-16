@@ -28,11 +28,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"github.com/volcengine/veadk-go/configs"
-	_interface "github.com/volcengine/veadk-go/knowledgebase/interface"
-	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/model"
+	"github.com/volcengine/veadk-go/v2/configs"
+	_interface "github.com/volcengine/veadk-go/v2/knowledgebase/interface"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/ktypes"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/model"
 )
 
 const (

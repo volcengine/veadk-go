@@ -24,13 +24,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/utils"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const (
@@ -106,7 +107,7 @@ func NewLinkReaderTool(cfg *LinkReaderConfig) (tool.Tool, error) {
 		cfg.linkReaderHandler)
 }
 
-func (c *LinkReaderConfig) linkReaderHandler(ctx tool.Context, req LinkReaderRequest) (LinkReaderResult, error) {
+func (c *LinkReaderConfig) linkReaderHandler(ctx agent.Context, req LinkReaderRequest) (LinkReaderResult, error) {
 	urls, err := normalizeLinkReaderURLs(req.URLList)
 	if err != nil {
 		return LinkReaderResult{}, err

@@ -24,8 +24,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/log"
 
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"

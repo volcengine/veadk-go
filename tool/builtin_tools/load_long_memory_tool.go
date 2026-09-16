@@ -18,8 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"google.golang.org/genai"
 )
 
@@ -41,7 +42,7 @@ type Result struct {
 	Results []string `json:"results"`
 }
 
-func memorySearchToolFunc(tctx tool.Context, args Args) (Result, error) {
+func memorySearchToolFunc(tctx agent.Context, args Args) (Result, error) {
 
 	searchResults, err := tctx.SearchMemory(context.Background(), args.Query)
 	if err != nil {

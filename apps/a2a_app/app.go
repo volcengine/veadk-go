@@ -20,15 +20,16 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/v2/log"
 
-	a2acore "github.com/a2aproject/a2a-go/a2a"
-	"github.com/a2aproject/a2a-go/a2asrv"
+	a2acore "github.com/a2aproject/a2a-go/v2/a2a"
+	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	"github.com/gorilla/mux"
-	"github.com/volcengine/veadk-go/apps"
-	"google.golang.org/adk/cmd/launcher/web/a2a"
-	"google.golang.org/adk/runner"
-	"google.golang.org/adk/server/adka2a"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"google.golang.org/adk/v2/cmd/launcher/web/a2a"
+	"google.golang.org/adk/v2/runner"
+	adka2a "google.golang.org/adk/v2/server/adka2a/v2"
+	"google.golang.org/genai"
 )
 
 const (
@@ -53,19 +54,22 @@ func (a *agentkitA2AServerApp) SetupRouters(router *mux.Router, config *apps.Run
 	}
 	rootAgent := config.AgentLoader.RootAgent()
 	agentCard := &a2acore.AgentCard{
-		Name:                              rootAgent.Name(),
-		Description:                       rootAgent.Description(),
-		DefaultInputModes:                 []string{"text/plain"},
-		DefaultOutputModes:                []string{"text/plain"},
-		URL:                               a.GetA2APublicURL(),
-		PreferredTransport:                a2acore.TransportProtocolJSONRPC,
-		Skills:                            adka2a.BuildAgentSkills(rootAgent),
-		Capabilities:                      a2acore.AgentCapabilities{Streaming: true},
-		SupportsAuthenticatedExtendedCard: false,
+		Name:               rootAgent.Name(),
+		Description:        rootAgent.Description(),
+		DefaultInputModes:  []string{"text/plain"},
+		DefaultOutputModes: []string{"text/plain"},
+		SupportedInterfaces: []*a2acore.AgentInterface{
+			a2acore.NewAgentInterface(a.GetA2APublicURL(), a2acore.TransportProtocolJSONRPC),
+		},
+		Version:      "2.0.0",
+		Skills:       adka2a.BuildAgentSkills(rootAgent),
+		Capabilities: a2acore.AgentCapabilities{Streaming: true},
 	}
 	cardHandler := http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requestCard := *agentCard
-		requestCard.URL = a.ResolveAgentCardURL(request)
+		requestCard.SupportedInterfaces = []*a2acore.AgentInterface{
+			a2acore.NewAgentInterface(a.ResolveAgentCardURL(request), a2acore.TransportProtocolJSONRPC),
+		}
 		writer.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(writer).Encode(&requestCard); err != nil {
 			log.Errorf("failed to encode A2A Agent Card")
@@ -84,6 +88,7 @@ func (a *agentkitA2AServerApp) SetupRouters(router *mux.Router, config *apps.Run
 			MemoryService:   config.MemoryService,
 			PluginConfig:    config.PluginConfig,
 		},
+		A2APartConverter: emptyTextCompatiblePartConverter,
 	})
 	reqHandler := a2asrv.NewHandler(executor, config.A2AOptions...)
 	router.Handle(a.GetA2APath(), a2asrv.NewJSONRPCHandler(reqHandler)).Methods(http.MethodPost)
@@ -109,4 +114,14 @@ func NewAgentkitA2AServerApp(config *apps.ApiConfig) apps.BasicApp {
 	return &agentkitA2AServerApp{
 		ApiConfig: config,
 	}
+}
+
+func emptyTextCompatiblePartConverter(ctx context.Context, event a2acore.Event, part *a2acore.Part) (*genai.Part, error) {
+	if part == nil {
+		return nil, nil
+	}
+	if text, ok := part.Content.(a2acore.Text); ok {
+		return genai.NewPartFromText(string(text)), nil
+	}
+	return adka2a.ToGenAIPart(part)
 }

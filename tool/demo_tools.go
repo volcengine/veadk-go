@@ -18,8 +18,9 @@ import (
 	"fmt"
 	"strings"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 func GetCityWeather(city string) (map[string]any, error) {
@@ -50,7 +51,7 @@ type GetCityWeatherArgs struct {
 }
 
 func GetCityWeatherTool() (tool.Tool, error) {
-	handler := func(ctx tool.Context, args GetCityWeatherArgs) (map[string]any, error) {
+	handler := func(ctx agent.Context, args GetCityWeatherArgs) (map[string]any, error) {
 		return GetCityWeather(args.City)
 	}
 	return functiontool.New(

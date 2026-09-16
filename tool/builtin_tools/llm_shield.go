@@ -24,16 +24,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/integrations/ve_sign"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/plugin"
-	"google.golang.org/adk/tool"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_sign"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/utils"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/plugin"
+	"google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 )
 
@@ -284,7 +284,7 @@ func NewLLMShieldPlugins() (*plugin.Plugin, error) {
 }
 
 // BeforeModelCallback 在发送给模型前检查用户输入
-func (p *LLMShieldClient) beforeModelCallBack(ctx agent.CallbackContext, req *model.LLMRequest) (*model.LLMResponse, error) {
+func (p *LLMShieldClient) beforeModelCallBack(ctx agent.Context, req *model.LLMRequest) (*model.LLMResponse, error) {
 	var lastUserMessage string
 	var messageBuilder strings.Builder
 
@@ -327,7 +327,7 @@ func (p *LLMShieldClient) beforeModelCallBack(ctx agent.CallbackContext, req *mo
 }
 
 // AfterModelCallback 在返回给用户前检查模型输出
-func (p *LLMShieldClient) afterModelCallBack(ctx agent.CallbackContext, resp *model.LLMResponse, llmResponseError error) (*model.LLMResponse, error) {
+func (p *LLMShieldClient) afterModelCallBack(ctx agent.Context, resp *model.LLMResponse, llmResponseError error) (*model.LLMResponse, error) {
 	var lastModelMessage string
 	if resp.Content.Role == "model" && len(resp.Content.Parts) > 0 {
 		lastModelMessage = resp.Content.Parts[0].Text
@@ -364,7 +364,7 @@ func (p *LLMShieldClient) afterModelCallBack(ctx agent.CallbackContext, resp *mo
 }
 
 // BeforeToolCallback 在工具执行前检查参数
-func (p *LLMShieldClient) beforeToolCallback(ctx tool.Context, tool tool.Tool, args map[string]any) (map[string]any, error) {
+func (p *LLMShieldClient) beforeToolCallback(ctx agent.Context, tool tool.Tool, args map[string]any) (map[string]any, error) {
 	var argsList []string
 	for k, v := range args {
 		argsList = append(argsList, fmt.Sprintf("%s: %v", k, v))
@@ -384,7 +384,7 @@ func (p *LLMShieldClient) beforeToolCallback(ctx tool.Context, tool tool.Tool, a
 }
 
 // AfterToolCallback 在工具执行后检查结果
-func (p *LLMShieldClient) afterToolCallback(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
+func (p *LLMShieldClient) afterToolCallback(ctx agent.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
 	if err != nil {
 		return result, err
 	}

@@ -19,12 +19,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/configs"
-	mem0 "github.com/volcengine/veadk-go/integrations/ve_mem0"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/utils"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/configs"
+	mem0 "github.com/volcengine/veadk-go/v2/integrations/ve_mem0"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/utils"
 )
 
 var (

@@ -19,10 +19,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/volcengine/veadk-go/configs"
+	"github.com/volcengine/veadk-go/v2/configs"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/adk/agent"
+	"google.golang.org/adk/v2/agent"
 )
 
 var isAgentKitRuntime = checkAgentKitRuntime()

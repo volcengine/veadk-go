@@ -15,8 +15,8 @@
 package configs
 
 import (
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/utils"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/utils"
 )
 
 type Logging struct {

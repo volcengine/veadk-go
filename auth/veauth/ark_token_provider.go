@@ -26,8 +26,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/integrations/ve_sign"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_sign"
 	"golang.org/x/sync/singleflight"
 )
 

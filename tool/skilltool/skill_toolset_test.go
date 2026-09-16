@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/volcengine/veadk-go/code_executors"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/skills"
-	"google.golang.org/adk/tool"
+	"github.com/volcengine/veadk-go/v2/code_executors"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/skills"
+	"google.golang.org/adk/v2/agent"
 )
 
 var mockSkills = map[string]*skills.Skill{
@@ -171,7 +171,7 @@ func TestLoadSkillResourceTool(t *testing.T) {
 }
 
 type mockToolContext struct {
-	tool.Context
+	agent.Context
 }
 
 func (m *mockToolContext) InvocationID() string {

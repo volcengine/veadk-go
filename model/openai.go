@@ -29,8 +29,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/volcengine/veadk-go/common"
-	"google.golang.org/adk/model"
+	"github.com/volcengine/veadk-go/v2/common"
+	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 )
 
