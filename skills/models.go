@@ -162,18 +162,6 @@ func (s *stringList) UnmarshalYAML(node *yaml.Node) error {
 }
 
 func (f *Frontmatter) SkillPromptEntry() string {
-	if len(f.Triggers) != 0 {
-		triggers := make([]string, 0, len(f.Triggers))
-		for _, trigger := range f.Triggers {
-			trigger = strings.TrimSpace(trigger)
-			if trigger != "" {
-				triggers = append(triggers, trigger)
-			}
-		}
-		if len(triggers) != 0 {
-			return fmt.Sprintf("- name: %s, description: %s, triggers: %s", f.Name, f.Description, strings.Join(triggers, ", "))
-		}
-	}
 	return fmt.Sprintf("- name: %s, description: %s", f.Name, f.Description)
 }
 

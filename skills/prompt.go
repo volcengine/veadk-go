@@ -40,19 +40,6 @@ func FormatSkillsAsXML(skills []*Skill) string {
 		b.WriteString("<description>\n")
 		b.WriteString(html.EscapeString(item.Description()))
 		b.WriteString("\n</description>\n")
-		if len(item.Frontmatter.Triggers) != 0 {
-			b.WriteString("<triggers>\n")
-			for _, trigger := range item.Frontmatter.Triggers {
-				trigger = strings.TrimSpace(trigger)
-				if trigger == "" {
-					continue
-				}
-				b.WriteString("- ")
-				b.WriteString(html.EscapeString(trigger))
-				b.WriteString("\n")
-			}
-			b.WriteString("</triggers>\n")
-		}
 		b.WriteString("</skill>\n")
 	}
 
