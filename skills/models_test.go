@@ -150,7 +150,7 @@ func TestSkill_Valid(t *testing.T) {
 	}
 }
 
-func TestFrontmatterSkillPromptEntryIncludesTriggers(t *testing.T) {
+func TestFrontmatterSkillPromptEntryOmitsTriggers(t *testing.T) {
 	frontmatter := Frontmatter{
 		Name:        "extended-skill",
 		Description: "Handle an extended skill fixture.",
@@ -158,7 +158,7 @@ func TestFrontmatterSkillPromptEntryIncludesTriggers(t *testing.T) {
 	}
 
 	got := frontmatter.SkillPromptEntry()
-	want := "- name: extended-skill, description: Handle an extended skill fixture., triggers: 示例触发词, example trigger"
+	want := "- name: extended-skill, description: Handle an extended skill fixture."
 	if got != want {
 		t.Fatalf("SkillPromptEntry() = %q, want %q", got, want)
 	}
