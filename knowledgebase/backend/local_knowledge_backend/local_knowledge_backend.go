@@ -26,8 +26,8 @@ import (
 	"sync"
 	"unicode"
 
-	_interface "github.com/volcengine/veadk-go/knowledgebase/interface"
-	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
+	_interface "github.com/volcengine/veadk-go/v2/knowledgebase/interface"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/ktypes"
 )
 
 const (

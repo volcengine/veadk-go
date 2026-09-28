@@ -22,14 +22,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/integrations/ve_sign"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_sign"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/utils"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 //The document of this tools see: https://www.volcengine.com/docs/85508/1650263
@@ -86,7 +87,7 @@ type webSearchCredential struct {
 	Header map[string]string
 }
 
-func resolveWebSearchCredential(ctx tool.Context) webSearchCredential {
+func resolveWebSearchCredential(ctx agent.Context) webSearchCredential {
 	var header map[string]string
 	credential := webSearchCredential{}
 	if ctx != nil {
@@ -160,7 +161,7 @@ func (c Config) search(query string, credential webSearchCredential) ([]string, 
 	return out, nil
 }
 
-func (c Config) webSearchHandler(ctx tool.Context, args WebSearchArgs) (WebSearchResult, error) {
+func (c Config) webSearchHandler(ctx agent.Context, args WebSearchArgs) (WebSearchResult, error) {
 	result, err := c.search(args.Query, resolveWebSearchCredential(ctx))
 	if err != nil {
 		return WebSearchResult{Result: make([]string, 0)}, err
@@ -168,7 +169,7 @@ func (c Config) webSearchHandler(ctx tool.Context, args WebSearchArgs) (WebSearc
 	return WebSearchResult{Result: result}, nil
 }
 
-func (c Config) parallelWebSearchHandler(ctx tool.Context, args ParallelWebSearchArgs) (ParallelWebSearchResult, error) {
+func (c Config) parallelWebSearchHandler(ctx agent.Context, args ParallelWebSearchArgs) (ParallelWebSearchResult, error) {
 	out := ParallelWebSearchResult{
 		Result: make(map[string][]string),
 		Errors: make(map[string]string),

@@ -15,10 +15,10 @@
 package parallelagent
 
 import (
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/prompts"
-	"google.golang.org/adk/agent"
-	googleADKParallelAgent "google.golang.org/adk/agent/workflowagents/parallelagent"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/prompts"
+	"google.golang.org/adk/v2/agent"
+	googleADKParallelAgent "google.golang.org/adk/v2/agent/workflowagents/parallelagent"
 )
 
 // Config defines the configuration for a ParallelAgent.

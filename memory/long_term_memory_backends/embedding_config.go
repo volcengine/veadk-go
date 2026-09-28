@@ -17,8 +17,8 @@ package long_term_memory_backends
 import (
 	"context"
 
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/model"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/model"
 )
 
 // EmbeddingConfig holds configuration for creating an embedding model.

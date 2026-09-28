@@ -26,8 +26,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/skills"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/skills"
 )
 
 func main() {

@@ -18,7 +18,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/v2/common"
 )
 
 func TestNew_NilConfig(t *testing.T) {

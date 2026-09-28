@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/log"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/resource"

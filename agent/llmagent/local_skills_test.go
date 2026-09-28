@@ -23,9 +23,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/volcengine/veadk-go/skills"
-	adkllmagent "google.golang.org/adk/agent/llmagent"
-	adkmodel "google.golang.org/adk/model"
+	"github.com/volcengine/veadk-go/v2/skills"
+	adkllmagent "google.golang.org/adk/v2/agent/llmagent"
+	adkmodel "google.golang.org/adk/v2/model"
 )
 
 type localSkillsTestModel struct{}

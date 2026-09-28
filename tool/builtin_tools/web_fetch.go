@@ -30,8 +30,9 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const (
@@ -159,8 +160,8 @@ func (c *WebFetchConfig) applyDefaults() {
 
 func (c *WebFetchConfig) webFetchHandler(
 	cache *webFetchCache,
-) func(tool.Context, WebFetchArgs) (WebFetchResult, error) {
-	return func(ctx tool.Context, args WebFetchArgs) (WebFetchResult, error) {
+) func(agent.Context, WebFetchArgs) (WebFetchResult, error) {
+	return func(ctx agent.Context, args WebFetchArgs) (WebFetchResult, error) {
 		mode := "markdown"
 		if args.ExtractMode == "text" {
 			mode = "text"

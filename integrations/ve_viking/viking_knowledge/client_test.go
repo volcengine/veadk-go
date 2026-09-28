@@ -18,7 +18,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/volcengine/veadk-go/integrations/ve_viking"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_viking"
 )
 
 func TestBuildDocFilterQuery(t *testing.T) {

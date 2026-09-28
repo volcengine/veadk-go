@@ -22,14 +22,15 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/integrations/ve_sign"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_sign"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/utils"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const (
@@ -58,7 +59,7 @@ type RunCodeArgs struct {
 	Timeout  uint   `json:"timeout" jsonschema:"The timeout in seconds for the code execution. Defaults to 30."`
 }
 
-func runCodeHandler(ctx tool.Context, args RunCodeArgs) (map[string]any, error) {
+func runCodeHandler(ctx agent.Context, args RunCodeArgs) (map[string]any, error) {
 	var result = make(map[string]any)
 
 	toolID := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_ID, configs.GetGlobalConfig().Tool.RunCode.ToolID)

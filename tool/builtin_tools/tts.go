@@ -28,11 +28,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/utils"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const (
@@ -123,7 +124,7 @@ func NewTTSTool(cfg *TTSConfig) (tool.Tool, error) {
 		cfg.ttsHandler)
 }
 
-func (c *TTSConfig) ttsHandler(ctx tool.Context, args TTSArgs) (TTSResult, error) {
+func (c *TTSConfig) ttsHandler(ctx agent.Context, args TTSArgs) (TTSResult, error) {
 	text := strings.TrimSpace(args.Text)
 	if text == "" {
 		return TTSResult{}, fmt.Errorf("tts text is empty")

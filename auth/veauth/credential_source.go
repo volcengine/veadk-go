@@ -21,7 +21,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/v2/common"
 )
 
 // CredentialSource resolves a Role credential when it is first needed. It is

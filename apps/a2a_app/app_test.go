@@ -29,14 +29,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/a2aproject/a2a-go/a2a"
-	"github.com/a2aproject/a2a-go/a2aclient"
-	"github.com/a2aproject/a2a-go/a2asrv"
+	"github.com/a2aproject/a2a-go/v2/a2a"
+	"github.com/a2aproject/a2a-go/v2/a2aclient"
+	"github.com/a2aproject/a2a-go/v2/a2asrv"
+	"github.com/a2aproject/a2a-go/v2/a2asrv/eventqueue"
+	"github.com/a2aproject/a2a-go/v2/a2asrv/taskstore"
 	"github.com/gorilla/mux"
-	"github.com/volcengine/veadk-go/apps"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/session"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 )
 
@@ -75,8 +77,8 @@ func TestAgentCardsUseExplicitPublicRoutingAndIgnoreUntrustedHeaders(t *testing.
 	}
 
 	for i, card := range cards {
-		if got, want := card.URL, "https://agents.example/sandbox/public/a2a"; got != want {
-			t.Fatalf("card[%d].URL = %q, want %q", i, got, want)
+		if got, want := primaryAgentCardURL(&card), "https://agents.example/sandbox/public/a2a"; got != want {
+			t.Fatalf("card[%d] primary URL = %q, want %q", i, got, want)
 		}
 		if !card.Capabilities.Streaming {
 			t.Fatalf("card[%d] does not declare verified streaming support", i)
@@ -133,8 +135,8 @@ func TestAgentCardForwardedURLIsExplicitOptIn(t *testing.T) {
 	if err := decodeJSON(response, &card); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := card.URL, "https://gateway.example:8443/edge/a2a"; got != want {
-		t.Fatalf("card.URL = %q, want %q", got, want)
+	if got, want := primaryAgentCardURL(&card), "https://gateway.example:8443/edge/a2a"; got != want {
+		t.Fatalf("card primary URL = %q, want %q", got, want)
 	}
 
 	request = httptest.NewRequest(http.MethodGet, a2asrv.WellKnownAgentCardPath, nil)
@@ -145,8 +147,8 @@ func TestAgentCardForwardedURLIsExplicitOptIn(t *testing.T) {
 	if err := decodeJSON(response, &card); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := card.URL, "https://configured.example/base/edge/a2a"; got != want {
-		t.Fatalf("invalid forwarded card.URL = %q, want fallback %q", got, want)
+	if got, want := primaryAgentCardURL(&card), "https://configured.example/base/edge/a2a"; got != want {
+		t.Fatalf("invalid forwarded card primary URL = %q, want fallback %q", got, want)
 	}
 }
 
@@ -167,7 +169,7 @@ func TestSendPollFailureMetadataHistoryAndSessionIsolation(t *testing.T) {
 		rootAgent,
 		sessionService,
 		apps.DefaultApiConfig().SetA2APath("/rpc"),
-		a2asrv.WithRequestContextInterceptor(metadataCapture),
+		a2asrv.WithExecutorContextInterceptor(metadataCapture),
 	)
 
 	const sessionCount = 8
@@ -180,13 +182,13 @@ func TestSendPollFailureMetadataHistoryAndSessionIsolation(t *testing.T) {
 	for i := range sessionCount {
 		contextID := fmt.Sprintf("session-%02d", i)
 		go func() {
-			message := a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: "prompt:" + contextID})
+			message := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("prompt:"+contextID))
 			message.ContextID = contextID
 			historyLength := 20
-			initial, err := client.SendMessage(t.Context(), &a2a.MessageSendParams{
+			initial, err := client.SendMessage(t.Context(), &a2a.SendMessageRequest{
 				Message:  message,
 				Metadata: map[string]any{"request_id": contextID},
-				Config:   &a2a.MessageSendConfig{HistoryLength: &historyLength},
+				Config:   &a2a.SendMessageConfig{HistoryLength: &historyLength},
 			})
 			if err != nil {
 				results <- result{contextID: contextID, err: err}
@@ -223,7 +225,7 @@ func TestSendPollFailureMetadataHistoryAndSessionIsolation(t *testing.T) {
 		}
 
 		historyLength := 20
-		withHistory, err := client.GetTask(t.Context(), &a2a.TaskQueryParams{ID: result.task.ID, HistoryLength: &historyLength})
+		withHistory, err := client.GetTask(t.Context(), &a2a.GetTaskRequest{ID: result.task.ID, HistoryLength: &historyLength})
 		if err != nil {
 			t.Fatalf("%s tasks/get with history: %v", result.contextID, err)
 		}
@@ -232,7 +234,7 @@ func TestSendPollFailureMetadataHistoryAndSessionIsolation(t *testing.T) {
 		}
 
 		historyLength = 0
-		withoutHistory, err := client.GetTask(t.Context(), &a2a.TaskQueryParams{ID: result.task.ID, HistoryLength: &historyLength})
+		withoutHistory, err := client.GetTask(t.Context(), &a2a.GetTaskRequest{ID: result.task.ID, HistoryLength: &historyLength})
 		if err != nil {
 			t.Fatalf("%s tasks/get without history: %v", result.contextID, err)
 		}
@@ -263,9 +265,9 @@ func TestSendPollFailureMetadataHistoryAndSessionIsolation(t *testing.T) {
 		}
 	}
 
-	failureMessage := a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: "fail:now"})
+	failureMessage := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("fail:now"))
 	failureMessage.ContextID = "failed-session"
-	failureResult, err := client.SendMessage(t.Context(), &a2a.MessageSendParams{Message: failureMessage})
+	failureResult, err := client.SendMessage(t.Context(), &a2a.SendMessageRequest{Message: failureMessage})
 	if err != nil {
 		t.Fatalf("send failed task: %v", err)
 	}
@@ -280,9 +282,9 @@ func TestSendPollFailureMetadataHistoryAndSessionIsolation(t *testing.T) {
 		t.Fatalf("failed task message = %#v", failedTask.Status.Message)
 	}
 
-	emptyMessage := a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: ""})
+	emptyMessage := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart(""))
 	emptyMessage.ContextID = "empty-text-session"
-	emptyResult, err := client.SendMessage(t.Context(), &a2a.MessageSendParams{Message: emptyMessage})
+	emptyResult, err := client.SendMessage(t.Context(), &a2a.SendMessageRequest{Message: emptyMessage})
 	if err != nil {
 		t.Fatalf("send empty text message: %v", err)
 	}
@@ -291,7 +293,7 @@ func TestSendPollFailureMetadataHistoryAndSessionIsolation(t *testing.T) {
 		t.Fatalf("empty text task = %#v, err = %v", emptyTask, err)
 	}
 
-	_, err = client.GetTask(t.Context(), &a2a.TaskQueryParams{ID: "missing-task"})
+	_, err = client.GetTask(t.Context(), &a2a.GetTaskRequest{ID: "missing-task"})
 	if !errors.Is(err, a2a.ErrTaskNotFound) {
 		t.Fatalf("unknown tasks/get error = %v, want ErrTaskNotFound", err)
 	}
@@ -313,9 +315,9 @@ func TestStreamingSSEEventOrderArtifactsTerminalAndDisconnect(t *testing.T) {
 	})
 	_, client := setupHTTPServer(t, rootAgent, session.InMemoryService(), apps.DefaultApiConfig().SetA2APath("/stream"))
 
-	message := a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: "stream"})
+	message := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("stream"))
 	var events []a2a.Event
-	for event, err := range client.SendStreamingMessage(t.Context(), &a2a.MessageSendParams{Message: message}) {
+	for event, err := range client.SendStreamingMessage(t.Context(), &a2a.SendMessageRequest{Message: message}) {
 		if err != nil {
 			t.Fatalf("message/stream error = %v", err)
 		}
@@ -329,8 +331,8 @@ func TestStreamingSSEEventOrderArtifactsTerminalAndDisconnect(t *testing.T) {
 		t.Fatalf("events[0] = %#v, want submitted task", events[0])
 	}
 	working, ok := events[1].(*a2a.TaskStatusUpdateEvent)
-	if !ok || working.Status.State != a2a.TaskStateWorking || working.Final {
-		t.Fatalf("events[1] = %#v, want non-final working status", events[1])
+	if !ok || working.Status.State != a2a.TaskStateWorking || working.Status.State.Terminal() {
+		t.Fatalf("events[1] = %#v, want non-terminal working status", events[1])
 	}
 	var artifactTexts []string
 	var sawLastChunk bool
@@ -350,7 +352,7 @@ func TestStreamingSSEEventOrderArtifactsTerminalAndDisconnect(t *testing.T) {
 		t.Fatal("stream did not contain a final artifact chunk")
 	}
 	terminal, ok := events[len(events)-1].(*a2a.TaskStatusUpdateEvent)
-	if !ok || terminal.Status.State != a2a.TaskStateCompleted || !terminal.Final {
+	if !ok || terminal.Status.State != a2a.TaskStateCompleted || !terminal.Status.State.Terminal() {
 		t.Fatalf("last event = %#v, want final completed status", events[len(events)-1])
 	}
 
@@ -361,8 +363,8 @@ func TestStreamingSSEEventOrderArtifactsTerminalAndDisconnect(t *testing.T) {
 	})
 	_, errorClient := setupHTTPServer(t, errorAgent, session.InMemoryService(), apps.DefaultApiConfig().SetA2APath("/stream"))
 	var errorEvents []a2a.Event
-	for event, err := range errorClient.SendStreamingMessage(t.Context(), &a2a.MessageSendParams{
-		Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: "fail stream"}),
+	for event, err := range errorClient.SendStreamingMessage(t.Context(), &a2a.SendMessageRequest{
+		Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("fail stream")),
 	}) {
 		if err != nil {
 			t.Fatalf("failed task must be represented as an A2A event: %v", err)
@@ -373,7 +375,7 @@ func TestStreamingSSEEventOrderArtifactsTerminalAndDisconnect(t *testing.T) {
 		t.Fatal("failed stream returned no A2A events")
 	}
 	failedTerminal, ok := errorEvents[len(errorEvents)-1].(*a2a.TaskStatusUpdateEvent)
-	if !ok || failedTerminal.Status.State != a2a.TaskStateFailed || !failedTerminal.Final {
+	if !ok || failedTerminal.Status.State != a2a.TaskStateFailed || !failedTerminal.Status.State.Terminal() {
 		t.Fatalf("failed stream terminal event = %#v", errorEvents[len(errorEvents)-1])
 	}
 	if failedTerminal.Status.Message == nil || !strings.Contains(messageText(failedTerminal.Status.Message), "stream execution failed") {
@@ -398,8 +400,8 @@ func TestStreamingSSEEventOrderArtifactsTerminalAndDisconnect(t *testing.T) {
 	disconnectCtx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	var disconnectedTaskID a2a.TaskID
-	for event, err := range disconnectClient.SendStreamingMessage(disconnectCtx, &a2a.MessageSendParams{
-		Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: "disconnect"}),
+	for event, err := range disconnectClient.SendStreamingMessage(disconnectCtx, &a2a.SendMessageRequest{
+		Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("disconnect")),
 	}) {
 		if err != nil {
 			t.Fatalf("disconnect stream error = %v", err)
@@ -445,8 +447,9 @@ func TestCancelStopsRunningAgentIsIdempotentAndRejectsTerminalOrUnknown(t *testi
 	})
 	_, client := setupHTTPServer(t, rootAgent, session.InMemoryService(), apps.DefaultApiConfig().SetA2APath("/cancel"))
 
-	result, err := client.SendMessage(t.Context(), &a2a.MessageSendParams{
-		Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: "wait"}),
+	result, err := client.SendMessage(t.Context(), &a2a.SendMessageRequest{
+		Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("wait")),
+		Config:  &a2a.SendMessageConfig{ReturnImmediately: true},
 	})
 	if err != nil {
 		t.Fatalf("message/send: %v", err)
@@ -456,14 +459,14 @@ func TestCancelStopsRunningAgentIsIdempotentAndRejectsTerminalOrUnknown(t *testi
 	case <-time.After(time.Second):
 		t.Fatal("agent did not start")
 	}
-	canceled, err := client.CancelTask(t.Context(), &a2a.TaskIDParams{ID: result.TaskInfo().TaskID})
+	canceled, err := client.CancelTask(t.Context(), &a2a.CancelTaskRequest{ID: result.TaskInfo().TaskID})
 	if err != nil {
 		t.Fatalf("tasks/cancel: %v", err)
 	}
 	if got, want := canceled.Status.State, a2a.TaskStateCanceled; got != want {
 		t.Fatalf("canceled state = %q, want %q", got, want)
 	}
-	second, err := client.CancelTask(t.Context(), &a2a.TaskIDParams{ID: result.TaskInfo().TaskID})
+	second, err := client.CancelTask(t.Context(), &a2a.CancelTaskRequest{ID: result.TaskInfo().TaskID})
 	if err != nil {
 		t.Fatalf("second tasks/cancel: %v", err)
 	}
@@ -475,7 +478,7 @@ func TestCancelStopsRunningAgentIsIdempotentAndRejectsTerminalOrUnknown(t *testi
 	case <-time.After(time.Second):
 		t.Fatal("running agent did not observe cancellation")
 	}
-	persisted, err := client.GetTask(t.Context(), &a2a.TaskQueryParams{ID: result.TaskInfo().TaskID})
+	persisted, err := client.GetTask(t.Context(), &a2a.GetTaskRequest{ID: result.TaskInfo().TaskID})
 	if err != nil || persisted.Status.State != a2a.TaskStateCanceled {
 		t.Fatalf("persisted canceled task = %#v, err = %v", persisted, err)
 	}
@@ -484,8 +487,8 @@ func TestCancelStopsRunningAgentIsIdempotentAndRejectsTerminalOrUnknown(t *testi
 		return singleResponse("done")
 	})
 	_, quickClient := setupHTTPServer(t, quickAgent, session.InMemoryService(), apps.DefaultApiConfig().SetA2APath("/cancel"))
-	quickResult, err := quickClient.SendMessage(t.Context(), &a2a.MessageSendParams{
-		Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: "finish"}),
+	quickResult, err := quickClient.SendMessage(t.Context(), &a2a.SendMessageRequest{
+		Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("finish")),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -494,11 +497,11 @@ func TestCancelStopsRunningAgentIsIdempotentAndRejectsTerminalOrUnknown(t *testi
 	if err != nil || completed.Status.State != a2a.TaskStateCompleted {
 		t.Fatalf("completed task = %#v, err = %v", completed, err)
 	}
-	_, err = quickClient.CancelTask(t.Context(), &a2a.TaskIDParams{ID: completed.ID})
+	_, err = quickClient.CancelTask(t.Context(), &a2a.CancelTaskRequest{ID: completed.ID})
 	if !errors.Is(err, a2a.ErrTaskNotCancelable) {
 		t.Fatalf("cancel completed error = %v, want ErrTaskNotCancelable", err)
 	}
-	_, err = quickClient.CancelTask(t.Context(), &a2a.TaskIDParams{ID: "missing-task"})
+	_, err = quickClient.CancelTask(t.Context(), &a2a.CancelTaskRequest{ID: "missing-task"})
 	if !errors.Is(err, a2a.ErrTaskNotFound) {
 		t.Fatalf("cancel unknown error = %v, want ErrTaskNotFound", err)
 	}
@@ -506,7 +509,7 @@ func TestCancelStopsRunningAgentIsIdempotentAndRejectsTerminalOrUnknown(t *testi
 
 func TestTaskPollingPreservesRejectedCanceledAndUnknownStates(t *testing.T) {
 	store := &fixedTaskStore{tasks: make(map[a2a.TaskID]*a2a.Task)}
-	for _, state := range []a2a.TaskState{a2a.TaskStateRejected, a2a.TaskStateCanceled, a2a.TaskStateUnknown} {
+	for _, state := range []a2a.TaskState{a2a.TaskStateRejected, a2a.TaskStateCanceled, a2a.TaskStateUnspecified} {
 		id := a2a.TaskID("task-" + state)
 		store.tasks[id] = &a2a.Task{ID: id, ContextID: "context-" + string(state), Status: a2a.TaskStatus{State: state}}
 	}
@@ -521,8 +524,8 @@ func TestTaskPollingPreservesRejectedCanceledAndUnknownStates(t *testing.T) {
 		a2asrv.WithTaskStore(store),
 	)
 
-	for _, want := range []a2a.TaskState{a2a.TaskStateRejected, a2a.TaskStateCanceled, a2a.TaskStateUnknown} {
-		task, err := client.GetTask(t.Context(), &a2a.TaskQueryParams{ID: a2a.TaskID("task-" + want)})
+	for _, want := range []a2a.TaskState{a2a.TaskStateRejected, a2a.TaskStateCanceled, a2a.TaskStateUnspecified} {
+		task, err := client.GetTask(t.Context(), &a2a.GetTaskRequest{ID: a2a.TaskID("task-" + want)})
 		if err != nil {
 			t.Fatalf("tasks/get %s: %v", want, err)
 		}
@@ -551,8 +554,9 @@ func TestCancelCompleteRaceAlwaysLeavesATerminalTask(t *testing.T) {
 				}
 			})
 			_, client := setupHTTPServer(t, rootAgent, session.InMemoryService(), apps.DefaultApiConfig().SetA2APath("/race"))
-			result, err := client.SendMessage(t.Context(), &a2a.MessageSendParams{
-				Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: "race"}),
+			result, err := client.SendMessage(t.Context(), &a2a.SendMessageRequest{
+				Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("race")),
+				Config:  &a2a.SendMessageConfig{ReturnImmediately: true},
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -567,7 +571,7 @@ func TestCancelCompleteRaceAlwaysLeavesATerminalTask(t *testing.T) {
 			cancelErr := make(chan error, 1)
 			go func() {
 				<-startRace
-				_, err := client.CancelTask(t.Context(), &a2a.TaskIDParams{ID: result.TaskInfo().TaskID})
+				_, err := client.CancelTask(t.Context(), &a2a.CancelTaskRequest{ID: result.TaskInfo().TaskID})
 				cancelErr <- err
 			}()
 			go func() {
@@ -577,7 +581,7 @@ func TestCancelCompleteRaceAlwaysLeavesATerminalTask(t *testing.T) {
 			close(startRace)
 
 			err = <-cancelErr
-			if err != nil && !errors.Is(err, a2a.ErrTaskNotCancelable) {
+			if err != nil && !errors.Is(err, a2a.ErrTaskNotCancelable) && !errors.Is(err, eventqueue.ErrQueueClosed) {
 				t.Fatalf("cancel race error = %v", err)
 			}
 			select {
@@ -636,23 +640,24 @@ func TestA2AContractThroughRealServerRun(t *testing.T) {
 		cancelRun()
 		t.Fatalf("decode Agent Card: %v", err)
 	}
-	if got, want := card.URL, "https://agent.example/sandbox/public/a2a"; got != want {
+	if got, want := primaryAgentCardURL(&card), "https://agent.example/sandbox/public/a2a"; got != want {
 		cancelRun()
-		t.Fatalf("card URL = %q, want %q", got, want)
+		t.Fatalf("card primary URL = %q, want %q", got, want)
 	}
 
 	clientCard := &a2a.AgentCard{
-		URL:                config.GetWebUrl() + config.GetA2APath(),
-		PreferredTransport: a2a.TransportProtocolJSONRPC,
-		Capabilities:       a2a.AgentCapabilities{Streaming: true},
+		SupportedInterfaces: []*a2a.AgentInterface{
+			a2a.NewAgentInterface(config.GetWebUrl()+config.GetA2APath(), a2a.TransportProtocolJSONRPC),
+		},
+		Capabilities: a2a.AgentCapabilities{Streaming: true},
 	}
-	client, err := a2aclient.NewFromCard(t.Context(), clientCard, a2aclient.WithConfig(a2aclient.Config{Polling: true}))
+	client, err := a2aclient.NewFromCard(t.Context(), clientCard)
 	if err != nil {
 		cancelRun()
 		t.Fatal(err)
 	}
-	result, err := client.SendMessage(t.Context(), &a2a.MessageSendParams{
-		Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: "network"}),
+	result, err := client.SendMessage(t.Context(), &a2a.SendMessageRequest{
+		Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("network")),
 	})
 	if err != nil {
 		cancelRun()
@@ -714,15 +719,15 @@ func setupHTTPServerWithOptions(t *testing.T, rootAgent agent.Agent, sessionServ
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
 	card := &a2a.AgentCard{
-		Name:               rootAgent.Name(),
-		URL:                server.URL + config.GetA2APath(),
-		PreferredTransport: a2a.TransportProtocolJSONRPC,
-		Capabilities:       a2a.AgentCapabilities{Streaming: true},
+		Name: rootAgent.Name(),
+		SupportedInterfaces: []*a2a.AgentInterface{
+			a2a.NewAgentInterface(server.URL+config.GetA2APath(), a2a.TransportProtocolJSONRPC),
+		},
+		Capabilities: a2a.AgentCapabilities{Streaming: true},
 	}
 	client, err := a2aclient.NewFromCard(
 		t.Context(),
 		card,
-		a2aclient.WithConfig(a2aclient.Config{Polling: true}),
 		a2aclient.WithJSONRPCTransport(&http.Client{Timeout: 2 * time.Second}),
 	)
 	if err != nil {
@@ -752,7 +757,7 @@ func responseEvent(text string, partial bool) *session.Event {
 func waitForTask(ctx context.Context, client *a2aclient.Client, id a2a.TaskID) (*a2a.Task, error) {
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		task, err := client.GetTask(ctx, &a2a.TaskQueryParams{ID: id})
+		task, err := client.GetTask(ctx, &a2a.GetTaskRequest{ID: id})
 		if err != nil {
 			return nil, err
 		}
@@ -786,8 +791,11 @@ func messageText(message *a2a.Message) string {
 func partsText(parts a2a.ContentParts) string {
 	var result []string
 	for _, part := range parts {
-		if text, ok := part.(a2a.TextPart); ok {
-			result = append(result, text.Text)
+		if part == nil {
+			continue
+		}
+		if text := part.Text(); text != "" {
+			result = append(result, text)
 		}
 	}
 	return strings.Join(result, "")
@@ -847,6 +855,23 @@ func waitForServer(t *testing.T, address string) {
 	t.Fatalf("server did not listen on %s", address)
 }
 
+func primaryAgentCardURL(card *a2a.AgentCard) string {
+	if card == nil {
+		return ""
+	}
+	for _, iface := range card.SupportedInterfaces {
+		if iface != nil && iface.ProtocolBinding == a2a.TransportProtocolJSONRPC {
+			return iface.URL
+		}
+	}
+	for _, iface := range card.SupportedInterfaces {
+		if iface != nil {
+			return iface.URL
+		}
+	}
+	return ""
+}
+
 type fixedTaskStore struct {
 	tasks map[a2a.TaskID]*a2a.Task
 }
@@ -855,8 +880,8 @@ type metadataCaptureInterceptor struct {
 	seenIDs sync.Map
 }
 
-func (i *metadataCaptureInterceptor) Intercept(ctx context.Context, request *a2asrv.RequestContext) (context.Context, error) {
-	if requestID, ok := request.Metadata["request_id"].(string); ok {
+func (i *metadataCaptureInterceptor) Intercept(ctx context.Context, execCtx *a2asrv.ExecutorContext) (context.Context, error) {
+	if requestID, ok := execCtx.Metadata["request_id"].(string); ok {
 		i.seenIDs.Store(requestID, struct{}{})
 	}
 	return ctx, nil
@@ -867,17 +892,21 @@ func (i *metadataCaptureInterceptor) saw(requestID string) bool {
 	return ok
 }
 
-func (s *fixedTaskStore) Save(context.Context, *a2a.Task, a2a.Event, *a2a.Task, a2a.TaskVersion) (a2a.TaskVersion, error) {
-	return a2a.TaskVersionMissing, errors.New("fixed task store is read-only")
+func (s *fixedTaskStore) Create(context.Context, *a2a.Task) (taskstore.TaskVersion, error) {
+	return taskstore.TaskVersionMissing, errors.New("fixed task store is read-only")
 }
 
-func (s *fixedTaskStore) Get(_ context.Context, id a2a.TaskID) (*a2a.Task, a2a.TaskVersion, error) {
+func (s *fixedTaskStore) Update(context.Context, *taskstore.UpdateRequest) (taskstore.TaskVersion, error) {
+	return taskstore.TaskVersionMissing, errors.New("fixed task store is read-only")
+}
+
+func (s *fixedTaskStore) Get(_ context.Context, id a2a.TaskID) (*taskstore.StoredTask, error) {
 	task, ok := s.tasks[id]
 	if !ok {
-		return nil, a2a.TaskVersionMissing, a2a.ErrTaskNotFound
+		return nil, a2a.ErrTaskNotFound
 	}
 	copy := *task
-	return &copy, 1, nil
+	return &taskstore.StoredTask{Task: &copy, Version: 1}, nil
 }
 
 func (s *fixedTaskStore) List(context.Context, *a2a.ListTasksRequest) (*a2a.ListTasksResponse, error) {

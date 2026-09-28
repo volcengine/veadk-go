@@ -19,11 +19,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/a2aproject/a2a-go/a2a"
-	"github.com/a2aproject/a2a-go/a2aclient"
-	"github.com/a2aproject/a2a-go/a2aclient/agentcard"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/remoteagent"
+	"github.com/a2aproject/a2a-go/v2/a2a"
+	"github.com/a2aproject/a2a-go/v2/a2aclient"
+	"github.com/a2aproject/a2a-go/v2/a2aclient/agentcard"
+	"google.golang.org/adk/v2/agent"
+	remoteagentv2 "google.golang.org/adk/v2/agent/remoteagent/v2"
 )
 
 var (
@@ -32,9 +32,12 @@ var (
 )
 
 type Config struct {
-	remoteagent.A2AConfig
-	BaseUrl string
-	ApiKey  string
+	remoteagentv2.A2AConfig
+	BaseUrl            string
+	ApiKey             string
+	AgentCardSource    string
+	CardResolveOptions []agentcard.ResolveOption
+	ClientFactory      *a2aclient.Factory
 }
 
 func NewDefaultConfig() *Config {
@@ -68,11 +71,15 @@ func (c *Config) SetAgentCard(agentCard *a2a.AgentCard) *Config {
 
 func (c *Config) SetAgentCardSource(agentCardSource string) *Config {
 	c.AgentCardSource = agentCardSource
+	c.AgentCardProvider = remoteagentv2.NewAgentCardProvider(agentCardSource, c.CardResolveOptions...)
 	return c
 }
 
 func (c *Config) SetCardResolveOptions(cardResolveOptions []agentcard.ResolveOption) *Config {
 	c.CardResolveOptions = cardResolveOptions
+	if c.AgentCardSource != "" {
+		c.AgentCardProvider = remoteagentv2.NewAgentCardProvider(c.AgentCardSource, c.CardResolveOptions...)
+	}
 	return c
 }
 
@@ -81,17 +88,17 @@ func (c *Config) SetBeforeAgentCallbacks(beforeAgentCallbacks []agent.BeforeAgen
 	return c
 }
 
-func (c *Config) SetBeforeRequestCallbacks(beforeRequestCallbacks []remoteagent.BeforeA2ARequestCallback) *Config {
+func (c *Config) SetBeforeRequestCallbacks(beforeRequestCallbacks []remoteagentv2.BeforeA2ARequestCallback) *Config {
 	c.BeforeRequestCallbacks = beforeRequestCallbacks
 	return c
 }
 
-func (c *Config) SetConverter(converter remoteagent.A2AEventConverter) *Config {
+func (c *Config) SetConverter(converter remoteagentv2.A2AEventConverter) *Config {
 	c.Converter = converter
 	return c
 }
 
-func (c *Config) SetAfterRequestCallbacks(afterRequestCallbacks []remoteagent.AfterA2ARequestCallback) *Config {
+func (c *Config) SetAfterRequestCallbacks(afterRequestCallbacks []remoteagentv2.AfterA2ARequestCallback) *Config {
 	c.AfterRequestCallbacks = afterRequestCallbacks
 	return c
 }
@@ -103,10 +110,11 @@ func (c *Config) SetAfterAgentCallbacks(afterAgentCallbacks []agent.AfterAgentCa
 
 func (c *Config) SetClientFactory(clientFactory *a2aclient.Factory) *Config {
 	c.ClientFactory = clientFactory
+	c.ClientProvider = remoteagentv2.NewA2AClientProvider(clientFactory)
 	return c
 }
 
-func (c *Config) SetMessageSendConfig(messageSendConfig *a2a.MessageSendConfig) *Config {
+func (c *Config) SetMessageSendConfig(messageSendConfig *a2a.SendMessageConfig) *Config {
 	c.MessageSendConfig = messageSendConfig
 	return c
 }
@@ -117,13 +125,13 @@ type AuthInterceptor struct {
 }
 
 // Before implements a before request callback.
-func (a *AuthInterceptor) Before(ctx context.Context, req *a2aclient.Request) (context.Context, error) {
-	if req.Meta == nil {
-		req.Meta = make(a2aclient.CallMeta)
+func (a *AuthInterceptor) Before(ctx context.Context, req *a2aclient.Request) (context.Context, any, error) {
+	if req.ServiceParams == nil {
+		req.ServiceParams = make(a2aclient.ServiceParams)
 	}
 	// Add the authorization header.
-	req.Meta["Authorization"] = []string{"Bearer " + a.Token}
-	return ctx, nil
+	req.ServiceParams["authorization"] = []string{"Bearer " + a.Token}
+	return ctx, nil, nil
 }
 
 func NewVeRemoteAgent(config *Config) (agent.Agent, error) {
@@ -131,31 +139,25 @@ func NewVeRemoteAgent(config *Config) (agent.Agent, error) {
 		return nil, ErrBaseUrlInvalid
 	}
 
-	config.SetAgentCardSource(config.BaseUrl)
+	if config.AgentCard == nil {
+		config.SetAgentCardSource(config.BaseUrl)
+	}
 
 	if config.Name == "" {
 		return nil, ErrNameInvalid
 	}
 
-	ctx := context.Background()
 	if config.ApiKey != "" {
 		resolveOptions := agentcard.WithRequestHeader("Authorization", fmt.Sprintf("Bearer %s", config.ApiKey))
 		// Resolve an AgentCard
-		card, err := agentcard.DefaultResolver.Resolve(ctx, config.BaseUrl, resolveOptions)
-		if err != nil {
-			return nil, fmt.Errorf("veadk: failed to resolve veadk card: %w", err)
-		}
-
-		card.URL = config.BaseUrl
-
-		config.SetAgentCard(card)
+		config.SetCardResolveOptions(append(config.CardResolveOptions, resolveOptions))
 
 		clientFactory := a2aclient.NewFactory(
-			a2aclient.WithInterceptors(&AuthInterceptor{Token: config.ApiKey}),
+			a2aclient.WithCallInterceptors(&AuthInterceptor{Token: config.ApiKey}),
 		)
 		config.SetClientFactory(clientFactory)
 	}
 
-	return remoteagent.NewA2A(config.A2AConfig)
+	return remoteagentv2.NewA2A(config.A2AConfig)
 
 }

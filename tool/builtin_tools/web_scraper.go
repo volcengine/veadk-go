@@ -25,10 +25,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/utils"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const defaultWebScraperTimeout = 60 * time.Second
@@ -107,7 +108,7 @@ func NewWebScraperTool(cfg *WebScraperConfig) (tool.Tool, error) {
 		cfg.webScraperHandler)
 }
 
-func (c *WebScraperConfig) webScraperHandler(ctx tool.Context, args WebScraperArgs) (WebScraperResult, error) {
+func (c *WebScraperConfig) webScraperHandler(ctx agent.Context, args WebScraperArgs) (WebScraperResult, error) {
 	query := strings.TrimSpace(args.Query)
 	if query == "" {
 		return WebScraperResult{}, fmt.Errorf("web_scraper query is empty")

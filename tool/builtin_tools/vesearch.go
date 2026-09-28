@@ -25,11 +25,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/utils"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const (
@@ -101,7 +102,7 @@ func NewVeSearchTool(cfg *VeSearchConfig) (tool.Tool, error) {
 		cfg.veSearchHandler)
 }
 
-func (c *VeSearchConfig) veSearchHandler(ctx tool.Context, args VeSearchArgs) (VeSearchResult, error) {
+func (c *VeSearchConfig) veSearchHandler(ctx agent.Context, args VeSearchArgs) (VeSearchResult, error) {
 	query := strings.TrimSpace(args.Query)
 	if query == "" {
 		return VeSearchResult{}, fmt.Errorf("vesearch query is empty")

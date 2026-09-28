@@ -19,8 +19,8 @@ import (
 
 	"github.com/bytedance/mockey"
 	"github.com/stretchr/testify/assert"
-	"github.com/volcengine/veadk-go/memory/short_term_memory_backends"
-	"google.golang.org/adk/session"
+	"github.com/volcengine/veadk-go/v2/memory/short_term_memory_backends"
+	"google.golang.org/adk/v2/session"
 )
 
 type mockSessionServiceImpl struct {

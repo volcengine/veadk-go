@@ -27,9 +27,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/volcengine/veadk-go/apps"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/session"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/session"
 )
 
 var _ apps.BasicApp = (*AgentkitServerApp)(nil)

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/v2/log"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/instrumentation"
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -501,7 +501,7 @@ func tryParentByTraceID(registry *TraceRegistry, parent oteltrace.SpanContext) (
 
 func (p *translatedSpan) InstrumentationScope() instrumentation.Scope {
 	scope := p.ReadOnlySpan.InstrumentationScope()
-	// github.com/volcengine/veadk-go is the InstrumentationName defined in observability/constant.go
+	// github.com/volcengine/veadk-go/v2 is the InstrumentationName defined in observability/constant.go
 	if scope.Name == ADKInstrumentationName || scope.Name == ADKLegacyScopeName || scope.Name == InstrumentationName {
 		scope.Name = OpenInferenceScopeName
 	}
