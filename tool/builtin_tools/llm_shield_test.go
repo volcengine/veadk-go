@@ -32,10 +32,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/tool"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 )
 
@@ -45,17 +44,17 @@ const shieldBlock = `{"Result":{"Decision":{"DecisionType":2},"RiskInfo":{"Risks
 // Embedded interfaces supply the unused ADK metadata methods. Calls to those
 // methods would panic, ensuring moderation depends only on request context.
 type shieldCallbackContext struct {
-	agent.CallbackContext
-	context.Context
+	agent.Context
+	base context.Context
 }
 
-func (c shieldCallbackContext) Deadline() (time.Time, bool) { return c.Context.Deadline() }
-func (c shieldCallbackContext) Done() <-chan struct{}       { return c.Context.Done() }
-func (c shieldCallbackContext) Err() error                  { return c.Context.Err() }
-func (c shieldCallbackContext) Value(key any) any           { return c.Context.Value(key) }
+func (c shieldCallbackContext) Deadline() (time.Time, bool) { return c.base.Deadline() }
+func (c shieldCallbackContext) Done() <-chan struct{}       { return c.base.Done() }
+func (c shieldCallbackContext) Err() error                  { return c.base.Err() }
+func (c shieldCallbackContext) Value(key any) any           { return c.base.Value(key) }
 
 type shieldToolContext struct {
-	tool.Context
+	agent.Context
 	base context.Context
 }
 
@@ -239,7 +238,7 @@ func TestLLMShieldFailurePolicies(t *testing.T) {
 						return &http.Response{StatusCode: 200, Body: io.NopCloser(shieldErrorReader{})}, nil
 					})}
 				}
-				ctx := shieldCallbackContext{Context: context.Background()}
+				ctx := shieldCallbackContext{base: context.Background()}
 				req := &model.LLMRequest{Contents: []*genai.Content{genai.NewContentFromText("secret-prompt", "user")}}
 				if res, err := c.beforeModelCallBack(ctx, req); res != nil || err != nil {
 					t.Fatalf("fail-open = %v, %v", res, err)
@@ -271,7 +270,7 @@ func TestLLMShieldCallbackPythonScopeAndNil(t *testing.T) {
 		messages = append(messages, body.Message.Role+":"+body.Message.Content)
 		_, _ = io.WriteString(w, shieldBlock)
 	}, LLMShieldFailOpen)
-	ctx := shieldCallbackContext{Context: context.Background()}
+	ctx := shieldCallbackContext{base: context.Background()}
 	for _, req := range []*model.LLMRequest{nil, {}, {Contents: []*genai.Content{nil}}, {Contents: []*genai.Content{{Role: "user", Parts: []*genai.Part{nil}}}}, {Contents: []*genai.Content{genai.NewContentFromText("tool result", "tool")}}} {
 		if res, err := c.beforeModelCallBack(ctx, req); res != nil || err != nil {
 			t.Fatal("empty input not skipped")

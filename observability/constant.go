@@ -24,7 +24,7 @@ import (
 
 // InstrumentationName is the name of this instrumentation package.
 const (
-	InstrumentationName = "github.com/volcengine/veadk-go"
+	InstrumentationName = "github.com/volcengine/veadk-go/v2"
 )
 
 var (

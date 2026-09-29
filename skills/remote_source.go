@@ -26,8 +26,8 @@ import (
 	"time"
 
 	"github.com/volcengine/ve-tos-golang-sdk/v2/tos"
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/integrations/ve_sign"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_sign"
 )
 
 // RemoteSkill identifies an immutable remote revision. Do not include credentials

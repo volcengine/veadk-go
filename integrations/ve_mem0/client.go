@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -168,7 +169,18 @@ func (c *Mem0Client) doRequest(ctx context.Context, method, url string, body int
 
 func (c *Mem0Client) setHeaders(req *http.Request) {
 	req.Header.Set("Content-Type", "application/json")
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", c.apiKey)
+	if auth := mem0Authorization(c.apiKey); auth != "" {
+		req.Header.Set("Authorization", auth)
 	}
+}
+
+func mem0Authorization(apiKey string) string {
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return ""
+	}
+	if strings.HasPrefix(strings.ToLower(apiKey), "bearer ") {
+		return apiKey
+	}
+	return "Bearer " + apiKey
 }

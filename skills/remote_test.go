@@ -32,7 +32,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/volcengine/veadk-go/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
 )
 
 func fixtureZip(t *testing.T, files map[string]string) []byte {

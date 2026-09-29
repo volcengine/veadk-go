@@ -17,8 +17,8 @@ package memory
 import (
 	"fmt"
 
-	"github.com/volcengine/veadk-go/memory/long_term_memory_backends"
-	"google.golang.org/adk/memory"
+	"github.com/volcengine/veadk-go/v2/memory/long_term_memory_backends"
+	"google.golang.org/adk/v2/memory"
 )
 
 type LongTermBackendType string

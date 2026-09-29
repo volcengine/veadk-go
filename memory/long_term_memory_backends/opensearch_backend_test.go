@@ -25,7 +25,7 @@ import (
 
 	"github.com/bytedance/mockey"
 	"github.com/stretchr/testify/assert"
-	"github.com/volcengine/veadk-go/model"
+	"github.com/volcengine/veadk-go/v2/model"
 )
 
 func TestNewOpenSearchMemoryBackend(t *testing.T) {

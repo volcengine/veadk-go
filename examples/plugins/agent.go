@@ -17,20 +17,20 @@ package main
 import (
 	"context"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/agent/workflowagents/sequentialagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/tool/builtin_tools"
-	"github.com/volcengine/veadk-go/tool/builtin_tools/web_search"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/plugin"
-	"google.golang.org/adk/runner"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/agent/workflowagents/sequentialagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/tool/builtin_tools"
+	"github.com/volcengine/veadk-go/v2/tool/builtin_tools/web_search"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/plugin"
+	"google.golang.org/adk/v2/runner"
+	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool"
 )
 
 func main() {
@@ -95,7 +95,6 @@ func main() {
 			Description: "Executes a sequence of greeting and goodbye.",
 		},
 	})
-
 	if err != nil {
 		log.Errorf("NewSequentialAgent failed: %v", err)
 		return
@@ -115,27 +114,27 @@ func main() {
 	}
 }
 
-func beforeModelCallBack(ctx agent.CallbackContext, llmRequest *model.LLMRequest) (*model.LLMResponse, error) {
+func beforeModelCallBack(ctx agent.Context, llmRequest *model.LLMRequest) (*model.LLMResponse, error) {
 	log.Infof("%s BeforeModelCallBack called\n", ctx.AgentName())
 	return nil, nil
 }
 
-func afterModelCallBack(ctx agent.CallbackContext, llmResponse *model.LLMResponse, llmResponseError error) (*model.LLMResponse, error) {
+func afterModelCallBack(ctx agent.Context, llmResponse *model.LLMResponse, llmResponseError error) (*model.LLMResponse, error) {
 	log.Infof("%s afterModelCallback called\n", ctx.AgentName())
 	return nil, nil
 }
 
-func beforeToolCallback(ctx tool.Context, tool tool.Tool, args map[string]any) (map[string]any, error) {
+func beforeToolCallback(ctx agent.Context, tool tool.Tool, args map[string]any) (map[string]any, error) {
 	log.Infof("%s beforeToolCallBack called\n", tool.Name())
 	return nil, nil
 }
 
-func afterToolCallback(ctx tool.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
+func afterToolCallback(ctx agent.Context, tool tool.Tool, args, result map[string]any, err error) (map[string]any, error) {
 	log.Infof("%s afterToolCallback called\n", tool.Name())
 	return nil, nil
 }
 
-func NewTestPlugins() *plugin.Plugin {
+func NewTestPlugins() []*plugin.Plugin {
 	plugins, _ := plugin.New(plugin.Config{
 		Name:                "llm_shield_test",
 		BeforeModelCallback: beforeModelCallBack,
@@ -143,5 +142,5 @@ func NewTestPlugins() *plugin.Plugin {
 		BeforeToolCallback:  beforeToolCallback,
 		AfterToolCallback:   afterToolCallback,
 	})
-	return plugins
+	return []*plugin.Plugin{plugins}
 }

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volcengine/veadk-go/configs"
+	"github.com/volcengine/veadk-go/v2/configs"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"

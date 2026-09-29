@@ -24,14 +24,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/utils"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/plugin"
-	"google.golang.org/adk/tool"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/utils"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/plugin"
+	"google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 )
 
@@ -162,7 +162,7 @@ func shieldBlockResponse(message string) *model.LLMResponse {
 	return &model.LLMResponse{Content: genai.NewContentFromText(message, "model"), FinishReason: genai.FinishReasonStop}
 }
 
-func (p *LLMShieldClient) beforeModelCallBack(ctx agent.CallbackContext, req *model.LLMRequest) (*model.LLMResponse, error) {
+func (p *LLMShieldClient) beforeModelCallBack(ctx agent.Context, req *model.LLMRequest) (*model.LLMResponse, error) {
 	if req == nil || len(req.Contents) == 0 {
 		return nil, nil
 	}
@@ -175,7 +175,7 @@ func (p *LLMShieldClient) beforeModelCallBack(ctx agent.CallbackContext, req *mo
 	return shieldBlockResponse(block), err
 }
 
-func (p *LLMShieldClient) afterModelCallBack(ctx agent.CallbackContext, resp *model.LLMResponse, responseErr error) (*model.LLMResponse, error) {
+func (p *LLMShieldClient) afterModelCallBack(ctx agent.Context, resp *model.LLMResponse, responseErr error) (*model.LLMResponse, error) {
 	if responseErr != nil {
 		return nil, responseErr
 	}
@@ -198,7 +198,7 @@ func shieldFirstText(content *genai.Content, role string) string {
 	return content.Parts[0].Text
 }
 
-func (p *LLMShieldClient) beforeToolCallback(ctx tool.Context, _ tool.Tool, args map[string]any) (map[string]any, error) {
+func (p *LLMShieldClient) beforeToolCallback(ctx agent.Context, _ tool.Tool, args map[string]any) (map[string]any, error) {
 	message, err := shieldToolMessage(args, true)
 	if err != nil {
 		return nil, p.toolEncodingError()
@@ -210,7 +210,7 @@ func (p *LLMShieldClient) beforeToolCallback(ctx tool.Context, _ tool.Tool, args
 	return nil, err
 }
 
-func (p *LLMShieldClient) afterToolCallback(ctx tool.Context, _ tool.Tool, _, result map[string]any, toolErr error) (map[string]any, error) {
+func (p *LLMShieldClient) afterToolCallback(ctx agent.Context, _ tool.Tool, _, result map[string]any, toolErr error) (map[string]any, error) {
 	if toolErr != nil {
 		return result, toolErr
 	}

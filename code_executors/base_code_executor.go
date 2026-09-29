@@ -14,7 +14,7 @@
 
 package code_executors
 
-import "google.golang.org/adk/agent"
+import "google.golang.org/adk/v2/agent"
 
 type CodeExecutor interface {
 	ExecuteCode(ctx agent.InvocationContext, input CodeExecutionInput) (CodeExecutionResult, error)

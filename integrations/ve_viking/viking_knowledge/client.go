@@ -18,8 +18,8 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/volcengine/veadk-go/integrations/ve_sign"
-	"github.com/volcengine/veadk-go/integrations/ve_viking"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_sign"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_viking"
 )
 
 const (

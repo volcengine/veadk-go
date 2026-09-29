@@ -34,9 +34,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/volcengine/veadk-go/skills"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/volcengine/veadk-go/v2/skills"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const (
@@ -301,7 +302,7 @@ type bashArgs struct {
 	Timeout     float64 `json:"timeout,omitempty" jsonschema:"Optional timeout in seconds, capped by the runtime maximum."`
 }
 
-func (r *LocalRuntime) readFile(ctx tool.Context, args readFileArgs) (map[string]any, error) {
+func (r *LocalRuntime) readFile(ctx agent.Context, args readFileArgs) (map[string]any, error) {
 	sessionID, err := toolSessionID(ctx)
 	if err != nil {
 		return toolError("WORKSPACE_ERROR", err), nil
@@ -360,7 +361,7 @@ func (r *LocalRuntime) readFile(ctx tool.Context, args readFileArgs) (map[string
 	return map[string]any{"content": output.String(), "line_count": len(lines)}, nil
 }
 
-func (r *LocalRuntime) writeFile(ctx tool.Context, args writeFileArgs) (map[string]any, error) {
+func (r *LocalRuntime) writeFile(ctx agent.Context, args writeFileArgs) (map[string]any, error) {
 	if int64(len(args.Content)) > r.maxFileBytes {
 		return toolError("FILE_TOO_LARGE", fmt.Errorf("content exceeds %d bytes", r.maxFileBytes)), nil
 	}
@@ -385,7 +386,7 @@ func (r *LocalRuntime) writeFile(ctx tool.Context, args writeFileArgs) (map[stri
 	}, nil
 }
 
-func (r *LocalRuntime) editFile(ctx tool.Context, args editFileArgs) (map[string]any, error) {
+func (r *LocalRuntime) editFile(ctx agent.Context, args editFileArgs) (map[string]any, error) {
 	if args.OldString == args.NewString || args.OldString == "" {
 		return toolError("INVALID_REPLACEMENT", errors.New("old_string must be non-empty and different from new_string")), nil
 	}
@@ -437,7 +438,7 @@ func (r *LocalRuntime) editFile(ctx tool.Context, args editFileArgs) (map[string
 	}, nil
 }
 
-func (r *LocalRuntime) bash(ctx tool.Context, args bashArgs) (map[string]any, error) {
+func (r *LocalRuntime) bash(ctx agent.Context, args bashArgs) (map[string]any, error) {
 	if strings.TrimSpace(args.Command) == "" {
 		return toolError("MISSING_COMMAND", errors.New("command is required")), nil
 	}
@@ -461,7 +462,7 @@ func (r *LocalRuntime) bash(ctx tool.Context, args bashArgs) (map[string]any, er
 }
 
 func (r *LocalRuntime) runSkillScript(
-	ctx tool.Context,
+	ctx agent.Context,
 	skill *skills.Skill,
 	requested string,
 	args []string,
@@ -790,7 +791,7 @@ func hasWindowsAbsolutePrefix(path string) bool {
 		path[1] == ':' && path[2] == '/'
 }
 
-func toolSessionID(ctx tool.Context) (string, error) {
+func toolSessionID(ctx agent.Context) (string, error) {
 	if ctx == nil || strings.TrimSpace(ctx.SessionID()) == "" {
 		return "", errors.New("session ID is required")
 	}

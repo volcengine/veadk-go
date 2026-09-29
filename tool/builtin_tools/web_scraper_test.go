@@ -22,7 +22,7 @@ import (
 	"github.com/bytedance/mockey"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/volcengine/veadk-go/common"
+	"github.com/volcengine/veadk-go/v2/common"
 )
 
 func TestNewWebScraperTool(t *testing.T) {

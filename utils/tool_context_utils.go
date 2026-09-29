@@ -14,9 +14,9 @@
 
 package utils
 
-import "google.golang.org/adk/tool"
+import "google.golang.org/adk/v2/agent"
 
-func GetStringFromToolContext(toolContext tool.Context, key string) string {
+func GetStringFromToolContext(toolContext agent.Context, key string) string {
 	var value string
 	tmp, err := toolContext.State().Get(key)
 	if err != nil {

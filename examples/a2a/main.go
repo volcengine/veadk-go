@@ -19,11 +19,11 @@ import (
 	"flag"
 	"os"
 
-	"github.com/volcengine/veadk-go/agent/remoteagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	"github.com/volcengine/veadk-go/log"
-	"google.golang.org/adk/agent"
+	"github.com/volcengine/veadk-go/v2/agent/remoteagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/v2/log"
+	"google.golang.org/adk/v2/agent"
 )
 
 func main() {

@@ -30,18 +30,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/volcengine/veadk-go/skills"
-	"google.golang.org/adk/agent"
-	adkllmagent "google.golang.org/adk/agent/llmagent"
-	adkmodel "google.golang.org/adk/model"
-	"google.golang.org/adk/runner"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
+	"github.com/volcengine/veadk-go/v2/skills"
+	"google.golang.org/adk/v2/agent"
+	adkllmagent "google.golang.org/adk/v2/agent/llmagent"
+	adkmodel "google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/runner"
+	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 )
 
 type localToolContext struct {
-	tool.Context
+	agent.Context
 	base      context.Context
 	sessionID string
 }
@@ -388,8 +388,10 @@ func TestLocalRuntimeScriptsTimeoutAndCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	toolset, err := NewLocalSkillToolset(discovered, LocalRuntimeConfig{
-		WorkspaceRoot:  t.TempDir(),
-		CommandTimeout: 2 * time.Second,
+		WorkspaceRoot: t.TempDir(),
+		// Keep the success-path scripts well above cold-start latency under -race;
+		// timeout behavior is covered by the dedicated 80ms runtime below.
+		CommandTimeout: 10 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)

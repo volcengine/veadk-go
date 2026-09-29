@@ -17,12 +17,12 @@ package main
 import (
 	"context"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	"github.com/volcengine/veadk-go/log"
-	vem "github.com/volcengine/veadk-go/memory"
-	"google.golang.org/adk/agent"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/v2/log"
+	vem "github.com/volcengine/veadk-go/v2/memory"
+	"google.golang.org/adk/v2/agent"
 )
 
 func main() {
