@@ -243,6 +243,7 @@ func TestModel_Generate(t *testing.T) {
 				},
 				CustomMetadata: map[string]any{
 					"response_model": "test-model",
+					"response_id":    "chatcmpl-test",
 				},
 				FinishReason: genai.FinishReasonStop,
 			},
@@ -269,6 +270,7 @@ func TestModel_Generate(t *testing.T) {
 				},
 				CustomMetadata: map[string]any{
 					"response_model": "test-model",
+					"response_id":    "chatcmpl-test",
 				},
 				FinishReason: genai.FinishReasonStop,
 			},
@@ -324,6 +326,7 @@ func TestModel_GenerateStream(t *testing.T) {
 			llm := newTestModel(t, server)
 
 			var partialText strings.Builder
+			var finalResp *model.LLMResponse
 			for resp, err := range llm.GenerateContent(t.Context(), tt.req, true) {
 				if (err != nil) != tt.wantErr {
 					t.Errorf("GenerateContent() error = %v, wantErr %v", err, tt.wantErr)
@@ -331,12 +334,16 @@ func TestModel_GenerateStream(t *testing.T) {
 				}
 				if resp.Partial && len(resp.Content.Parts) > 0 {
 					partialText.WriteString(resp.Content.Parts[0].Text)
+				} else {
+					finalResp = resp
 				}
 			}
 
 			if got := partialText.String(); got != tt.want {
 				t.Errorf("GenerateContent() streaming = %q, want %q", got, tt.want)
 			}
+			require.NotNil(t, finalResp)
+			require.Equal(t, "chatcmpl-test", finalResp.CustomMetadata["response_id"])
 		})
 	}
 }
@@ -1314,7 +1321,7 @@ func TestBuildFinalResponse_EmptyToolCallFiltering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp := m.buildFinalResponse("", "", tt.toolCalls, nil, "stop")
+			resp := m.buildFinalResponse("", "", tt.toolCalls, nil, "stop", "chatcmpl-test")
 
 			var functionCalls []*genai.FunctionCall
 			for _, part := range resp.Content.Parts {

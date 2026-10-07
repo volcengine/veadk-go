@@ -470,6 +470,7 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 		var finalUsage usage
 		var usageFound bool
 		var finishedReason string
+		var responseID string
 
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -485,6 +486,10 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 			var chunk response
 			if err := json.Unmarshal([]byte(data), &chunk); err != nil {
 				continue
+			}
+
+			if chunk.ID != "" {
+				responseID = chunk.ID
 			}
 
 			if chunk.Usage != nil {
@@ -579,7 +584,7 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 			if finishedReason == "" {
 				finishedReason = "stop"
 			}
-			finalResp := m.buildFinalResponse(textBuffer.String(), reasoningBuffer.String(), toolCalls, u, finishedReason)
+			finalResp := m.buildFinalResponse(textBuffer.String(), reasoningBuffer.String(), toolCalls, u, finishedReason, responseID)
 			yield(finalResp, nil)
 		}
 	}
@@ -758,6 +763,7 @@ func (m *openAIModel) convertResponse(resp *response) (*model.LLMResponse, error
 		},
 		CustomMetadata: map[string]any{
 			"response_model": resp.Model,
+			"response_id":    resp.ID,
 		},
 	}
 
@@ -767,7 +773,7 @@ func (m *openAIModel) convertResponse(resp *response) (*model.LLMResponse, error
 	return llmResp, nil
 }
 
-func (m *openAIModel) buildFinalResponse(text string, reasoningText string, toolCalls []toolCall, usage *usage, finishReason string) *model.LLMResponse {
+func (m *openAIModel) buildFinalResponse(text string, reasoningText string, toolCalls []toolCall, usage *usage, finishReason, responseID string) *model.LLMResponse {
 	var parts []*genai.Part
 
 	if reasoningText != "" {
@@ -803,6 +809,7 @@ func (m *openAIModel) buildFinalResponse(text string, reasoningText string, tool
 		UsageMetadata: buildUsageMetadata(usage),
 		CustomMetadata: map[string]any{
 			"response_model": m.name,
+			"response_id":    responseID,
 		},
 	}
 
