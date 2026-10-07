@@ -419,6 +419,37 @@ func TestArkModel_ConvertRequest(t *testing.T) {
 		assert.Equal(t, arkmodel.ToolTypeFunction, arkReq.Tools[0].Type)
 		assert.Equal(t, "search", arkReq.Tools[0].Function.Name)
 	})
+
+	t.Run("structured_output", func(t *testing.T) {
+		am := &arkModel{name: "test-model", config: &ArkClientConfig{}}
+		req := &model.LLMRequest{
+			Contents: genai.Text("Return weather data"),
+			Config: &genai.GenerateContentConfig{
+				ResponseMIMEType: "application/json",
+				ResponseJsonSchema: map[string]any{
+					"title": "weather",
+					"type":  "object",
+					"properties": map[string]any{
+						"temperature": map[string]any{"type": "number"},
+					},
+					"required": []string{"temperature"},
+				},
+			},
+		}
+
+		arkReq, err := am.convertArkRequest(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, arkReq.ResponseFormat)
+		assert.Equal(t, arkmodel.ResponseFormatJSONSchema, arkReq.ResponseFormat.Type)
+		assert.Equal(t, "weather", arkReq.ResponseFormat.JSONSchema.Name)
+		assert.True(t, arkReq.ResponseFormat.JSONSchema.Strict)
+		assert.Equal(t, []string{"temperature"}, arkReq.ResponseFormat.JSONSchema.Schema.(map[string]any)["required"])
+
+		req.Config.ResponseJsonSchema = nil
+		arkReq, err = am.convertArkRequest(req)
+		assert.NoError(t, err)
+		assert.Equal(t, arkmodel.ResponseFormatJsonObject, arkReq.ResponseFormat.Type)
+	})
 }
 
 func TestArkModel_ConvertContentWithFunctionResponse(t *testing.T) {
