@@ -30,7 +30,7 @@ import (
 // Usage:
 //
 //	import (
-//		"github.com/volcengine/veadk-go/observability"
+//		"github.com/volcengine/veadk-go/v2/observability"
 //	)
 //
 //	// Wrap your handler
@@ -41,7 +41,7 @@ func HTTPMiddleware(next http.Handler) http.Handler {
 		next,
 		InstrumentationName,
 		otelhttp.WithTracerProvider(otel.GetTracerProvider()),
-		otelhttp.WithPublicEndpoint(),
+		otelhttp.WithPublicEndpointFn(func(*http.Request) bool { return true }),
 		otelhttp.WithSpanNameFormatter(func(operation string, r *http.Request) string {
 			return "HTTP " + r.Method + " " + r.URL.Path
 		}),

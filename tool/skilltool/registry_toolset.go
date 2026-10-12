@@ -18,11 +18,11 @@ import (
 	"context"
 	"errors"
 
-	"github.com/volcengine/veadk-go/skills"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"github.com/volcengine/veadk-go/v2/skills"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 // RegistrySkillToolset exposes a pinned registry snapshot with lazy downloads.
@@ -64,10 +64,10 @@ func (s *RegistrySkillToolset) Name() string { return "RegistrySkillToolset" }
 func (s *RegistrySkillToolset) Tools(agent.ReadonlyContext) ([]tool.Tool, error) {
 	return append([]tool.Tool(nil), s.tools...), nil
 }
-func (s *RegistrySkillToolset) ProcessRequest(ctx tool.Context, req *model.LLMRequest) error {
+func (s *RegistrySkillToolset) ProcessRequest(ctx agent.Context, req *model.LLMRequest) error {
 	return s.metadata.ProcessRequest(ctx, req)
 }
-func (s *RegistrySkillToolset) resolve(ctx tool.Context, name string) (*SkillToolset, error) {
+func (s *RegistrySkillToolset) resolve(ctx agent.Context, name string) (*SkillToolset, error) {
 	requestContext := context.Background()
 	if ctx != nil {
 		requestContext = ctx
@@ -78,14 +78,14 @@ func (s *RegistrySkillToolset) resolve(ctx tool.Context, name string) (*SkillToo
 	}
 	return NewReadOnlySkillToolset([]*skills.Skill{sk})
 }
-func (s *RegistrySkillToolset) load(ctx tool.Context, args loadSkillArgs) (map[string]any, error) {
+func (s *RegistrySkillToolset) load(ctx agent.Context, args loadSkillArgs) (map[string]any, error) {
 	st, err := s.resolve(ctx, args.Name)
 	if err != nil {
 		return registryToolError(err), nil
 	}
 	return st.loadSkillToolHandler(ctx, args)
 }
-func (s *RegistrySkillToolset) resource(ctx tool.Context, args loadSkillResourceArgs) (map[string]any, error) {
+func (s *RegistrySkillToolset) resource(ctx agent.Context, args loadSkillResourceArgs) (map[string]any, error) {
 	st, err := s.resolve(ctx, args.SkillName)
 	if err != nil {
 		return registryToolError(err), nil

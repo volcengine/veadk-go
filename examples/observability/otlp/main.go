@@ -11,11 +11,11 @@ import (
 	"iter"
 	"os"
 
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/simple_app"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/model"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/simple_app"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 )
 

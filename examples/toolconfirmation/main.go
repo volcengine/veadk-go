@@ -24,14 +24,14 @@ import (
 	"strconv"
 	"strings"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/runner"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
-	"google.golang.org/adk/tool/toolconfirmation"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/runner"
+	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
 
 	"google.golang.org/genai"
 )
@@ -116,7 +116,7 @@ func main() {
 }
 
 // requestVacationDays simulates the *initiation* of a long-running ticket creation task.
-func requestVacationDays(ctx tool.Context, args RequestVacationArgs) (*RequestVacationResults, error) {
+func requestVacationDays(ctx agent.Context, args RequestVacationArgs) (*RequestVacationResults, error) {
 	log.Printf("TOOL_EXEC: 'requestVacationDays' called with days: %d for user %s (Call ID: %s)\n", args.Days, args.UserID, ctx.FunctionCallID())
 
 	if args.Days <= 0 {

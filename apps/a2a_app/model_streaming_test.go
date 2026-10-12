@@ -21,11 +21,11 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/a2aproject/a2a-go/a2a"
-	"github.com/volcengine/veadk-go/apps"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/model"
-	"google.golang.org/adk/session"
+	"github.com/a2aproject/a2a-go/v2/a2a"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 )
 
@@ -80,7 +80,7 @@ func TestLLMModelStreamingThroughA2A(t *testing.T) {
 			_, client := setupHTTPServer(t, rootAgent, session.InMemoryService(), apps.DefaultApiConfig())
 			// Release the model before server cleanup even if an assertion fails.
 			defer unblock()
-			params := &a2a.MessageSendParams{Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: "hello"})}
+			params := &a2a.SendMessageRequest{Message: a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart("hello"))}
 			var taskID a2a.TaskID
 			if method == "message/stream" {
 				var sawDelta, sawCompleted bool
@@ -99,7 +99,7 @@ func TestLLMModelStreamingThroughA2A(t *testing.T) {
 							unblock()
 						}
 					case *a2a.TaskStatusUpdateEvent:
-						if v.Final {
+						if v.Status.State.Terminal() {
 							sawCompleted = v.Status.State == a2a.TaskStateCompleted
 						}
 					}

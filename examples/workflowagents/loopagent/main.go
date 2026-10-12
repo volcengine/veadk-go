@@ -17,15 +17,15 @@ package main
 import (
 	"context"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/agent/workflowagents/loopagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	"github.com/volcengine/veadk-go/log"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/agent/workflowagents/loopagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/v2/log"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 func main() {
@@ -104,7 +104,7 @@ type ExitLoopToolArgs struct {
 }
 
 func GetExitLoopTool() (tool.Tool, error) {
-	handler := func(ctx tool.Context, args ExitLoopToolArgs) (map[string]any, error) {
+	handler := func(ctx agent.Context, args ExitLoopToolArgs) (map[string]any, error) {
 		ctx.Actions().Escalate = true
 		return map[string]any{}, nil
 	}

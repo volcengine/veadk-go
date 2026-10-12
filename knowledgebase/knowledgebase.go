@@ -18,12 +18,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/volcengine/veadk-go/knowledgebase/backend/local_knowledge_backend"
-	"github.com/volcengine/veadk-go/knowledgebase/backend/opensearch_knowledge_backend"
-	"github.com/volcengine/veadk-go/knowledgebase/backend/redis_knowledge_backend"
-	"github.com/volcengine/veadk-go/knowledgebase/backend/viking_knowledge_backend"
-	_interface "github.com/volcengine/veadk-go/knowledgebase/interface"
-	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/backend/local_knowledge_backend"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/backend/opensearch_knowledge_backend"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/backend/redis_knowledge_backend"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/backend/viking_knowledge_backend"
+	_interface "github.com/volcengine/veadk-go/v2/knowledgebase/interface"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/ktypes"
 )
 
 var (

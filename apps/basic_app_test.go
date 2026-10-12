@@ -373,7 +373,7 @@ func TestServerHandlerCORSBodyLimitAndRecovery(t *testing.T) {
 func TestRunRedactsSetupAndConfigurationErrors(t *testing.T) {
 	sensitive := errors.New("credential secret must not be exposed")
 	app := &lifecycleTestApp{
-		config: DefaultApiConfig(),
+		config: DefaultApiConfig().SetHost("127.0.0.1").SetPort(reservePort(t)),
 		setup:  func(*mux.Router) error { return sensitive },
 	}
 	err := app.Run(context.Background(), &RunConfig{DisableObservability: true})

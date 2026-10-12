@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/volcengine/veadk-go/log"
-	"google.golang.org/adk/agent"
+	"github.com/volcengine/veadk-go/v2/log"
+	"google.golang.org/adk/v2/agent"
 )
 
 const DEFAULT_SCRIPT_TIMEOUT = 300 * time.Second

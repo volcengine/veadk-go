@@ -20,17 +20,18 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/volcengine/veadk-go/auth/veauth"
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/integrations/ve_tos"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/utils"
+	"github.com/volcengine/veadk-go/v2/auth/veauth"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_tos"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/utils"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 	"github.com/volcengine/volcengine-go-sdk/volcengine"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 var imageGenerateToolDescription = `
@@ -197,7 +198,7 @@ func NewImageGenerateTool(config *ImageGenerateConfig) (tool.Tool, error) {
 
 	log.Debug("Initializing image generation tool", "model", config.ModelName, "base_url", config.BaseURL)
 
-	handler := func(ctx tool.Context, toolRequest ImageGenerateToolRequest) (*ImageGenerateToolResult, error) {
+	handler := func(ctx agent.Context, toolRequest ImageGenerateToolRequest) (*ImageGenerateToolResult, error) {
 		client := arkruntime.NewClientWithApiKey(
 			config.APIKey,
 			arkruntime.WithBaseUrl(config.BaseURL),

@@ -24,8 +24,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"github.com/volcengine/veadk-go/log"
-	"github.com/volcengine/veadk-go/model"
+	"github.com/volcengine/veadk-go/v2/log"
+	"github.com/volcengine/veadk-go/v2/model"
 )
 
 const (

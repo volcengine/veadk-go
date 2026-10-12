@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/volcengine/veadk-go/skills"
+	"github.com/volcengine/veadk-go/v2/skills"
 )
 
 type toolSource struct {

@@ -21,19 +21,19 @@ import (
 	"strings"
 	"time"
 
-	veagent "github.com/volcengine/veadk-go/agent/llmagent"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	"github.com/volcengine/veadk-go/integrations/ve_tos"
-	"github.com/volcengine/veadk-go/knowledgebase"
-	"github.com/volcengine/veadk-go/knowledgebase/backend/viking_knowledge_backend"
-	"github.com/volcengine/veadk-go/knowledgebase/ktypes"
-	"github.com/volcengine/veadk-go/log"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_tos"
+	"github.com/volcengine/veadk-go/v2/knowledgebase"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/backend/viking_knowledge_backend"
+	"github.com/volcengine/veadk-go/v2/knowledgebase/ktypes"
+	"github.com/volcengine/veadk-go/v2/log"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 func main() {
@@ -47,7 +47,8 @@ func main() {
 				TosConfig: &ve_tos.Config{
 					Bucket: "veadk-go-bucket",
 				},
-			}),
+			},
+		),
 	)
 	if err != nil {
 		log.Errorf("NewVikingKnowledgeBackend error: %v", err)
@@ -60,7 +61,8 @@ func main() {
 	例如，源自人们曾经的创伤经历的焦虑感，会隐藏在意识深处，并且可能在成年期间引起精神问题（以神经症的形式）。`,
 		`阿尔弗雷德·阿德勒（Alfred Adler，1870年2月7日-1937年5月28日），奥地利精神病学家，人本主义心理学先驱，个体心理学的创始人。
 	曾追随弗洛伊德探讨神经症问题，但也是精神分析学派内部第一个反对弗洛伊德的心理学体系的心理学家。
-	著有《自卑与超越》《人性的研究》《个体心理学的理论与实践》《自卑与生活》等。`}
+	著有《自卑与超越》《人性的研究》《个体心理学的理论与实践》《自卑与生活》等。`,
+	}
 
 	if err = knowledgeBase.Backend.AddFromText(mock_data); err != nil {
 		log.Errorf("AddFromText error: %v", err)
@@ -80,8 +82,8 @@ func main() {
 			Instruction: `你是一个优秀的助手。当被提问时，请遵循以下步骤：\n1. 首先，根据你的内部知识，生成一个初步的回答。\n2. 然后，查询你的知识库，寻找与问题相关的信息来验证或丰富你的答案。\n3. 最后，结合你的内部知识和知识库中的信息，给出一个全面、准确的最终答案。`,
 			Tools:       []tool.Tool{calculateDateDifferenceTool},
 		},
-		ModelName: "doubao-seed-1-6-250615",
-		//ModelName:     "deepseek-v3-2-251201",
+		ModelName: "deepseek-v4-flash-ga-260731",
+		// ModelName:     "deepseek-v3-2-251201",
 		KnowledgeBase: knowledgeBase,
 	})
 	if err != nil {
@@ -106,7 +108,7 @@ type CalculateDateDifferenceArgs struct {
 }
 
 func CalculateDateDifferenceTool() (tool.Tool, error) {
-	handler := func(ctx tool.Context, args CalculateDateDifferenceArgs) (map[string]any, error) {
+	handler := func(ctx agent.Context, args CalculateDateDifferenceArgs) (map[string]any, error) {
 		diff, err := CalculateDateDifference(args.Date1, args.Date2)
 		if err != nil {
 			return nil, err

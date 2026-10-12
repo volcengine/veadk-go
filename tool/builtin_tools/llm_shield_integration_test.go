@@ -33,16 +33,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/a2aproject/a2a-go/a2a"
-	"github.com/a2aproject/a2a-go/a2aclient"
-	"github.com/volcengine/veadk-go/apps"
-	"github.com/volcengine/veadk-go/apps/agentkit_server_app"
-	vemodel "github.com/volcengine/veadk-go/model"
-	"github.com/volcengine/veadk-go/tool/builtin_tools"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/runner"
-	"google.golang.org/adk/session"
+	"github.com/a2aproject/a2a-go/v2/a2a"
+	"github.com/a2aproject/a2a-go/v2/a2aclient"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
+	vemodel "github.com/volcengine/veadk-go/v2/model"
+	"github.com/volcengine/veadk-go/v2/tool/builtin_tools"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/runner"
+	"google.golang.org/adk/v2/session"
 )
 
 // Runs the real server/model adapter in a separate Go executable with only
@@ -112,7 +112,11 @@ func TestLLMShieldServerProcess(t *testing.T) {
 				address, stop := startShieldProcess(t, mode, shield.URL, modelServer.URL)
 				transport := http.DefaultTransport.(*http.Transport).Clone()
 				defer transport.CloseIdleConnections()
-				client, err := a2aclient.NewFromCard(t.Context(), &a2a.AgentCard{URL: address + "/rpc", PreferredTransport: a2a.TransportProtocolJSONRPC}, a2aclient.WithConfig(a2aclient.Config{Polling: true}), a2aclient.WithJSONRPCTransport(&http.Client{Transport: transport}))
+				client, err := a2aclient.NewFromCard(t.Context(), &a2a.AgentCard{
+					SupportedInterfaces: []*a2a.AgentInterface{
+						a2a.NewAgentInterface(address+"/rpc", a2a.TransportProtocolJSONRPC),
+					},
+				}, a2aclient.WithJSONRPCTransport(&http.Client{Transport: transport}))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -125,21 +129,21 @@ func TestLLMShieldServerProcess(t *testing.T) {
 						prompt := fmt.Sprintf("%s-%s-%d-%d", kind, mode, launch, i)
 						ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 						defer cancel()
-						message := a2a.NewMessage(a2a.MessageRoleUser, a2a.TextPart{Text: prompt})
-						message.ContextID = prompt
-						result, err := client.SendMessage(ctx, &a2a.MessageSendParams{Message: message})
+						message := a2a.NewMessage(a2a.MessageRoleUser, a2a.NewTextPart(prompt))
+						message.ContextID = fmt.Sprintf("ctx-%s-%d-%d", mode, launch, i)
+						result, err := client.SendMessage(ctx, &a2a.SendMessageRequest{Message: message})
 						if err != nil {
 							t.Error(err)
 							return
 						}
 						var task *a2a.Task
 						for ctx.Err() == nil {
-							task, err = client.GetTask(ctx, &a2a.TaskQueryParams{ID: result.TaskInfo().TaskID})
+							task, err = client.GetTask(ctx, &a2a.GetTaskRequest{ID: result.TaskInfo().TaskID})
 							if err != nil {
 								t.Error(err)
 								return
 							}
-							if task.Status.State == a2a.TaskStateCompleted || task.Status.State == a2a.TaskStateFailed {
+							if task.Status.State.Terminal() {
 								break
 							}
 							time.Sleep(10 * time.Millisecond)
@@ -150,9 +154,12 @@ func TestLLMShieldServerProcess(t *testing.T) {
 						}
 						text := ""
 						for _, artifact := range task.Artifacts {
+							if artifact == nil {
+								continue
+							}
 							for _, part := range artifact.Parts {
-								if p, ok := part.(a2a.TextPart); ok {
-									text += p.Text
+								if part != nil {
+									text += part.Text()
 								}
 							}
 						}
@@ -288,7 +295,7 @@ func TestLLMShieldProcessHelper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a, err := llmagent.New(llmagent.Config{Name: "shield_contract", Model: m})
+	a, err := llmagent.New(llmagent.Config{Name: "shield_contract", Model: m, Mode: llmagent.ModeChat})
 	if err != nil {
 		t.Fatal(err)
 	}

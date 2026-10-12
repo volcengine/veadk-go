@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/volcengine/veadk-go/configs"
-	"github.com/volcengine/veadk-go/log"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/session/database"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"github.com/volcengine/veadk-go/v2/log"
+	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/session/database"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

@@ -14,7 +14,7 @@
 
 package _interface
 
-import "github.com/volcengine/veadk-go/knowledgebase/ktypes"
+import "github.com/volcengine/veadk-go/v2/knowledgebase/ktypes"
 
 type KnowledgeBackend interface {
 	Index() string

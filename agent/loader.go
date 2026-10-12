@@ -15,7 +15,7 @@
 package agents
 
 import (
-	"google.golang.org/adk/agent"
+	"google.golang.org/adk/v2/agent"
 )
 
 type staticLoader struct {

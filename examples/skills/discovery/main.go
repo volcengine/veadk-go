@@ -23,7 +23,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/volcengine/veadk-go/skills"
+	"github.com/volcengine/veadk-go/v2/skills"
 )
 
 func main() {

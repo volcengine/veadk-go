@@ -22,9 +22,9 @@ import (
 
 	"github.com/bytedance/mockey"
 	"github.com/stretchr/testify/assert"
-	"github.com/volcengine/veadk-go/integrations/ve_viking"
-	"github.com/volcengine/veadk-go/integrations/ve_viking/viking_memory"
-	"github.com/volcengine/veadk-go/utils"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_viking"
+	"github.com/volcengine/veadk-go/v2/integrations/ve_viking/viking_memory"
+	"github.com/volcengine/veadk-go/v2/utils"
 )
 
 func TestNewVikingDbMemoryBackend(t *testing.T) {

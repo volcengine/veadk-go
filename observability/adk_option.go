@@ -3,7 +3,7 @@ package observability
 import (
 	"go.opentelemetry.io/otel"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	adktelemetry "google.golang.org/adk/telemetry"
+	adktelemetry "google.golang.org/adk/v2/telemetry"
 )
 
 // ADKTelemetryOptions returns launcher telemetry options that force ADK to reuse

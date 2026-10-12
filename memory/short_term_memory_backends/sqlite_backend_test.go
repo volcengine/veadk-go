@@ -19,8 +19,8 @@ import (
 
 	"github.com/bytedance/mockey"
 	"github.com/stretchr/testify/assert"
-	"github.com/volcengine/veadk-go/configs"
-	"google.golang.org/adk/session/database"
+	"github.com/volcengine/veadk-go/v2/configs"
+	"google.golang.org/adk/v2/session/database"
 )
 
 func TestNewSqliteSTMBackend(t *testing.T) {

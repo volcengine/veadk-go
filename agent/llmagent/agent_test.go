@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	adkllmagent "google.golang.org/adk/agent/llmagent"
+	adkllmagent "google.golang.org/adk/v2/agent/llmagent"
 )
 
 type testAPIKeyProvider struct {

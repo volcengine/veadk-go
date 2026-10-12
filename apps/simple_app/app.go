@@ -23,13 +23,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/volcengine/veadk-go/log"
+	"github.com/volcengine/veadk-go/v2/log"
 
 	"github.com/gorilla/mux"
-	"github.com/volcengine/veadk-go/apps"
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/runner"
-	"google.golang.org/adk/session"
+	"github.com/volcengine/veadk-go/v2/apps"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/runner"
+	"google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 )
 

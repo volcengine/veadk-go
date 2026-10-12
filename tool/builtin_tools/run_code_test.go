@@ -15,11 +15,12 @@
 package builtin_tools
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
-	"github.com/volcengine/veadk-go/common"
-	"github.com/volcengine/veadk-go/utils"
+	"github.com/volcengine/veadk-go/v2/common"
+	"github.com/volcengine/veadk-go/v2/utils"
 )
 
 func TestRunCodeHandler(t *testing.T) {
@@ -36,6 +37,9 @@ func TestRunCodeHandler(t *testing.T) {
 	}
 
 	result, err := runCodeHandler(nil, require)
+	if errors.Is(err, ErrInvalidToolID) {
+		t.Skip(err)
+	}
 	if err != nil {
 		t.Fatal(err)
 		return

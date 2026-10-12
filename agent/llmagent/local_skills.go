@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/volcengine/veadk-go/skills"
-	"github.com/volcengine/veadk-go/tool/skilltool"
+	"github.com/volcengine/veadk-go/v2/skills"
+	"github.com/volcengine/veadk-go/v2/tool/skilltool"
 )
 
 func configureLocalSkills(cfg *Config) error {

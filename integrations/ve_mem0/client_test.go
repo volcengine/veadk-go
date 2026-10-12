@@ -16,7 +16,7 @@ func TestMem0Client_Add(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/memories", r.URL.Path)
 		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "test-api-key", r.Header.Get("Authorization"))
+		assert.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
 
 		var req AddMemoriesRequest
 		err := json.NewDecoder(r.Body).Decode(&req)
@@ -64,7 +64,7 @@ func TestMem0Client_Search(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v1/search", r.URL.Path)
 		assert.Equal(t, "POST", r.Method)
-		assert.Equal(t, "test-api-key", r.Header.Get("Authorization"))
+		assert.Equal(t, "Bearer test-api-key", r.Header.Get("Authorization"))
 
 		var req SearchMemoriesRequest
 		err := json.NewDecoder(r.Body).Decode(&req)
@@ -101,4 +101,10 @@ func TestMem0Client_Search(t *testing.T) {
 	assert.Len(t, resp.Results, 1)
 	assert.Equal(t, "mem2", resp.Results[0].Id)
 	assert.Equal(t, "found something", resp.Results[0].Memory)
+}
+
+func TestMem0Authorization(t *testing.T) {
+	assert.Equal(t, "", mem0Authorization(""))
+	assert.Equal(t, "Bearer test-api-key", mem0Authorization("test-api-key"))
+	assert.Equal(t, "Bearer test-api-key", mem0Authorization(" Bearer test-api-key "))
 }
