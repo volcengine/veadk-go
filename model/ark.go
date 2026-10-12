@@ -296,12 +296,17 @@ func (m *arkModel) convertGenAIContentToArk(content *genai.Content) ([]*arkmodel
 
 	// Handle text, inline data, function calls
 	var textParts []string
+	var reasoningParts []string
 	var contentParts []*arkmodel.ChatCompletionMessageContentPart
 	var toolCalls []*arkmodel.ToolCall
 
 	for _, part := range content.Parts {
 		if part.Text != "" {
-			textParts = append(textParts, part.Text)
+			if part.Thought {
+				reasoningParts = append(reasoningParts, part.Text)
+			} else {
+				textParts = append(textParts, part.Text)
+			}
 		} else if part.InlineData != nil && len(part.InlineData.Data) > 0 {
 			mimeType := part.InlineData.MIMEType
 			base64Data := base64.StdEncoding.EncodeToString(part.InlineData.Data)
@@ -341,6 +346,10 @@ func (m *arkModel) convertGenAIContentToArk(content *genai.Content) ([]*arkmodel
 	}
 
 	msg := &arkmodel.ChatCompletionMessage{Role: role}
+
+	if len(reasoningParts) > 0 {
+		msg.ReasoningContent = volcengine.String(strings.Join(reasoningParts, "\n"))
+	}
 
 	if len(toolCalls) > 0 {
 		msg.ToolCalls = toolCalls
