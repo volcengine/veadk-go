@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
 	"github.com/volcengine/veadk-go/v2/apps"
@@ -26,7 +25,6 @@ import (
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/session"
-	"google.golang.org/genai"
 )
 
 func main() {
@@ -41,26 +39,10 @@ func main() {
 		return
 	}
 
-	onBeforeAgent := func(ctx agent.Context) (*genai.Content, error) {
-		resp, err := sessionServer.Get(ctx, &session.GetRequest{AppName: ctx.AppName(), UserID: ctx.UserID(), SessionID: ctx.SessionID()})
-		if err != nil {
-			log.Errorf("Failed to get completed session: %v", err)
-			return nil, fmt.Errorf("failed to get completed session: %w", err)
-		}
-		if err := memoryServer.AddSessionToMemory(ctx, resp.Session); err != nil {
-			log.Errorf("Failed to add session to memory: %v", err)
-			return nil, fmt.Errorf("failed to add session to memory: %w", err)
-		}
-
-		log.Infof("[Callback] Session %s added to memory.", ctx.SessionID())
-		return nil, nil
-	}
-
 	a, err := veagent.New(&veagent.Config{
 		Config: llmagent.Config{
-			Name:                 "personal_assistant",
-			Instruction:          "You are a personal assistant with long-term memory capabilities. Before answering the user's questions, you must invoke the tool to retrieve memory information.",
-			BeforeAgentCallbacks: []agent.BeforeAgentCallback{onBeforeAgent},
+			Name:        "personal_assistant",
+			Instruction: "You are a personal assistant with long-term memory capabilities. Before answering the user's questions, you must invoke the tool to retrieve memory information.",
 		},
 		LongTermMemory: memoryServer,
 	})
@@ -72,9 +54,10 @@ func main() {
 	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
 
 	err = app.Run(ctx, &apps.RunConfig{
-		AgentLoader:    agent.NewSingleLoader(a),
-		SessionService: sessionServer,
-		MemoryService:  memoryServer,
+		AgentLoader:     agent.NewSingleLoader(a),
+		ShortTermMemory: sessionServer,
+		LongTermMemory:  memoryServer,
+		AutoSaveSession: true,
 	})
 	if err != nil {
 		log.Errorf("Run failed: %v", err)

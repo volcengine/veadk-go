@@ -16,19 +16,15 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
 	"github.com/volcengine/veadk-go/v2/log"
-	"github.com/volcengine/veadk-go/v2/tool/builtin_tools"
-	"github.com/volcengine/veadk-go/v2/utils"
+	verunner "github.com/volcengine/veadk-go/v2/runner"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/memory"
-	"google.golang.org/adk/v2/runner"
 	"google.golang.org/adk/v2/session"
-	"google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 )
 
@@ -45,60 +41,35 @@ func main() {
 	//	return
 	//}
 
-	onBeforeAgent := func(ctx agent.Context) (*genai.Content, error) {
-		resp, err := sessionServer.Get(ctx, &session.GetRequest{AppName: ctx.AppName(), UserID: ctx.UserID(), SessionID: ctx.SessionID()})
-		if err != nil {
-			log.Errorf("Failed to get completed session: %v", err)
-			return nil, fmt.Errorf("failed to get completed session: %v", err)
-		}
-		if err := memoryServer.AddSessionToMemory(ctx, resp.Session); err != nil {
-			log.Errorf("Failed to add session to memory: %v", err)
-			return nil, fmt.Errorf("failed to add session to memory: %v", err)
-		}
-
-		log.Infof("[Callback] Session %s added to memory.", ctx.SessionID())
-		return nil, nil
-	}
-
 	a, err := veagent.New(&veagent.Config{
 		Config: llmagent.Config{
-			Name:                 "personal_assistant",
-			Instruction:          "You are a personal assistant with long-term memory capabilities. Before answering the user's questions, you must invoke the tool to retrieve memory information.",
-			Tools:                []tool.Tool{utils.Must(builtin_tools.LoadLongMemoryTool())},
-			BeforeAgentCallbacks: []agent.BeforeAgentCallback{onBeforeAgent},
+			Name:        "personal_assistant",
+			Instruction: "You are a personal assistant with long-term memory capabilities. Before answering the user's questions, you must invoke the tool to retrieve memory information.",
 		},
+		LongTermMemory: memoryServer,
 	})
 	if err != nil {
 		log.Errorf("NewLLMAgent failed: %v", err)
 		return
 	}
 
-	runner1, err := runner.New(runner.Config{
-		AppName:        appName,
-		Agent:          a,
-		SessionService: sessionServer,
-		MemoryService:  memoryServer,
+	r, err := verunner.New(verunner.Config{
+		AppName:           appName,
+		Agent:             a,
+		ShortTermMemory:   sessionServer,
+		LongTermMemory:    memoryServer,
+		AutoCreateSession: true,
 	})
 	if err != nil {
-		log.Errorf("create runner1 error %v", err)
+		log.Errorf("create runner error %v", err)
+		return
 	}
 
-	SessionID := "session123456789"
-
-	s, err := sessionServer.Create(ctx, &session.CreateRequest{
-		AppName:   appName,
-		UserID:    userID,
-		SessionID: SessionID,
-	})
-	if err != nil {
-		log.Errorf("sessionService.Create error: %v", err)
-	}
-
-	s.Session.State()
+	sessionID := "session123456789"
 
 	userInput1 := genai.NewContentFromText("My favorite project is Project Alpha.", "user")
 	var finalResponseText string
-	for event, err := range runner1.Run(ctx, userID, SessionID, userInput1, agent.RunConfig{}) {
+	for event, err := range r.Run(ctx, userID, sessionID, userInput1, agent.RunConfig{}) {
 		if err != nil {
 			log.Errorf("Agent 1 Error: %v", err)
 			continue
@@ -111,40 +82,17 @@ func main() {
 
 	// Add the completed session to the Memory Service
 	log.Info("\n--- Adding Session 1 to Memory ---")
-	resp, err := sessionServer.Get(ctx, &session.GetRequest{AppName: s.Session.AppName(), UserID: s.Session.UserID(), SessionID: s.Session.ID()})
-	if err != nil {
-		log.Errorf("Failed to get completed session: %v", err)
-		return
-	}
-	if err := memoryServer.AddSessionToMemory(ctx, resp.Session); err != nil {
+	if err := r.SaveSessionToLongTermMemory(ctx, userID, sessionID, nil); err != nil {
 		log.Errorf("Failed to add session to memory: %v", err)
 		return
 	}
 	log.Info("Session added to memory.")
 
 	log.Info("\n--- Turn 2: Recalling Information ---")
-
-	runner2, err := runner.New(runner.Config{
-		AppName:        appName,
-		Agent:          a,
-		SessionService: sessionServer,
-		MemoryService:  memoryServer,
-	})
-	if err != nil {
-		log.Errorf("create runner2 error %v", err)
-		return
-	}
-
-	s, _ = sessionServer.Create(ctx, &session.CreateRequest{
-		AppName:   appName,
-		UserID:    userID,
-		SessionID: "session2222",
-	})
-
 	userInput2 := genai.NewContentFromText("What is my favorite project?", "user")
 
 	var finalResponseText2 []string
-	for event, err := range runner2.Run(ctx, s.Session.UserID(), s.Session.ID(), userInput2, agent.RunConfig{}) {
+	for event, err := range r.Run(ctx, userID, "session2222", userInput2, agent.RunConfig{}) {
 		if err != nil {
 			log.Errorf("Agent 2 Error: %v", err)
 			continue

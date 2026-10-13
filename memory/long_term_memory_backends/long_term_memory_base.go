@@ -46,22 +46,13 @@ type basicLongTermMemory struct {
 	topK    int
 }
 
-func (*basicLongTermMemory) filterAndConvertEvents(s session.Session) []string {
-	var eventList []string
-	for event := range s.Events().All() {
-		if event.Content == nil || len(event.Content.Parts) == 0 || event.Content.Role != "user" || event.Content.Parts[0].Text == "" {
-			continue
-		}
-
-		bytes, _ := json.Marshal(event.Content)
-		eventList = append(eventList, string(bytes))
-	}
-	return eventList
+func (b *basicLongTermMemory) AddSessionToMemory(ctx context.Context, s session.Session) error {
+	return b.AddSessionToMemoryWithPolicy(ctx, s, nil)
 }
 
-func (b *basicLongTermMemory) AddSessionToMemory(ctx context.Context, s session.Session) error {
+func (b *basicLongTermMemory) AddSessionToMemoryWithPolicy(ctx context.Context, s session.Session, policy *MemoryAutoSavePolicy) error {
 	userId := s.UserID()
-	events := b.filterAndConvertEvents(s)
+	events := filterAndConvertEvents(s, policy)
 	return b.backend.SaveMemory(ctx, userId, events)
 }
 
