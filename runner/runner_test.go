@@ -62,6 +62,27 @@ func newNoopAgent(t *testing.T) agent.Agent {
 	return a
 }
 
+func newEchoAgent(t *testing.T) agent.Agent {
+	t.Helper()
+	a, err := agent.New(agent.Config{
+		Name: "echo",
+		Run: func(ctx agent.InvocationContext) iter.Seq2[*session.Event, error] {
+			return func(yield func(*session.Event, error) bool) {
+				event := session.NewEvent(ctx, ctx.InvocationID())
+				event.Author = "echo"
+				event.LLMResponse = model.LLMResponse{
+					Content: genai.NewContentFromText("pong", genai.RoleModel),
+				}
+				yield(event, nil)
+			}
+		},
+	})
+	if err != nil {
+		t.Fatalf("agent.New() error = %v", err)
+	}
+	return a
+}
+
 func TestNormalizeConfigUsesMemoryAliases(t *testing.T) {
 	shortTerm := session.InMemoryService()
 	longTerm := &recordingMemoryService{}
@@ -118,5 +139,39 @@ func TestSaveSessionToLongTermMemoryUsesPolicyExtension(t *testing.T) {
 	}
 	if memoryService.policies[0] != policy {
 		t.Fatal("policy was not forwarded to policy-aware memory service")
+	}
+}
+
+func TestAutoSaveMemoryPluginRunsAfterSessionEventsArePersisted(t *testing.T) {
+	ctx := context.Background()
+	memoryService := &recordingMemoryService{}
+	r, err := New(Config{
+		AppName:           "app",
+		Agent:             newEchoAgent(t),
+		SessionService:    session.InMemoryService(),
+		MemoryService:     memoryService,
+		AutoCreateSession: true,
+		AutoSaveSession:   true,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	for _, wantSavedEvents := range []int{2, 2} {
+		for _, err := range r.Run(ctx, "user", "session", genai.NewContentFromText("ping", genai.RoleUser), agent.RunConfig{}) {
+			if err != nil {
+				t.Fatalf("Run() error = %v", err)
+			}
+		}
+		if len(memoryService.sessions) == 0 {
+			t.Fatal("auto-save did not save any session")
+		}
+		saved := memoryService.sessions[len(memoryService.sessions)-1]
+		if got := saved.Events().Len(); got != wantSavedEvents {
+			t.Fatalf("saved event count = %d, want %d", got, wantSavedEvents)
+		}
+	}
+	if len(memoryService.sessions) != 2 {
+		t.Fatalf("saved sessions = %d, want 2 incremental saves", len(memoryService.sessions))
 	}
 }

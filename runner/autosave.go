@@ -21,12 +21,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/volcengine/veadk-go/v2/log"
 	vememory "github.com/volcengine/veadk-go/v2/memory"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/memory"
 	"google.golang.org/adk/v2/plugin"
 	"google.golang.org/adk/v2/session"
-	"google.golang.org/genai"
 )
 
 const autoSaveMemoryPluginName = "veadk_auto_save_memory"
@@ -36,12 +36,12 @@ func NewAutoSaveMemoryPlugin(memoryService memory.Service, policy *vememory.Memo
 	savedEventCounts := map[string]int{}
 	return plugin.New(plugin.Config{
 		Name: autoSaveMemoryPluginName,
-		AfterAgentCallback: func(ctx agent.Context) (*genai.Content, error) {
+		AfterRunCallback: func(ctx agent.InvocationContext) {
 			if ctx == nil || ctx.Session() == nil {
-				return nil, nil
+				return
 			}
 			sess := ctx.Session()
-			key := ctx.AppName() + "\x00" + ctx.UserID() + "\x00" + ctx.SessionID()
+			key := sess.AppName() + "\x00" + sess.UserID() + "\x00" + sess.ID()
 			mu.Lock()
 			start := savedEventCounts[key]
 			current := sess.Events().Len()
@@ -50,17 +50,19 @@ func NewAutoSaveMemoryPlugin(memoryService memory.Service, policy *vememory.Memo
 			}
 			if start == current {
 				mu.Unlock()
-				return nil, nil
+				return
 			}
 			mu.Unlock()
 			incrementalSession := sessionWithEvents(sess, eventsFrom(sess.Events(), start, current))
 			if memoryService != nil {
 				if err := addSessionToMemory(ctx, memoryService, incrementalSession, policy); err != nil {
-					return nil, err
+					log.Errorf("veadk auto-save memory failed: %v", err)
+					return
 				}
 			} else if ctx.Memory() != nil {
 				if err := ctx.Memory().AddSessionToMemory(ctx, incrementalSession); err != nil {
-					return nil, err
+					log.Errorf("veadk auto-save memory failed: %v", err)
+					return
 				}
 			}
 			mu.Lock()
@@ -68,7 +70,6 @@ func NewAutoSaveMemoryPlugin(memoryService memory.Service, policy *vememory.Memo
 				savedEventCounts[key] = current
 			}
 			mu.Unlock()
-			return nil, nil
 		},
 	})
 }

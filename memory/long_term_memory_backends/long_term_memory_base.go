@@ -67,33 +67,45 @@ func (b *basicLongTermMemory) SearchMemory(ctx context.Context, req *memory.Sear
 	for _, item := range result {
 		if len(item.Content) > 0 && item.Content[0] == '{' {
 			var content genai.Content
-			_ = json.Unmarshal([]byte(item.Content), &content)
-			memResp.Memories = append(memResp.Memories, memory.Entry{
-				Content: &genai.Content{
-					Parts: []*genai.Part{
-						{
-							Text: content.Parts[0].Text,
+			if err := json.Unmarshal([]byte(item.Content), &content); err == nil {
+				if text, ok := firstTextPart(content); ok {
+					memResp.Memories = append(memResp.Memories, memory.Entry{
+						Content: &genai.Content{
+							Parts: []*genai.Part{
+								{
+									Text: text,
+								},
+							},
+							Role: content.Role,
 						},
-					},
-					Role: content.Role,
-				},
-				Author:    "user",
-				Timestamp: item.Timestamp,
-			})
-		} else {
-			memResp.Memories = append(memResp.Memories, memory.Entry{
-				Content: &genai.Content{
-					Parts: []*genai.Part{
-						{
-							Text: item.Content,
-						},
-					},
-					Role: "user",
-				},
-				Author:    "user",
-				Timestamp: item.Timestamp,
-			})
+						Author:    "user",
+						Timestamp: item.Timestamp,
+					})
+					continue
+				}
+			}
 		}
+		memResp.Memories = append(memResp.Memories, memory.Entry{
+			Content: &genai.Content{
+				Parts: []*genai.Part{
+					{
+						Text: item.Content,
+					},
+				},
+				Role: "user",
+			},
+			Author:    "user",
+			Timestamp: item.Timestamp,
+		})
 	}
 	return memResp, nil
+}
+
+func firstTextPart(content genai.Content) (string, bool) {
+	for _, part := range content.Parts {
+		if part != nil && part.Text != "" {
+			return part.Text, true
+		}
+	}
+	return "", false
 }
