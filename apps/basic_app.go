@@ -29,8 +29,11 @@ import (
 
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 	"github.com/gorilla/mux"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
 	"github.com/volcengine/veadk-go/v2/log"
+	vememory "github.com/volcengine/veadk-go/v2/memory"
 	"github.com/volcengine/veadk-go/v2/observability"
+	verunner "github.com/volcengine/veadk-go/v2/runner"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/artifact"
 	"google.golang.org/adk/v2/cmd/launcher/web"
@@ -42,13 +45,17 @@ import (
 )
 
 type RunConfig struct {
-	SessionService   session.Service
-	ArtifactService  artifact.Service
-	MemoryService    memory.Service
-	AgentLoader      agent.Loader
-	A2AOptions       []a2asrv.RequestHandlerOption
-	PluginConfig     runner.PluginConfig
-	TelemetryOptions []telemetry.Option
+	SessionService       session.Service
+	ShortTermMemory      session.Service
+	ArtifactService      artifact.Service
+	MemoryService        memory.Service
+	LongTermMemory       memory.Service
+	AgentLoader          agent.Loader
+	A2AOptions           []a2asrv.RequestHandlerOption
+	PluginConfig         runner.PluginConfig
+	TelemetryOptions     []telemetry.Option
+	AutoSaveSession      bool
+	AutoSaveMemoryPolicy *vememory.MemoryAutoSavePolicy
 	// DisableObservability skips VeADK's default observability plugin and
 	// shutdown hook. Embedders that manage telemetry themselves can use this to
 	// avoid installing or shutting down global providers.
@@ -73,6 +80,37 @@ func (cfg *RunConfig) AppendObservability() {
 	}
 
 	cfg.TelemetryOptions = append(cfg.TelemetryOptions, observability.ADKTelemetryOptions()...)
+}
+
+func (cfg *RunConfig) NormalizeMemory() error {
+	if cfg.SessionService == nil {
+		cfg.SessionService = cfg.ShortTermMemory
+	}
+	if cfg.SessionService == nil {
+		cfg.SessionService = session.InMemoryService()
+	}
+	if cfg.MemoryService == nil {
+		cfg.MemoryService = cfg.LongTermMemory
+	}
+	if cfg.MemoryService == nil && cfg.AgentLoader != nil && cfg.AgentLoader.RootAgent() != nil {
+		cfg.MemoryService, _ = veagent.LongTermMemoryFor(cfg.AgentLoader.RootAgent())
+	}
+	if cfg.AutoSaveSession {
+		if cfg.MemoryService == nil {
+			return errors.New("auto save session requires long-term memory or memory service")
+		}
+		autoSavePlugin, err := verunner.NewAutoSaveMemoryPlugin(cfg.MemoryService, cfg.AutoSaveMemoryPolicy)
+		if err != nil {
+			return err
+		}
+		for _, existing := range cfg.PluginConfig.Plugins {
+			if existing != nil && existing.Name() == autoSavePlugin.Name() {
+				return nil
+			}
+		}
+		cfg.PluginConfig.Plugins = append(cfg.PluginConfig.Plugins, autoSavePlugin)
+	}
+	return nil
 }
 
 type ApiConfig struct {
@@ -330,8 +368,8 @@ func Run(ctx context.Context, config *RunConfig, app BasicApp) error {
 
 	router := web.BuildBaseRouter()
 
-	if config.SessionService == nil {
-		config.SessionService = session.InMemoryService()
+	if err := config.NormalizeMemory(); err != nil {
+		return NewSetupError("normalize memory configuration", err)
 	}
 
 	if !config.DisableObservability {

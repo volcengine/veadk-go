@@ -92,19 +92,28 @@ func TestNewDoesNotInjectLongMemoryToolWithoutMemory(t *testing.T) {
 }
 
 func TestNewInjectsStandardMemoryToolWithMemory(t *testing.T) {
+	memoryService := memory.InMemoryService()
 	cfg := &Config{
 		Config: adkllmagent.Config{
 			Name:  "memory-agent",
 			Model: testLLM{},
 		},
-		LongTermMemory: memory.InMemoryService(),
+		LongTermMemory: memoryService,
 	}
 
-	if _, err := New(cfg); err != nil {
+	a, err := New(cfg)
+	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
 	if !hasTool(cfg, "load_memory") {
 		t.Fatalf("expected load_memory tool, got %v", toolNames(cfg))
+	}
+	got, ok := LongTermMemoryFor(a)
+	if !ok {
+		t.Fatal("LongTermMemoryFor() ok = false, want true")
+	}
+	if got != memoryService {
+		t.Fatal("LongTermMemoryFor() did not return configured memory service")
 	}
 }
 
