@@ -43,8 +43,8 @@ func main() {
 	app := agentkit_server_app.NewAgentkitServerApp(apps.DefaultApiConfig())
 
 	err = app.Run(ctx, &apps.RunConfig{
-		AgentLoader:    agent.NewSingleLoader(a),
-		SessionService: sessionService,
+		AgentLoader:     agent.NewSingleLoader(a),
+		ShortTermMemory: sessionService,
 	})
 	if err != nil {
 		log.Errorf("Run failed: %v", err)
