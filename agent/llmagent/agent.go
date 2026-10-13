@@ -30,8 +30,10 @@ import (
 	"github.com/volcengine/veadk-go/v2/utils"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
+	"google.golang.org/adk/v2/memory"
 	adkmodel "google.golang.org/adk/v2/model"
 	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/loadmemorytool"
 )
 
 type Config struct {
@@ -45,8 +47,11 @@ type Config struct {
 	ModelExtraHeaders   map[string]string
 	ModelHTTPClient     *http.Client
 	KnowledgeBase       *knowledgebase.KnowledgeBase
-	PromptManager       prompts.BasePromptManager
-	DisableThought      bool
+	// LongTermMemory enables automatic wiring of the long-term memory search tool.
+	// The same memory service still needs to be passed to the runner/app RunConfig.
+	LongTermMemory memory.Service
+	PromptManager  prompts.BasePromptManager
+	DisableThought bool
 	// Skills contains local root directories whose immediate child directories
 	// are individual skills. Skills are discovered when the agent is created.
 	Skills                []string
@@ -141,13 +146,30 @@ func New(cfg *Config) (agent.Agent, error) {
 		if err != nil {
 			return nil, err
 		}
-		if cfg.Tools == nil {
-			cfg.Tools = []tool.Tool{}
-		}
-		cfg.Tools = append(cfg.Tools, knowledgeTool)
+		appendTool(cfg, knowledgeTool)
+	}
+
+	if cfg.LongTermMemory != nil {
+		appendToolIfMissing(cfg, loadmemorytool.New())
 	}
 
 	return llmagent.New(cfg.Config)
+}
+
+func appendTool(cfg *Config, t tool.Tool) {
+	if cfg.Tools == nil {
+		cfg.Tools = []tool.Tool{}
+	}
+	cfg.Tools = append(cfg.Tools, t)
+}
+
+func appendToolIfMissing(cfg *Config, t tool.Tool) {
+	for _, existing := range cfg.Tools {
+		if existing.Name() == t.Name() {
+			return
+		}
+	}
+	appendTool(cfg, t)
 }
 
 func addDisableThoughtConfig(extConfig map[string]any) (map[string]any, error) {

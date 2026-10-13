@@ -30,6 +30,7 @@ examples/quickstart/config.yaml
 .skills_tools
 skills/skills_feat
 tests
+.research/
 
 # MacOS system file
 .DS_Store
