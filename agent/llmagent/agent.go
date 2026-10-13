@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/volcengine/veadk-go/v2/auth/veauth"
 	"github.com/volcengine/veadk-go/v2/common"
@@ -35,6 +36,8 @@ import (
 	"google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/loadmemorytool"
 )
+
+var longTermMemoryByAgent sync.Map
 
 type Config struct {
 	llmagent.Config
@@ -153,7 +156,26 @@ func New(cfg *Config) (agent.Agent, error) {
 		appendToolIfMissing(cfg, loadmemorytool.New())
 	}
 
-	return llmagent.New(cfg.Config)
+	a, err := llmagent.New(cfg.Config)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.LongTermMemory != nil {
+		longTermMemoryByAgent.Store(a, cfg.LongTermMemory)
+	}
+	return a, nil
+}
+
+func LongTermMemoryFor(a agent.Agent) (memory.Service, bool) {
+	if a == nil {
+		return nil, false
+	}
+	value, ok := longTermMemoryByAgent.Load(a)
+	if !ok {
+		return nil, false
+	}
+	memoryService, ok := value.(memory.Service)
+	return memoryService, ok
 }
 
 func appendTool(cfg *Config, t tool.Tool) {

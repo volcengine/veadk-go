@@ -32,7 +32,14 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	vememory "github.com/volcengine/veadk-go/v2/memory"
+	"google.golang.org/adk/v2/memory"
+	"google.golang.org/adk/v2/session"
 )
+
+type testMemoryService struct {
+	memory.Service
+}
 
 func TestRunRejectsInvalidInputs(t *testing.T) {
 	if err := Run(context.Background(), nil, nil); err == nil {
@@ -46,6 +53,42 @@ func TestRunRejectsInvalidInputs(t *testing.T) {
 	cancel()
 	if err := Run(canceled, &RunConfig{}, nil); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Run(canceled context) error = %v, want context.Canceled", err)
+	}
+}
+
+func TestRunConfigNormalizeMemory(t *testing.T) {
+	shortTerm := session.InMemoryService()
+	longTerm := &testMemoryService{}
+	cfg := &RunConfig{
+		ShortTermMemory:      shortTerm,
+		LongTermMemory:       longTerm,
+		AutoSaveSession:      true,
+		AutoSaveMemoryPolicy: &vememory.MemoryAutoSavePolicy{Preset: vememory.MemoryAutoSaveAll},
+	}
+	if err := cfg.NormalizeMemory(); err != nil {
+		t.Fatalf("NormalizeMemory() error = %v", err)
+	}
+	if cfg.SessionService != shortTerm {
+		t.Fatal("SessionService did not use ShortTermMemory")
+	}
+	if cfg.MemoryService != longTerm {
+		t.Fatal("MemoryService did not use LongTermMemory")
+	}
+	if len(cfg.PluginConfig.Plugins) != 1 {
+		t.Fatalf("plugins = %d, want 1", len(cfg.PluginConfig.Plugins))
+	}
+	if err := cfg.NormalizeMemory(); err != nil {
+		t.Fatalf("NormalizeMemory() second call error = %v", err)
+	}
+	if len(cfg.PluginConfig.Plugins) != 1 {
+		t.Fatalf("plugins after second normalize = %d, want 1", len(cfg.PluginConfig.Plugins))
+	}
+}
+
+func TestRunConfigNormalizeMemoryRequiresLongTermMemoryForAutoSave(t *testing.T) {
+	cfg := &RunConfig{AutoSaveSession: true}
+	if err := cfg.NormalizeMemory(); err == nil {
+		t.Fatal("NormalizeMemory() error = nil, want error")
 	}
 }
 

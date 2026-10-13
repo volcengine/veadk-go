@@ -21,6 +21,33 @@ import (
 	"google.golang.org/adk/v2/memory"
 )
 
+type MemoryEventType = long_term_memory_backends.MemoryEventType
+type MemoryRole = long_term_memory_backends.MemoryRole
+type MemoryAutoSavePreset = long_term_memory_backends.MemoryAutoSavePreset
+type MemoryAutoSavePolicy = long_term_memory_backends.MemoryAutoSavePolicy
+type PolicyMemoryService = long_term_memory_backends.PolicyMemoryService
+
+const (
+	MemoryEventText                = long_term_memory_backends.MemoryEventText
+	MemoryEventThought             = long_term_memory_backends.MemoryEventThought
+	MemoryEventFunctionCall        = long_term_memory_backends.MemoryEventFunctionCall
+	MemoryEventFunctionResponse    = long_term_memory_backends.MemoryEventFunctionResponse
+	MemoryEventToolCall            = long_term_memory_backends.MemoryEventToolCall
+	MemoryEventToolResponse        = long_term_memory_backends.MemoryEventToolResponse
+	MemoryEventMedia               = long_term_memory_backends.MemoryEventMedia
+	MemoryEventExecutableCode      = long_term_memory_backends.MemoryEventExecutableCode
+	MemoryEventCodeExecutionResult = long_term_memory_backends.MemoryEventCodeExecutionResult
+	MemoryEventError               = long_term_memory_backends.MemoryEventError
+
+	MemoryRoleUser      = long_term_memory_backends.MemoryRoleUser
+	MemoryRoleAssistant = long_term_memory_backends.MemoryRoleAssistant
+	MemoryRoleSystem    = long_term_memory_backends.MemoryRoleSystem
+
+	MemoryAutoSaveDefault = long_term_memory_backends.MemoryAutoSaveDefault
+	MemoryAutoSaveAll     = long_term_memory_backends.MemoryAutoSaveAll
+	MemoryAutoSaveCustom  = long_term_memory_backends.MemoryAutoSaveCustom
+)
+
 type LongTermBackendType string
 
 const (
