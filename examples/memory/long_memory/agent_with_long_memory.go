@@ -23,12 +23,9 @@ import (
 	"github.com/volcengine/veadk-go/v2/apps/agentkit_server_app"
 	"github.com/volcengine/veadk-go/v2/log"
 	vem "github.com/volcengine/veadk-go/v2/memory"
-	"github.com/volcengine/veadk-go/v2/tool/builtin_tools"
-	"github.com/volcengine/veadk-go/v2/utils"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/session"
-	"google.golang.org/adk/v2/tool"
 	"google.golang.org/genai"
 )
 
@@ -63,9 +60,9 @@ func main() {
 		Config: llmagent.Config{
 			Name:                 "personal_assistant",
 			Instruction:          "You are a personal assistant with long-term memory capabilities. Before answering the user's questions, you must invoke the tool to retrieve memory information.",
-			Tools:                []tool.Tool{utils.Must(builtin_tools.LoadLongMemoryTool())},
 			BeforeAgentCallbacks: []agent.BeforeAgentCallback{onBeforeAgent},
 		},
+		LongTermMemory: memoryServer,
 	})
 	if err != nil {
 		log.Errorf("NewLLMAgent failed: %v", err)
