@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"strings"
 
 	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
 	vememory "github.com/volcengine/veadk-go/v2/memory"
@@ -153,4 +154,51 @@ func SaveSessionToLongTermMemory(ctx context.Context, sessionService session.Ser
 
 func (r *Runner) Run(ctx context.Context, userID, sessionID string, msg *genai.Content, cfg agent.RunConfig, opts ...adkrunner.RunOption) iter.Seq2[*session.Event, error] {
 	return r.Runner.Run(ctx, userID, sessionID, msg, cfg, opts...)
+}
+
+// RunText sends a user text message and returns the final visible model text.
+func (r *Runner) RunText(ctx context.Context, userID, sessionID, text string, cfg agent.RunConfig, opts ...adkrunner.RunOption) (string, error) {
+	msg := genai.NewContentFromText(text, genai.RoleUser)
+	return CollectFinalText(r.Run(ctx, userID, sessionID, msg, cfg, opts...))
+}
+
+// CollectFinalText consumes a runner event stream and returns the final visible model text.
+func CollectFinalText(events iter.Seq2[*session.Event, error]) (string, error) {
+	var finalText string
+	var partialText strings.Builder
+	var hasFinalText bool
+
+	for event, err := range events {
+		if err != nil {
+			return "", err
+		}
+		text := eventText(event)
+		if text == "" {
+			continue
+		}
+		if event.Partial {
+			partialText.WriteString(text)
+			continue
+		}
+		finalText = text
+		hasFinalText = true
+	}
+	if hasFinalText {
+		return finalText, nil
+	}
+	return partialText.String(), nil
+}
+
+func eventText(event *session.Event) string {
+	if event == nil || event.Content == nil {
+		return ""
+	}
+	var text strings.Builder
+	for _, part := range event.Content.Parts {
+		if part == nil || part.Thought || strings.TrimSpace(part.Text) == "" {
+			continue
+		}
+		text.WriteString(part.Text)
+	}
+	return text.String()
 }
