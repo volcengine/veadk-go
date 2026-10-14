@@ -28,6 +28,18 @@ For multi-turn conversations, reuse the same `userID` and `sessionID` across cal
 
 `context.Context` is the standard Go cancellation, deadline, and request-scoped value context. It is not the conversation context. Conversation history comes from the tuple of `userID`, `sessionID`, and the configured `SessionService`.
 
+## App integration
+
+The app package uses the same session, memory, plugin, and auto-save concepts as the direct runner path:
+
+- `apps.RunConfig.ShortTermMemory` is an alias for `SessionService`.
+- `apps.RunConfig.LongTermMemory` is an alias for `MemoryService`.
+- When `AutoSaveSession` is enabled, apps install the same VeADK auto-save memory plugin used by the runner.
+- The simple app `/invoke` route returns a final text response through the VeADK runner helper path.
+- A2A and ADK REST routes keep the raw ADK event stream because those protocols need streaming events, artifacts, tool calls, and metadata.
+
+Use direct `runner.New` when embedding an agent in your own Go flow. Use `apps.RunConfig` when launching one of VeADK's HTTP app surfaces.
+
 ## Python runner mapping
 
 VeADK Python accepts a broad `messages` value in `Runner.run`. VeADK Go keeps ADK Go's typed content model and uses focused helpers instead.

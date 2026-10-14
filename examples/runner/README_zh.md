@@ -28,6 +28,18 @@ go run ./examples/runner/basic
 
 `context.Context` 是 Go 标准的取消、超时和请求作用域上下文。它不是对话上下文。对话历史来自 `userID`、`sessionID` 和配置的 `SessionService`。
 
+## App 集成
+
+`apps` 包和直接使用 runner 的路径共享同一套 session、memory、plugin 和 auto-save 概念：
+
+- `apps.RunConfig.ShortTermMemory` 是 `SessionService` 的别名。
+- `apps.RunConfig.LongTermMemory` 是 `MemoryService` 的别名。
+- 启用 `AutoSaveSession` 时，app 会安装和 runner 相同的 VeADK auto-save memory plugin。
+- simple app 的 `/invoke` 路由通过 VeADK runner helper 路径返回最终文本响应。
+- A2A 和 ADK REST 路由保留原始 ADK 事件流，因为这些协议需要 streaming event、artifact、tool call 和 metadata。
+
+如果是在自己的 Go 流程中嵌入 Agent，可以直接使用 `runner.New`。如果要启动 VeADK 提供的 HTTP app，则使用 `apps.RunConfig`。
+
 ## Python Runner 对照
 
 VeADK Python 的 `Runner.run` 接收比较宽泛的 `messages` 参数。VeADK Go 保留 ADK Go 的强类型 content 模型，并通过聚焦的 helper 覆盖常见场景。
