@@ -158,8 +158,7 @@ func (r *Runner) Run(ctx context.Context, userID, sessionID string, msg *genai.C
 
 // RunText sends a user text message and returns the final visible model text.
 func (r *Runner) RunText(ctx context.Context, userID, sessionID, text string, cfg agent.RunConfig, opts ...adkrunner.RunOption) (string, error) {
-	msg := genai.NewContentFromText(text, genai.RoleUser)
-	return CollectFinalText(r.Run(ctx, userID, sessionID, msg, cfg, opts...))
+	return CollectFinalText(r.Run(ctx, userID, sessionID, UserText(text), cfg, opts...))
 }
 
 // CollectFinalText consumes a runner event stream and returns the final visible model text.
