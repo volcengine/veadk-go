@@ -199,7 +199,7 @@ answer, err := runner.CollectFinalText(
 
 如果需要流式 UI、工具确认、Tracing 或其他高级流程，仍然可以直接遍历 `Run` 返回的原始事件流。多轮对话时复用相同的 `userID` 和 `sessionID` 即可延续会话上下文。
 
-可运行示例见 [examples/runner/basic](examples/runner/basic)。
+可运行示例和 runner 用法说明见 [examples/runner](examples/runner)。
 
 ## 贡献
 

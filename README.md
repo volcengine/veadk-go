@@ -202,7 +202,7 @@ answer, err := runner.CollectFinalText(
 
 You can still consume the raw event stream with `Run` for streaming UI, tool confirmation, tracing, or other advanced workflows. Reuse the same `userID` and `sessionID` to continue a conversation across turns.
 
-See [examples/runner/basic](examples/runner/basic) for a runnable example.
+See [examples/runner](examples/runner) for a runnable example and runner usage notes.
 
 ## Contributing
 
