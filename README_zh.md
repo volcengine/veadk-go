@@ -163,6 +163,44 @@ go run agent.go web api webui
 go run agent.go web -read-timeout 3m -write-timeout 3m api webui
 ```
 
+## 直接使用 Runner
+
+如果你希望在代码中直接调用 Agent，并且只关心最终文本响应，可以使用 `runner.RunText`：
+
+```go
+r, err := runner.New(runner.Config{
+	AppName:           "demo",
+	Agent:             veAgent,
+	AutoCreateSession: true,
+})
+if err != nil {
+	return err
+}
+
+answer, err := r.RunText(ctx, "user", "session", "hello", agent.RunConfig{})
+if err != nil {
+	return err
+}
+fmt.Println(answer)
+```
+
+如果需要多模态或多 part 输入，可以继续使用 ADK Go 的 `genai.Part` 类型，并从事件流中收集最终文本：
+
+```go
+msg := runner.UserParts(
+	genai.NewPartFromText("describe this image"),
+	genai.NewPartFromBytes(imageBytes, "image/png"),
+)
+
+answer, err := runner.CollectFinalText(
+	r.Run(ctx, "user", "session", msg, agent.RunConfig{}),
+)
+```
+
+如果需要流式 UI、工具确认、Tracing 或其他高级流程，仍然可以直接遍历 `Run` 返回的原始事件流。多轮对话时复用相同的 `userID` 和 `sessionID` 即可延续会话上下文。
+
+可运行示例见 [examples/runner/basic](examples/runner/basic)。
+
 ## 贡献
 
 欢迎贡献代码、文档、示例和测试。提交 Pull Request 前，请阅读[贡献指南](CONTRIBUTING_zh.md)，选择正确的 V1 或 V2 分支，并遵守兼容性规则。

@@ -166,6 +166,44 @@ If a large agent takes a long time to run, you can increase the timeout paramete
 go run agent.go web -read-timeout 3m -write-timeout 3m api webui
 ```
 
+## Use the runner directly
+
+For programmatic calls, use `runner.RunText` when you only need the final text response:
+
+```go
+r, err := runner.New(runner.Config{
+	AppName:           "demo",
+	Agent:             veAgent,
+	AutoCreateSession: true,
+})
+if err != nil {
+	return err
+}
+
+answer, err := r.RunText(ctx, "user", "session", "hello", agent.RunConfig{})
+if err != nil {
+	return err
+}
+fmt.Println(answer)
+```
+
+For multimodal or multi-part input, keep the ADK Go `genai.Part` types and collect the final response text from the event stream:
+
+```go
+msg := runner.UserParts(
+	genai.NewPartFromText("describe this image"),
+	genai.NewPartFromBytes(imageBytes, "image/png"),
+)
+
+answer, err := runner.CollectFinalText(
+	r.Run(ctx, "user", "session", msg, agent.RunConfig{}),
+)
+```
+
+You can still consume the raw event stream with `Run` for streaming UI, tool confirmation, tracing, or other advanced workflows. Reuse the same `userID` and `sessionID` to continue a conversation across turns.
+
+See [examples/runner/basic](examples/runner/basic) for a runnable example.
+
 ## Contributing
 
 We welcome code, documentation, examples, and tests. Before sending a pull request, read [CONTRIBUTING.md](CONTRIBUTING.md) to choose the correct V1 or V2 branch and follow the compatibility rules.
