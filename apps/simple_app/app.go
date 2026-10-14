@@ -21,16 +21,14 @@ import (
 	"io"
 
 	"net/http"
-	"strings"
 
 	"github.com/volcengine/veadk-go/v2/log"
 
 	"github.com/gorilla/mux"
 	"github.com/volcengine/veadk-go/v2/apps"
+	verunner "github.com/volcengine/veadk-go/v2/runner"
 	"google.golang.org/adk/v2/agent"
-	"google.golang.org/adk/v2/runner"
 	"google.golang.org/adk/v2/session"
-	"google.golang.org/genai"
 )
 
 const serverName = "agentkit simple server"
@@ -40,7 +38,7 @@ type agentkitSimpleApp struct {
 	appName string
 	userID  string
 	session session.Session
-	runner  *runner.Runner
+	runner  *verunner.Runner
 }
 
 func NewAgentkitSimpleApp(config *apps.ApiConfig) apps.BasicApp {
@@ -70,7 +68,7 @@ func (a *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunCon
 	}
 	a.session = resp.Session
 
-	r, err := runner.New(runner.Config{
+	r, err := verunner.New(verunner.Config{
 		AppName:         a.appName,
 		Agent:           config.AgentLoader.RootAgent(),
 		SessionService:  config.SessionService,
@@ -129,28 +127,18 @@ func (a *agentkitSimpleApp) newInvokeHandler() func(w http.ResponseWriter, r *ht
 			return
 		}
 
-		userInput := genai.NewContentFromText(req.Prompt, "user")
-
-		var finalResponseText []string
-		for event, err := range a.runner.Run(ctx, a.userID, a.session.ID(), userInput, agent.RunConfig{StreamingMode: agent.StreamingModeNone}) {
-			if err != nil {
-				log.Errorf("Agent Run Error: %v", err)
-				continue
-			}
-			if event.Content != nil && !event.Partial {
-				for _, part := range event.Content.Parts {
-					if !part.Thought {
-						finalResponseText = append(finalResponseText, part.Text)
-					}
-				}
-			}
+		finalResponseText, err := a.runner.RunText(ctx, a.userID, a.session.ID(), req.Prompt, agent.RunConfig{StreamingMode: agent.StreamingModeNone})
+		if err != nil {
+			res := Response{Code: http.StatusInternalServerError, Message: fmt.Sprintf("agent run error: %s", err.Error()), SessionId: a.session.ID(), Data: ""}
+			_ = json.NewEncoder(w).Encode(res)
+			return
 		}
 
 		res := Response{
 			Code:      200,
 			Message:   "success",
 			SessionId: a.session.ID(),
-			Data:      strings.Join(finalResponseText, ""),
+			Data:      finalResponseText,
 		}
 		_ = json.NewEncoder(w).Encode(res)
 	}

@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"strings"
 
 	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
 	"github.com/volcengine/veadk-go/v2/log"
@@ -25,7 +24,6 @@ import (
 	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/memory"
 	"google.golang.org/adk/v2/session"
-	"google.golang.org/genai"
 )
 
 func main() {
@@ -67,16 +65,10 @@ func main() {
 
 	sessionID := "session123456789"
 
-	userInput1 := genai.NewContentFromText("My favorite project is Project Alpha.", "user")
-	var finalResponseText string
-	for event, err := range r.Run(ctx, userID, sessionID, userInput1, agent.RunConfig{}) {
-		if err != nil {
-			log.Errorf("Agent 1 Error: %v", err)
-			continue
-		}
-		if event.Content != nil && !event.Partial {
-			finalResponseText = strings.Join(textParts(event.Content), "")
-		}
+	finalResponseText, err := r.RunText(ctx, userID, sessionID, "My favorite project is Project Alpha.", agent.RunConfig{})
+	if err != nil {
+		log.Errorf("Agent 1 Error: %v", err)
+		return
 	}
 	log.Infof("Agent 1 Response: %s\n", finalResponseText)
 
@@ -89,27 +81,10 @@ func main() {
 	log.Info("Session added to memory.")
 
 	log.Info("\n--- Turn 2: Recalling Information ---")
-	userInput2 := genai.NewContentFromText("What is my favorite project?", "user")
-
-	var finalResponseText2 []string
-	for event, err := range r.Run(ctx, userID, "session2222", userInput2, agent.RunConfig{}) {
-		if err != nil {
-			log.Errorf("Agent 2 Error: %v", err)
-			continue
-		}
-		if event.Content != nil && !event.Partial {
-			for _, part := range event.Content.Parts {
-				finalResponseText2 = append(finalResponseText2, part.Text)
-			}
-		}
+	finalResponseText2, err := r.RunText(ctx, userID, "session2222", "What is my favorite project?", agent.RunConfig{})
+	if err != nil {
+		log.Errorf("Agent 2 Error: %v", err)
+		return
 	}
-	log.Infof("Agent 2 Response: %s\n", strings.Join(finalResponseText2, ""))
-}
-
-func textParts(Content *genai.Content) []string {
-	var texts []string
-	for _, part := range Content.Parts {
-		texts = append(texts, part.Text)
-	}
-	return texts
+	log.Infof("Agent 2 Response: %s\n", finalResponseText2)
 }

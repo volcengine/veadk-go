@@ -16,6 +16,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"iter"
 	"testing"
 
@@ -173,5 +174,91 @@ func TestAutoSaveMemoryPluginRunsAfterSessionEventsArePersisted(t *testing.T) {
 	}
 	if len(memoryService.sessions) != 2 {
 		t.Fatalf("saved sessions = %d, want 2 incremental saves", len(memoryService.sessions))
+	}
+}
+
+func TestCollectFinalTextUsesLastNonPartialText(t *testing.T) {
+	got, err := CollectFinalText(eventSequence(
+		&session.Event{LLMResponse: model.LLMResponse{
+			Content: genai.NewContentFromText("hel", genai.RoleModel),
+			Partial: true,
+		}},
+		&session.Event{LLMResponse: model.LLMResponse{
+			Content: &genai.Content{Role: genai.RoleModel, Parts: []*genai.Part{
+				{Text: "thinking", Thought: true},
+				{Text: "hello "},
+				{Text: "world"},
+				{Text: "   "},
+			}},
+		}},
+		&session.Event{LLMResponse: model.LLMResponse{
+			Content: genai.NewContentFromText("final", genai.RoleModel),
+		}},
+	))
+	if err != nil {
+		t.Fatalf("CollectFinalText() error = %v", err)
+	}
+	if got != "final" {
+		t.Fatalf("CollectFinalText() = %q, want %q", got, "final")
+	}
+}
+
+func TestCollectFinalTextFallsBackToPartialText(t *testing.T) {
+	got, err := CollectFinalText(eventSequence(
+		&session.Event{LLMResponse: model.LLMResponse{
+			Content: genai.NewContentFromText("hello", genai.RoleModel),
+			Partial: true,
+		}},
+		&session.Event{LLMResponse: model.LLMResponse{
+			Content: genai.NewContentFromText(" world", genai.RoleModel),
+			Partial: true,
+		}},
+		&session.Event{LLMResponse: model.LLMResponse{TurnComplete: true}},
+	))
+	if err != nil {
+		t.Fatalf("CollectFinalText() error = %v", err)
+	}
+	if got != "hello world" {
+		t.Fatalf("CollectFinalText() = %q, want %q", got, "hello world")
+	}
+}
+
+func TestCollectFinalTextReturnsEventError(t *testing.T) {
+	wantErr := errors.New("run failed")
+	_, err := CollectFinalText(func(yield func(*session.Event, error) bool) {
+		yield(nil, wantErr)
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("CollectFinalText() error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestRunTextReturnsCollectedResponse(t *testing.T) {
+	ctx := context.Background()
+	r, err := New(Config{
+		AppName:           "app",
+		Agent:             newEchoAgent(t),
+		SessionService:    session.InMemoryService(),
+		AutoCreateSession: true,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	got, err := r.RunText(ctx, "user", "session", "ping", agent.RunConfig{})
+	if err != nil {
+		t.Fatalf("RunText() error = %v", err)
+	}
+	if got != "pong" {
+		t.Fatalf("RunText() = %q, want %q", got, "pong")
+	}
+}
+
+func eventSequence(events ...*session.Event) iter.Seq2[*session.Event, error] {
+	return func(yield func(*session.Event, error) bool) {
+		for _, event := range events {
+			if !yield(event, nil) {
+				return
+			}
+		}
 	}
 }
