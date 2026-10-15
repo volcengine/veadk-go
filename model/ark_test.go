@@ -463,6 +463,86 @@ func TestArkModel_ConvertContentWithNilFunctionCallArgs(t *testing.T) {
 	assert.Equal(t, "{}", msgs[0].ToolCalls[0].Function.Arguments)
 }
 
+func TestArkModel_ConvertContentPreservesReasoning(t *testing.T) {
+	am := &arkModel{name: "test-model", config: &ArkClientConfig{}}
+
+	t.Run("separates reasoning from text", func(t *testing.T) {
+		content := &genai.Content{
+			Role: "model",
+			Parts: []*genai.Part{
+				{Text: "internal reasoning", Thought: true},
+				genai.NewPartFromText("final answer"),
+			},
+		}
+
+		msgs, err := am.convertGenAIContentToArk(content)
+		assert.NoError(t, err)
+		if assert.Len(t, msgs, 1) {
+			assert.Equal(t, arkmodel.ChatMessageRoleAssistant, msgs[0].Role)
+			if assert.NotNil(t, msgs[0].ReasoningContent) {
+				assert.Equal(t, "internal reasoning", *msgs[0].ReasoningContent)
+			}
+			if assert.NotNil(t, msgs[0].Content) && assert.NotNil(t, msgs[0].Content.StringValue) {
+				assert.Equal(t, "final answer", *msgs[0].Content.StringValue)
+			}
+		}
+	})
+
+	t.Run("preserves thought semantics for other roles", func(t *testing.T) {
+		content := &genai.Content{
+			Role: "user",
+			Parts: []*genai.Part{
+				{Text: "preserved thought", Thought: true},
+				genai.NewPartFromText("user text"),
+			},
+		}
+
+		msgs, err := am.convertGenAIContentToArk(content)
+		assert.NoError(t, err)
+		if assert.Len(t, msgs, 1) {
+			assert.Equal(t, "user", msgs[0].Role)
+			if assert.NotNil(t, msgs[0].ReasoningContent) {
+				assert.Equal(t, "preserved thought", *msgs[0].ReasoningContent)
+			}
+			if assert.NotNil(t, msgs[0].Content) && assert.NotNil(t, msgs[0].Content.StringValue) {
+				assert.Equal(t, "user text", *msgs[0].Content.StringValue)
+			}
+		}
+	})
+
+	t.Run("preserves reasoning with tool calls", func(t *testing.T) {
+		content := &genai.Content{
+			Role: "model",
+			Parts: []*genai.Part{
+				{Text: "reasoning before tool call", Thought: true},
+				genai.NewPartFromText("calling the weather tool"),
+				{
+					FunctionCall: &genai.FunctionCall{
+						ID:   "call_weather",
+						Name: "get_weather",
+						Args: map[string]any{"city": "Beijing"},
+					},
+				},
+			},
+		}
+
+		msgs, err := am.convertGenAIContentToArk(content)
+		assert.NoError(t, err)
+		if assert.Len(t, msgs, 1) {
+			if assert.NotNil(t, msgs[0].ReasoningContent) {
+				assert.Equal(t, "reasoning before tool call", *msgs[0].ReasoningContent)
+			}
+			if assert.NotNil(t, msgs[0].Content) && assert.NotNil(t, msgs[0].Content.StringValue) {
+				assert.Equal(t, "calling the weather tool", *msgs[0].Content.StringValue)
+			}
+			if assert.Len(t, msgs[0].ToolCalls, 1) {
+				assert.Equal(t, "call_weather", msgs[0].ToolCalls[0].ID)
+				assert.Equal(t, "get_weather", msgs[0].ToolCalls[0].Function.Name)
+			}
+		}
+	})
+}
+
 func TestArkModel_BuildUsageMetadata(t *testing.T) {
 	t.Run("normal_usage", func(t *testing.T) {
 		usage := &arkmodel.Usage{
