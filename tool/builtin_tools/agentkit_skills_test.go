@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -279,5 +280,106 @@ func TestResolveSkillsToolIDFallback(t *testing.T) {
 	_ = os.Unsetenv(common.AGENTKIT_TOOL_ID_SKILLS)
 	if got := resolveSkillsToolID(); got != "generic-tool" {
 		t.Fatalf("resolveSkillsToolID() = %q, want generic-tool", got)
+	}
+}
+
+func TestExecuteSkillsRejectsUnsupportedEnvVars(t *testing.T) {
+	ctx := newSkillsTestContext()
+	_, err := executeSkillsHandler(ctx, executeSkillsArgs{
+		WorkflowPrompt: "hello",
+		EnvVars:        map[string]string{"A": "B"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "env_vars is not supported") {
+		t.Fatalf("executeSkillsHandler error = %v, want env_vars unsupported", err)
+	}
+}
+
+func TestPollSkillRequiresTaskID(t *testing.T) {
+	ctx := newSkillsTestContext()
+	_, err := pollSkillHandler(ctx, pollSkillArgs{})
+	if err == nil || !strings.Contains(err.Error(), "task_id is required") {
+		t.Fatalf("pollSkillHandler error = %v, want missing task_id", err)
+	}
+}
+
+func TestExecuteSkillsReturnsFailedTaskError(t *testing.T) {
+	withSkillsToolEnv(t)
+	previousDo := agentkitDoRequest
+	t.Cleanup(func() { agentkitDoRequest = previousDo })
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		state := "failed"
+		if payload["method"] == "message/send" {
+			state = "working"
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"result": map[string]any{
+				"kind":   "task",
+				"id":     "task-failed",
+				"status": map[string]any{"state": state},
+			},
+		})
+	}))
+	defer server.Close()
+	stubReadyAgentkitSession(t, server.URL)
+
+	_, err := executeSkillsHandler(newSkillsTestContext(), executeSkillsArgs{
+		WorkflowPrompt: "hello",
+		Timeout:        3,
+	})
+	if err == nil || !strings.Contains(err.Error(), "ended with state failed") {
+		t.Fatalf("executeSkillsHandler error = %v, want failed task", err)
+	}
+}
+
+func TestInvokeSkillReturnsJSONRPCError(t *testing.T) {
+	withSkillsToolEnv(t)
+	previousDo := agentkitDoRequest
+	t.Cleanup(func() { agentkitDoRequest = previousDo })
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error": map[string]any{
+				"code":    -32000,
+				"message": "sandbox rejected request",
+			},
+		})
+	}))
+	defer server.Close()
+	stubReadyAgentkitSession(t, server.URL)
+
+	_, err := invokeSkillHandler(newSkillsTestContext(), invokeSkillArgs{
+		WorkflowPrompt: "hello",
+		Timeout:        3,
+	})
+	if err == nil || !strings.Contains(err.Error(), "sandbox rejected request") {
+		t.Fatalf("invokeSkillHandler error = %v, want JSON-RPC error", err)
+	}
+}
+
+func TestA2AURLKeepsExistingA2APath(t *testing.T) {
+	got, err := a2aJSONRPCURL("https://example.test/base/a2a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://example.test/base/a2a" {
+		t.Fatalf("a2aJSONRPCURL = %q", got)
+	}
+}
+
+func stubReadyAgentkitSession(t *testing.T, endpoint string) {
+	t.Helper()
+	agentkitDoRequest = func(req ve_sign.VeRequest) ([]byte, error) {
+		switch req.Action {
+		case "ListSessions":
+			return []byte(`{"Result":{"SessionInfos":[{"SessionId":"session-ready","UserSessionId":"agent_user_session","Status":"Ready","Endpoint":"` + endpoint + `","CreatedAt":"2026-01-01T00:00:00Z"}]}}`), nil
+		default:
+			t.Fatalf("unexpected action %s", req.Action)
+			return nil, nil
+		}
 	}
 }
