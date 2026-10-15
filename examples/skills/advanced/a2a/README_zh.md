@@ -76,5 +76,6 @@ go run ./examples/skills/advanced/a2a/runtime_to_aio_sandbox_run_code \
 这个示例在 runtime Agent 中加载远程 Skill metadata，并暴露 `run_code`，让代码执行发生在
 AIO/script Sandbox 中。它不使用 `execute_skills`、`invoke_skill` 或 `poll_skill`。
 
-当前 Go 示例里 `SkillToolset` 保持只读。如果技能流程中需要执行脚本，应让 Agent 显式调用
-`run_code`。
+`SkillToolset` 的 Python 脚本执行会通过 AgentKit `run_code` 路由到 AIO/script Sandbox，因此
+`.py` 脚本的 `run_skill_script` 不会在 runtime 本地执行。Agent 也可以直接调用 `run_code`
+执行临时 Python 代码。

@@ -26,7 +26,9 @@ import (
 	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
 	"github.com/volcengine/veadk-go/v2/common"
 	verunner "github.com/volcengine/veadk-go/v2/runner"
+	"github.com/volcengine/veadk-go/v2/skills"
 	"github.com/volcengine/veadk-go/v2/tool/builtin_tools"
+	"github.com/volcengine/veadk-go/v2/tool/skilltool"
 	"google.golang.org/adk/v2/agent"
 	adkllmagent "google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/tool"
@@ -54,10 +56,14 @@ func run() error {
 	sessionID := flag.String("session-id", "", "Runtime Agent session ID")
 	prompt := flag.String("prompt", "", "User request sent to the runtime Agent")
 	modelName := flag.String("model-name", os.Getenv(common.MODEL_AGENT_NAME), "Runtime Agent model name")
+	cacheDir := flag.String("cache", ".adk/remote-skills", "Remote Skill cache directory")
 	flag.Parse()
 
 	if *toolID == "" {
 		return fmt.Errorf("--tool-id is required")
+	}
+	if *skillSpaceID == "" {
+		return fmt.Errorf("--skill-space-id is required")
 	}
 	if *sessionID == "" {
 		return fmt.Errorf("--session-id is required")
@@ -65,8 +71,12 @@ func run() error {
 	if *prompt == "" {
 		return fmt.Errorf("--prompt is required")
 	}
-	os.Setenv(common.AGENTKIT_TOOL_ID_SKILLS, *toolID)
+	setSkillsToolIDEnv(*toolID)
 
+	skillToolset, err := remoteReadOnlySkillToolset(context.Background(), *skillSpaceID, *cacheDir)
+	if err != nil {
+		return err
+	}
 	executeSkills, err := builtin_tools.NewExecuteSkillsSandboxTool()
 	if err != nil {
 		return err
@@ -75,6 +85,7 @@ func run() error {
 		Config: adkllmagent.Config{
 			Name:        "remote_skills_runtime_agent",
 			Instruction: instruction,
+			Toolsets:    []tool.Toolset{skillToolset},
 			Tools:       []tool.Tool{executeSkills},
 		},
 	}
@@ -107,6 +118,43 @@ func run() error {
 		"skill_space_id": *skillSpaceID,
 		"response":       response,
 	})
+}
+
+func remoteReadOnlySkillToolset(ctx context.Context, skillSpaceID, cacheDir string) (*skilltool.SkillToolset, error) {
+	source, err := skills.NewRemoteSource(skills.RemoteSourceConfig{SpaceID: skillSpaceID})
+	if err != nil {
+		return nil, err
+	}
+	cache, err := skills.NewSkillCache(skills.SkillCacheConfig{Directory: cacheDir})
+	if err != nil {
+		return nil, err
+	}
+	registry, err := skills.NewRegistry(skills.RegistryConfig{Sources: []skills.SourceBinding{{Source: source}}, Cache: cache})
+	if err != nil {
+		return nil, err
+	}
+	defer registry.Close()
+	if _, err := registry.Refresh(ctx); err != nil {
+		return nil, err
+	}
+	snapshot := registry.Snapshot()
+	defer snapshot.Close()
+	var loaded []*skills.Skill
+	for _, meta := range snapshot.List() {
+		sk, err := snapshot.Get(ctx, meta.Name)
+		if err != nil {
+			return nil, err
+		}
+		loaded = append(loaded, sk)
+	}
+	return skilltool.NewReadOnlySkillToolset(loaded)
+}
+
+func setSkillsToolIDEnv(toolID string) {
+	os.Setenv(common.AGENTKIT_TOOL_ID_SKILLS, toolID)
+	if os.Getenv(common.AGENTKIT_TOOL_ID) == "" {
+		os.Setenv(common.AGENTKIT_TOOL_ID, toolID)
+	}
 }
 
 func firstEnv(names ...string) string {

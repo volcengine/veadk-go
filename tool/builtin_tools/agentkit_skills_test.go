@@ -371,6 +371,50 @@ func TestA2AURLKeepsExistingA2APath(t *testing.T) {
 	}
 }
 
+func TestAgentkitEndpointConfigUsesPythonCloudDefaults(t *testing.T) {
+	t.Run("volcengine", func(t *testing.T) {
+		t.Setenv("CLOUD_PROVIDER", "")
+		t.Setenv("REGION", "")
+		t.Setenv(common.AGENTKIT_TOOL_REGION, "")
+		t.Setenv(common.AGENTKIT_TOOL_HOST, "")
+
+		service, region, host, scheme := agentkitEndpointConfig()
+		if service != common.DEFAULT_AGENTKIT_TOOL_SERVICE_CODE {
+			t.Fatalf("service = %q, want %q", service, common.DEFAULT_AGENTKIT_TOOL_SERVICE_CODE)
+		}
+		if region != common.DEFAULT_AGENTKIT_TOOL_REGION {
+			t.Fatalf("region = %q, want %q", region, common.DEFAULT_AGENTKIT_TOOL_REGION)
+		}
+		if host != "open.volcengineapi.com" {
+			t.Fatalf("host = %q, want open.volcengineapi.com", host)
+		}
+		if scheme != DefaultScheme {
+			t.Fatalf("scheme = %q, want %q", scheme, DefaultScheme)
+		}
+	})
+
+	t.Run("byteplus", func(t *testing.T) {
+		t.Setenv("CLOUD_PROVIDER", "byteplus")
+		t.Setenv("REGION", "")
+		t.Setenv(common.AGENTKIT_TOOL_REGION, "")
+		t.Setenv(common.AGENTKIT_TOOL_HOST, "")
+
+		service, region, host, scheme := agentkitEndpointConfig()
+		if service != common.DEFAULT_AGENTKIT_TOOL_SERVICE_CODE {
+			t.Fatalf("service = %q, want %q", service, common.DEFAULT_AGENTKIT_TOOL_SERVICE_CODE)
+		}
+		if region != "ap-southeast-1" {
+			t.Fatalf("region = %q, want ap-southeast-1", region)
+		}
+		if host != "agentkit.ap-southeast-1.byteplusapi.com" {
+			t.Fatalf("host = %q, want agentkit.ap-southeast-1.byteplusapi.com", host)
+		}
+		if scheme != DefaultScheme {
+			t.Fatalf("scheme = %q, want %q", scheme, DefaultScheme)
+		}
+	})
+}
+
 func stubReadyAgentkitSession(t *testing.T, endpoint string) {
 	t.Helper()
 	agentkitDoRequest = func(req ve_sign.VeRequest) ([]byte, error) {

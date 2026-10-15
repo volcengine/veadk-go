@@ -81,5 +81,6 @@ This sample loads remote Skill metadata in the runtime Agent and exposes
 `run_code` for code execution in an AIO/script sandbox. It does not use
 `execute_skills`, `invoke_skill`, or `poll_skill`.
 
-Current Go behavior keeps `SkillToolset` read-only in this example. If a skill
-script must run, the Agent should call `run_code` explicitly.
+`SkillToolset` Python script execution is backed by AgentKit `run_code`, so
+`run_skill_script` also runs in the AIO/script sandbox for `.py` scripts. The
+Agent may also call `run_code` directly for ad-hoc Python execution.

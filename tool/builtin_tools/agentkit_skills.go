@@ -28,9 +28,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/volcengine/veadk-go/v2/auth/veauth"
 	"github.com/volcengine/veadk-go/v2/common"
 	"github.com/volcengine/veadk-go/v2/configs"
+	agentkitclient "github.com/volcengine/veadk-go/v2/integrations/agentkit"
 	"github.com/volcengine/veadk-go/v2/integrations/ve_sign"
 	"github.com/volcengine/veadk-go/v2/utils"
 	"google.golang.org/adk/v2/agent"
@@ -363,72 +363,15 @@ func getAgentkitSession(ctx agent.Context, toolID, sessionID string) (*agentkitS
 }
 
 func signedAgentkitRequest(ctx agent.Context, action string, body map[string]any) (map[string]any, error) {
-	ak, sk, header, err := agentkitCredentials(ctx)
+	client, err := agentkitclient.NewClient(ctx, agentkitclient.WithDoRequest(agentkitDoRequest))
 	if err != nil {
 		return nil, err
 	}
-	service, region, host, scheme := agentkitEndpointConfig()
-	raw, err := agentkitDoRequest(ve_sign.VeRequest{
-		AK:      ak,
-		SK:      sk,
-		Method:  http.MethodPost,
-		Scheme:  scheme,
-		Host:    host,
-		Path:    "/",
-		Service: service,
-		Region:  region,
-		Action:  action,
-		Version: "2025-10-30",
-		Header:  header,
-		Body:    body,
-	})
-	if err != nil {
-		return nil, err
-	}
-	var response map[string]any
-	if err := json.Unmarshal(raw, &response); err != nil {
-		return nil, fmt.Errorf("AgentKit %s unmarshal response %s failed: %w", action, raw, err)
-	}
-	return response, nil
+	return client.Do(action, body)
 }
 
 func agentkitEndpointConfig() (service, region, host, scheme string) {
-	service = utils.GetEnvWithDefault(common.AGENTKIT_TOOL_SERVICE_CODE, configs.GetGlobalConfig().Tool.RunCode.ServiceCode, common.DEFAULT_AGENTKIT_TOOL_SERVICE_CODE)
-	region = utils.GetEnvWithDefault(common.AGENTKIT_TOOL_REGION, configs.GetGlobalConfig().Tool.RunCode.Region, common.DEFAULT_AGENTKIT_TOOL_REGION)
-	host = utils.GetEnvWithDefault(common.AGENTKIT_TOOL_HOST, configs.GetGlobalConfig().Tool.RunCode.Host, fmt.Sprintf("%s.%s.volces.com", service, region))
-	scheme = strings.ToLower(utils.GetEnvWithDefault(common.AGENTKIT_TOOL_SCHEME, DefaultScheme))
-	if scheme != "http" && scheme != "https" {
-		scheme = DefaultScheme
-	}
-	return service, region, host, scheme
-}
-
-func agentkitCredentials(ctx agent.Context) (ak, sk string, header map[string]string, err error) {
-	if ctx != nil {
-		ak = utils.GetStringFromToolContext(ctx, common.VOLCENGINE_ACCESS_KEY)
-		sk = utils.GetStringFromToolContext(ctx, common.VOLCENGINE_SECRET_KEY)
-	}
-	if strings.TrimSpace(ak) == "" || strings.TrimSpace(sk) == "" {
-		ak = utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
-		sk = utils.GetEnvWithDefault(common.VOLCENGINE_SECRET_KEY, configs.GetGlobalConfig().Volcengine.SK)
-	}
-	if strings.TrimSpace(ak) != "" && strings.TrimSpace(sk) != "" {
-		if token := strings.TrimSpace(os.Getenv(common.VOLCENGINE_SESSION_TOKEN)); token != "" {
-			header = map[string]string{"X-Security-Token": token}
-		} else if token := strings.TrimSpace(os.Getenv(common.VOLC_SESSIONTOKEN)); token != "" {
-			header = map[string]string{"X-Security-Token": token}
-		}
-		return ak, sk, header, nil
-	}
-	iam, err := veauth.GetCredentialFromVeFaaSIAM()
-	if err != nil {
-		return "", "", nil, fmt.Errorf("resolve AgentKit credentials: %w", err)
-	}
-	header = map[string]string{}
-	if strings.TrimSpace(iam.SessionToken) != "" {
-		header["X-Security-Token"] = iam.SessionToken
-	}
-	return iam.AccessKeyID, iam.SecretAccessKey, header, nil
+	return agentkitclient.EndpointConfig()
 }
 
 func toolUserSessionID(ctx agent.Context) string {
