@@ -323,7 +323,7 @@ func (s *SkillToolset) runSkillScriptToolHandler(ctx agent.Context, args runSkil
 	}
 	argsStr, _ := json.Marshal(args)
 	log.Debugf("runSkillScriptToolHandler args is %s", string(argsStr))
-	codeExecutorResult, err := s.codeExecutor.ExecuteCode(nil, code_executors.CodeExecutionInput{
+	codeExecutorResult, err := s.codeExecutor.ExecuteCode(ctx, code_executors.CodeExecutionInput{
 		Args:        args.Args,
 		ScriptPath:  filepath.Join(sk.GetSkillPath(), "scripts", name),
 		InputFiles:  nil,
