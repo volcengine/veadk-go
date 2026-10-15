@@ -18,15 +18,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"strings"
 
 	"github.com/google/uuid"
-	"github.com/volcengine/veadk-go/v2/auth/veauth"
 	"github.com/volcengine/veadk-go/v2/common"
 	"github.com/volcengine/veadk-go/v2/configs"
-	"github.com/volcengine/veadk-go/v2/integrations/ve_sign"
-	"github.com/volcengine/veadk-go/v2/log"
+	agentkitclient "github.com/volcengine/veadk-go/v2/integrations/agentkit"
 	"github.com/volcengine/veadk-go/v2/utils"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/tool"
@@ -62,40 +58,9 @@ type RunCodeArgs struct {
 func runCodeHandler(ctx agent.Context, args RunCodeArgs) (map[string]any, error) {
 	var result = make(map[string]any)
 
-	toolID := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_ID, configs.GetGlobalConfig().Tool.RunCode.ToolID)
+	toolID := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_ID_SCRIPT, common.AGENTKIT_TOOL_ID, configs.GetGlobalConfig().Tool.RunCode.ToolID)
 	if toolID == "" {
 		return result, ErrInvalidToolID
-	}
-	service := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_SERVICE_CODE, configs.GetGlobalConfig().Tool.RunCode.ServiceCode, common.DEFAULT_AGENTKIT_TOOL_SERVICE_CODE)
-	region := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_REGION, configs.GetGlobalConfig().Tool.RunCode.Region, common.DEFAULT_AGENTKIT_TOOL_REGION)
-	host := utils.GetEnvWithDefault(common.AGENTKIT_TOOL_HOST, configs.GetGlobalConfig().Tool.RunCode.Host, fmt.Sprintf("%s.%s.volces.com", service, region))
-
-	var ak string
-	var sk string
-	var header map[string]string
-
-	if ctx != nil {
-		ak = utils.GetStringFromToolContext(ctx, common.VOLCENGINE_ACCESS_KEY)
-		sk = utils.GetStringFromToolContext(ctx, common.VOLCENGINE_SECRET_KEY)
-	}
-
-	if strings.TrimSpace(ak) == "" || strings.TrimSpace(sk) == "" {
-		ak = utils.GetEnvWithDefault(common.VOLCENGINE_ACCESS_KEY, configs.GetGlobalConfig().Volcengine.AK)
-		sk = utils.GetEnvWithDefault(common.VOLCENGINE_SECRET_KEY, configs.GetGlobalConfig().Volcengine.SK)
-	}
-
-	if strings.TrimSpace(ak) == "" || strings.TrimSpace(sk) == "" {
-
-		iam, err := veauth.GetCredentialFromVeFaaSIAM()
-		if err != nil {
-			log.Warn(fmt.Sprintf("RunCodeTool : GetCredential error: %s", err.Error()))
-		} else {
-			ak = iam.AccessKeyID
-			sk = iam.SecretAccessKey
-			if strings.TrimSpace(iam.SessionToken) != "" {
-				header = map[string]string{"X-Security-Token": iam.SessionToken}
-			}
-		}
 	}
 	var toolUserSessionID = uuid.New().String()
 	if ctx != nil {
@@ -114,31 +79,16 @@ func runCodeHandler(ctx agent.Context, args RunCodeArgs) (map[string]any, error)
 		"OperationPayload": string(opPayloadBytes),
 	}
 
-	respBody, err := ve_sign.VeRequest{
-		AK:      ak,
-		SK:      sk,
-		Method:  http.MethodPost,
-		Scheme:  DefaultScheme,
-		Host:    host,
-		Path:    "/",
-		Service: service,
-		Region:  region,
-		Action:  "InvokeTool",
-		Version: "2025-10-30",
-		Header:  header,
-		Body:    reqBody,
-	}.DoRequest()
-
+	client, err := agentkitclient.NewClient(ctx)
+	if err != nil {
+		return result, err
+	}
+	resp, err := client.Do("InvokeTool", reqBody)
 	if err != nil {
 		return result, err
 	}
 
-	var resp map[string]interface{}
-	if err = json.Unmarshal(respBody, &resp); err != nil {
-		return result, fmt.Errorf("RunCodeTool: unmarshal response %s failed: %w", respBody, err)
-	}
-
-	if resultWrapper, ok := resp["Result"].(map[string]interface{}); ok {
+	if resultWrapper, ok := resp["Result"].(map[string]any); ok {
 		if executionResult, ok := resultWrapper["Result"].(string); ok {
 			result["result"] = executionResult
 			return result, nil
@@ -147,4 +97,10 @@ func runCodeHandler(ctx agent.Context, args RunCodeArgs) (map[string]any, error)
 
 	result["result"] = resp
 	return result, nil
+}
+
+// RunCodeSandbox executes code through the AgentKit run_code sandbox using the
+// same implementation as the built-in run_code tool.
+func RunCodeSandbox(ctx agent.Context, args RunCodeArgs) (map[string]any, error) {
+	return runCodeHandler(ctx, args)
 }

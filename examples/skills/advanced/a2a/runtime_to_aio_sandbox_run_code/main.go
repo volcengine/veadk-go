@@ -23,8 +23,11 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/code_executors"
 	"github.com/volcengine/veadk-go/v2/common"
 	verunner "github.com/volcengine/veadk-go/v2/runner"
 	"github.com/volcengine/veadk-go/v2/skills"
@@ -40,8 +43,12 @@ const (
 	appName     = "aio_skills_runtime_agent"
 	userID      = "aio_skills_user"
 	instruction = `You are a skill execution assistant, and you have the run_code tool.
-If you need to execute skills to complete a task, inspect remote skills with SkillToolset.
-When the workflow needs code or shell execution, use run_code to execute in the AIO/script sandbox instead of running code locally.`
+Use remote Skill metadata only to understand available workflows.
+When the user asks you to run Python code, verify code output, or perform a skill workflow step that requires a Python skill script, you must call run_code or run_skill_script before answering.
+SkillToolset Python script execution is backed by AgentKit run_code, so run_skill_script also executes in the AIO/script sandbox.
+Do not simulate execution or claim code has run unless run_code or run_skill_script returned a result.
+If the user only asks what skills are available, answer from the loaded Skill metadata; that query does not require AIO sandbox execution.`
+	defaultCodeTimeoutSeconds = 300
 )
 
 func main() {
@@ -72,9 +79,9 @@ func run() error {
 	if *prompt == "" {
 		return fmt.Errorf("--prompt is required")
 	}
-	os.Setenv(common.AGENTKIT_TOOL_ID, *toolID)
+	setScriptToolIDEnv(*toolID)
 
-	skillToolset, err := remoteReadOnlySkillToolset(context.Background(), *skillSpaceID, *cacheDir)
+	skillToolset, err := remoteSkillToolset(context.Background(), *skillSpaceID, *cacheDir)
 	if err != nil {
 		return err
 	}
@@ -121,7 +128,81 @@ func run() error {
 	})
 }
 
-func remoteReadOnlySkillToolset(ctx context.Context, skillSpaceID, cacheDir string) (*skilltool.SkillToolset, error) {
+type agentKitRunCodeExecutor struct {
+	timeout uint
+}
+
+func (e *agentKitRunCodeExecutor) ExecuteCode(ctx agent.InvocationContext, input code_executors.CodeExecutionInput) (code_executors.CodeExecutionResult, error) {
+	toolCtx, ok := ctx.(agent.Context)
+	if !ok || toolCtx == nil {
+		return code_executors.CodeExecutionResult{StdErr: "MISSING_TOOL_CONTEXT: AgentKit run_code execution requires agent tool context."}, nil
+	}
+	ext := strings.ToLower(filepath.Ext(input.ScriptPath))
+	if ext != ".py" {
+		extMsg := "(no extension)"
+		if ext != "" {
+			extMsg = ext
+		}
+		return code_executors.CodeExecutionResult{StdErr: fmt.Sprintf("UNSUPPORTED_SCRIPT_TYPE: Unsupported script type '%s'. Supported types: .py", extMsg)}, nil
+	}
+	script, err := os.ReadFile(input.ScriptPath)
+	if err != nil {
+		return code_executors.CodeExecutionResult{}, err
+	}
+	args := normalizeScriptArgs(input.Args)
+	argsJSON, err := json.Marshal(args)
+	if err != nil {
+		return code_executors.CodeExecutionResult{}, err
+	}
+	code := fmt.Sprintf("import sys\nsys.argv = [%q] + %s\n%s", filepath.Base(input.ScriptPath), string(argsJSON), string(script))
+	timeout := e.timeout
+	if timeout == 0 || timeout > defaultCodeTimeoutSeconds {
+		timeout = defaultCodeTimeoutSeconds
+	}
+	output, err := builtin_tools.RunCodeSandbox(toolCtx, builtin_tools.RunCodeArgs{
+		Code:     code,
+		Language: "python3",
+		Timeout:  timeout,
+	})
+	if err != nil {
+		return code_executors.CodeExecutionResult{}, err
+	}
+	return code_executors.CodeExecutionResult{StdOut: stringifyRunCodeOutput(output["result"])}, nil
+}
+
+func normalizeScriptArgs(raw any) []string {
+	var out []string
+	switch args := raw.(type) {
+	case []string:
+		return args
+	case []any:
+		for _, item := range args {
+			out = append(out, fmt.Sprint(item))
+		}
+	default:
+		if raw != nil {
+			out = append(out, fmt.Sprint(raw))
+		}
+	}
+	return out
+}
+
+func stringifyRunCodeOutput(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case nil:
+		return ""
+	default:
+		data, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Sprint(v)
+		}
+		return string(data)
+	}
+}
+
+func remoteSkillToolset(ctx context.Context, skillSpaceID, cacheDir string) (*skilltool.SkillToolset, error) {
 	source, err := skills.NewRemoteSource(skills.RemoteSourceConfig{SpaceID: skillSpaceID})
 	if err != nil {
 		return nil, err
@@ -148,7 +229,14 @@ func remoteReadOnlySkillToolset(ctx context.Context, skillSpaceID, cacheDir stri
 		}
 		loaded = append(loaded, sk)
 	}
-	return skilltool.NewReadOnlySkillToolset(loaded)
+	return skilltool.NewSkillToolset(loaded, &agentKitRunCodeExecutor{timeout: defaultCodeTimeoutSeconds})
+}
+
+func setScriptToolIDEnv(toolID string) {
+	os.Setenv(common.AGENTKIT_TOOL_ID_SCRIPT, toolID)
+	if os.Getenv(common.AGENTKIT_TOOL_ID) == "" {
+		os.Setenv(common.AGENTKIT_TOOL_ID, toolID)
+	}
 }
 
 func firstEnv(names ...string) string {

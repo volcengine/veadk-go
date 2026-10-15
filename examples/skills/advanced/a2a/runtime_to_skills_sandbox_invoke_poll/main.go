@@ -39,9 +39,11 @@ const (
 	appName     = "remote_skills_invoke_poll_runtime_agent"
 	userID      = "remote_skills_invoke_poll_user"
 	instruction = `You are a skill execution assistant.
-You may use SkillToolset to inspect skills from the remote Skill Space, but you must not execute skills locally in the runtime.
-For any request that needs skill execution, skill capability lookup, or a remote skill result, first call invoke_skill to create a Skills Sandbox A2A task.
+Remote Skill metadata in context is only a hint for choosing how to delegate; do not answer user requests directly from that metadata.
+You must not execute skills locally in the runtime.
+For every user request, including "what skills are available", skill capability lookup, or any remote skill result, first call invoke_skill to create a Skills Sandbox A2A task.
 After invoke_skill returns a task_id, keep calling poll_skill with the same task_id until the task reaches a terminal state such as completed, failed, or canceled.
+If the task completes, answer only from the final poll_skill result. If it fails or is canceled, explain the final state and error.
 Do not ask the user for a task_id; use the task_id returned by invoke_skill.`
 )
 
@@ -73,7 +75,7 @@ func run() error {
 	if *prompt == "" {
 		return fmt.Errorf("--prompt is required")
 	}
-	os.Setenv(common.AGENTKIT_TOOL_ID_SKILLS, *toolID)
+	setSkillsToolIDEnv(*toolID)
 
 	skillToolset, err := remoteReadOnlySkillToolset(context.Background(), *skillSpaceID, *cacheDir)
 	if err != nil {
@@ -154,6 +156,13 @@ func remoteReadOnlySkillToolset(ctx context.Context, skillSpaceID, cacheDir stri
 		loaded = append(loaded, sk)
 	}
 	return skilltool.NewReadOnlySkillToolset(loaded)
+}
+
+func setSkillsToolIDEnv(toolID string) {
+	os.Setenv(common.AGENTKIT_TOOL_ID_SKILLS, toolID)
+	if os.Getenv(common.AGENTKIT_TOOL_ID) == "" {
+		os.Setenv(common.AGENTKIT_TOOL_ID, toolID)
+	}
 }
 
 func firstEnv(names ...string) string {
