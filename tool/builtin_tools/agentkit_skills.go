@@ -265,13 +265,11 @@ func ensureAgentkitSessionEndpoint(ctx agent.Context, timeout int) (string, erro
 		return "", errors.New("AgentKit CreateSession response is missing SessionId")
 	}
 	deadline := time.Now().Add(sessionReadyTimeout)
-	lastStatus := session.Status
 	for {
 		current, err := getAgentkitSession(ctx, toolID, session.SessionID)
 		if err != nil {
 			return "", err
 		}
-		lastStatus = current.Status
 		status := strings.ToLower(strings.TrimSpace(current.Status))
 		if status == "ready" {
 			endpoint := selectSessionEndpoint(current)
@@ -281,10 +279,10 @@ func ensureAgentkitSessionEndpoint(ctx agent.Context, timeout int) (string, erro
 			return endpoint, nil
 		}
 		if sessionTerminalStatuses[status] {
-			return "", fmt.Errorf("AgentKit session %s entered terminal status %s", session.SessionID, lastStatus)
+			return "", fmt.Errorf("AgentKit session %s entered terminal status %s", session.SessionID, current.Status)
 		}
 		if time.Now().After(deadline) {
-			return "", fmt.Errorf("timed out waiting for AgentKit session %s to become Ready; last status: %s", session.SessionID, lastStatus)
+			return "", fmt.Errorf("timed out waiting for AgentKit session %s to become Ready; last status: %s", session.SessionID, current.Status)
 		}
 		time.Sleep(minDuration(sessionPollInterval, time.Until(deadline)))
 	}
