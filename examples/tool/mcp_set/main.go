@@ -32,7 +32,11 @@ import (
 func main() {
 	ctx := context.Background()
 
-	mcpSet := builtin_tools.NewMcpRouter()
+	mcpSet, err := builtin_tools.NewMcpRouterToolset()
+	if err != nil {
+		log.Errorf("NewMcpRouterToolset failed: %v", err)
+		return
+	}
 	log.Infof("mcpSet:%s", mcpSet.Name())
 
 	a, err := veagent.New(&veagent.Config{

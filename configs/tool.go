@@ -32,13 +32,15 @@ func (b *BuiltinToolConfigs) MapEnvToConfig() {
 }
 
 type MCPRouter struct {
+	ID     string `yaml:"id"`
 	Url    string `yaml:"url"`
 	ApiKey string `yaml:"api_key"`
 }
 
 func (m *MCPRouter) MapEnvToConfig() {
-	m.Url = utils.GetEnvWithDefault(common.TOOL_MCP_ROUTER_URL)
-	m.ApiKey = utils.GetEnvWithDefault(common.TOOL_MCP_ROUTER_API_KEY)
+	m.ID = utils.GetEnvWithDefault(common.MCP_ROUTER_ID, utils.GetEnvWithDefault(common.MCP_TOOLSET_ID), utils.GetEnvWithDefault("TOOLS_MCP_ROUTER_ID"), utils.GetEnvWithDefault("TOOLS_MCP_ROUTER_MCP_TOOLSET_ID"))
+	m.Url = utils.GetEnvWithDefault(common.TOOL_MCP_ROUTER_URL, utils.GetEnvWithDefault("TOOLS_MCP_ROUTER_URL"))
+	m.ApiKey = utils.GetEnvWithDefault(common.TOOL_MCP_ROUTER_API_KEY, utils.GetEnvWithDefault("TOOLS_MCP_ROUTER_API_KEY"))
 }
 
 type RunCode struct {
