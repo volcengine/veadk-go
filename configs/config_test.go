@@ -107,6 +107,23 @@ func TestModelConfig_EditEnvMapping(t *testing.T) {
 	assert.Equal(t, "edit-key", config.Edit.ApiKey)
 }
 
+func TestMCPRouterConfig_EnvAliases(t *testing.T) {
+	t.Setenv(common.MCP_ROUTER_ID, "")
+	t.Setenv(common.MCP_TOOLSET_ID, "")
+	t.Setenv(common.TOOL_MCP_ROUTER_URL, "")
+	t.Setenv(common.TOOL_MCP_ROUTER_API_KEY, "")
+	t.Setenv("TOOLS_MCP_ROUTER_ID", "mt-yaml")
+	t.Setenv("TOOLS_MCP_ROUTER_URL", "https://router.example.com/mcp")
+	t.Setenv("TOOLS_MCP_ROUTER_API_KEY", "router-token")
+
+	config := &MCPRouter{}
+	config.MapEnvToConfig()
+
+	assert.Equal(t, "mt-yaml", config.ID)
+	assert.Equal(t, "https://router.example.com/mcp", config.Url)
+	assert.Equal(t, "router-token", config.ApiKey)
+}
+
 func TestObservabilityConfig_YamlMapping(t *testing.T) {
 	yamlData := `
 opentelemetry:
