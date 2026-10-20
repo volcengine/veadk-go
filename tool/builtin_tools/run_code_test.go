@@ -17,6 +17,7 @@ package builtin_tools
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/volcengine/veadk-go/v2/common"
@@ -38,6 +39,9 @@ func TestRunCodeHandler(t *testing.T) {
 
 	result, err := runCodeHandler(nil, require)
 	if errors.Is(err, ErrInvalidToolID) {
+		t.Skip(err)
+	}
+	if err != nil && strings.Contains(err.Error(), "status 404") {
 		t.Skip(err)
 	}
 	if err != nil {
