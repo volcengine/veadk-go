@@ -639,14 +639,6 @@ func sessionFromMap(m map[string]any) *agentkitSession {
 	}
 }
 
-func mapValue(m map[string]any, key string) map[string]any {
-	value, _ := m[key].(map[string]any)
-	if value == nil {
-		return map[string]any{}
-	}
-	return value
-}
-
 func firstString(m map[string]any, keys ...string) string {
 	for _, key := range keys {
 		if value, ok := m[key].(string); ok {

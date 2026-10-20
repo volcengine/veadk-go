@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/a2aproject/a2a-go/v2 v2.3.1
-	github.com/bytedance/mockey v1.4.6
+	github.com/bytedance/mockey v1.4.8
 	github.com/coze-dev/cozeloop-go v0.1.20
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
@@ -112,7 +112,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.43.0 // indirect
 	go.opentelemetry.io/otel/log v0.19.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/arch v0.11.0 // indirect
+	golang.org/x/arch v0.23.0 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/mod v0.35.0 // indirect
