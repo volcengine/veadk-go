@@ -182,6 +182,15 @@ jobs:
           SCRIPT
           )"
 
+          runtime_script="$command"
+          command="$(cat <<SCRIPT
+          cat > "/tmp/docs-runtime-task-${REQUEST_ID}.sh" <<'RUNTIME_SCRIPT'
+          $runtime_script
+          RUNTIME_SCRIPT
+          bash "/tmp/docs-runtime-task-${REQUEST_ID}.sh"
+          SCRIPT
+          )"
+
           jq -n \
             --arg command "$command" \
             --argjson timeout_seconds "$runtime_timeout" \
@@ -364,6 +373,15 @@ jobs:
           echo "Timed out waiting for sandbox docs task." >&2
           printf '%s\n' "\$last_output" >&2
           exit 124
+          SCRIPT
+          )"
+
+          runtime_script="$command"
+          command="$(cat <<SCRIPT
+          cat > "/tmp/docs-runtime-task-${REQUEST_ID}.sh" <<'RUNTIME_SCRIPT'
+          $runtime_script
+          RUNTIME_SCRIPT
+          bash "/tmp/docs-runtime-task-${REQUEST_ID}.sh"
           SCRIPT
           )"
 
