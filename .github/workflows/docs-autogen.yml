@@ -279,11 +279,10 @@ jobs:
             previous_tag="$(git tag --list "$tag_pattern" --sort=v:refname | awk -v current="$release_tag" '$0 == current {print last; exit} {last=$0}')"
           fi
           if [[ -z "$previous_tag" ]]; then
-            echo "Unable to resolve previous tag for $release_tag. Pass workflow_dispatch input previous_tag." >&2
-            exit 1
+            echo "No previous tag found for $release_tag; runtime will treat it as the first tag in this release line."
+          else
+            git rev-parse "refs/tags/$previous_tag^{commit}" >/dev/null
           fi
-
-          git rev-parse "refs/tags/$previous_tag^{commit}" >/dev/null
 
           echo "release_tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
