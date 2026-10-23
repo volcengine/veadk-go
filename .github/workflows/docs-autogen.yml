@@ -159,16 +159,24 @@ jobs:
           while (( SECONDS < deadline )); do
             poll_command="if test -f '\$status_file'; then cat '\$status_file'; else echo status=starting; fi; echo __LOG_TAIL__; tail -n 120 '\$log_file' 2>/dev/null || true"
             last_output="\$(agentkit sandbox shell --tool-id "\$tool_id" -s "\$session_id" --command "\$poll_command" 2>&1 || true)"
-            status="\$(printf '%s\n' "\$last_output" | awk -F= '\$1 == "status" {value=\$2} END {print value}')"
+            sandbox_output="\$(printf '%s\n' "\$last_output" | python3 -c 'import json, sys
+          text = sys.stdin.read()
+          try:
+              payload = json.loads(text)
+              sys.stdout.write(payload.get("data", {}).get("output", ""))
+          except Exception:
+              sys.stdout.write(text)
+          ')"
+            status="\$(printf '%s\n' "\$sandbox_output" | awk -F= '\$1 == "status" {value=\$2} END {print value}')"
             echo "sandbox status: \${status:-unknown}"
 
             case "\$status" in
               success)
-                printf '%s\n' "\$last_output"
+                printf '%s\n' "\$sandbox_output"
                 exit 0
                 ;;
               failed)
-                printf '%s\n' "\$last_output" >&2
+                printf '%s\n' "\$sandbox_output" >&2
                 exit 1
                 ;;
             esac
@@ -179,6 +187,15 @@ jobs:
           echo "Timed out waiting for sandbox docs task." >&2
           printf '%s\n' "\$last_output" >&2
           exit 124
+          SCRIPT
+          )"
+
+          runtime_script="$command"
+          command="$(cat <<SCRIPT
+          cat > "/tmp/docs-runtime-task-${REQUEST_ID}.sh" <<'RUNTIME_SCRIPT'
+          $runtime_script
+          RUNTIME_SCRIPT
+          bash "/tmp/docs-runtime-task-${REQUEST_ID}.sh"
           SCRIPT
           )"
 
@@ -344,16 +361,24 @@ jobs:
           while (( SECONDS < deadline )); do
             poll_command="if test -f '\$status_file'; then cat '\$status_file'; else echo status=starting; fi; echo __LOG_TAIL__; tail -n 120 '\$log_file' 2>/dev/null || true"
             last_output="\$(agentkit sandbox shell --tool-id "\$tool_id" -s "\$session_id" --command "\$poll_command" 2>&1 || true)"
-            status="\$(printf '%s\n' "\$last_output" | awk -F= '\$1 == "status" {value=\$2} END {print value}')"
+            sandbox_output="\$(printf '%s\n' "\$last_output" | python3 -c 'import json, sys
+          text = sys.stdin.read()
+          try:
+              payload = json.loads(text)
+              sys.stdout.write(payload.get("data", {}).get("output", ""))
+          except Exception:
+              sys.stdout.write(text)
+          ')"
+            status="\$(printf '%s\n' "\$sandbox_output" | awk -F= '\$1 == "status" {value=\$2} END {print value}')"
             echo "sandbox status: \${status:-unknown}"
 
             case "\$status" in
               success)
-                printf '%s\n' "\$last_output"
+                printf '%s\n' "\$sandbox_output"
                 exit 0
                 ;;
               failed)
-                printf '%s\n' "\$last_output" >&2
+                printf '%s\n' "\$sandbox_output" >&2
                 exit 1
                 ;;
             esac
@@ -364,6 +389,15 @@ jobs:
           echo "Timed out waiting for sandbox docs task." >&2
           printf '%s\n' "\$last_output" >&2
           exit 124
+          SCRIPT
+          )"
+
+          runtime_script="$command"
+          command="$(cat <<SCRIPT
+          cat > "/tmp/docs-runtime-task-${REQUEST_ID}.sh" <<'RUNTIME_SCRIPT'
+          $runtime_script
+          RUNTIME_SCRIPT
+          bash "/tmp/docs-runtime-task-${REQUEST_ID}.sh"
           SCRIPT
           )"
 
