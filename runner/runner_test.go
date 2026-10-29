@@ -20,6 +20,7 @@ import (
 	"iter"
 	"testing"
 
+	"github.com/volcengine/veadk-go/v2/integrations/agentkit"
 	vememory "github.com/volcengine/veadk-go/v2/memory"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/memory"
@@ -107,6 +108,26 @@ func TestNormalizeConfigUsesMemoryAliases(t *testing.T) {
 	}
 	if len(normalized.PluginConfig.Plugins) != 1 || normalized.PluginConfig.Plugins[0].Name() != autoSaveMemoryPluginName {
 		t.Fatalf("auto save plugin not configured: %+v", normalized.PluginConfig.Plugins)
+	}
+}
+
+func TestAIOLifecycleRequiresExplicitModeAndSession(t *testing.T) {
+	store := session.InMemoryService()
+	manager, err := agentkit.NewAIOLifecycle(agentkit.AIOLifecycleConfig{SessionService: store})
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := Config{AppName: "app", Agent: newNoopAgent(t), SessionService: store, AIOSandboxLifecycle: manager}
+	if _, err := NormalizeConfig(base); err == nil {
+		t.Fatal("generic Agent did not require explicit aio_sandbox mode")
+	}
+	base.SkillsMode = "aio_sandbox"
+	if _, err := NormalizeConfig(base); err != nil {
+		t.Fatalf("explicit AIO mode was rejected: %v", err)
+	}
+	base.AutoCreateSession = true
+	if _, err := NormalizeConfig(base); err == nil {
+		t.Fatal("AIO lifecycle accepted implicit ADK session creation")
 	}
 }
 
