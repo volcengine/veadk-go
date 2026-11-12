@@ -25,6 +25,7 @@ import (
 	"github.com/volcengine/veadk-go/v2/log"
 
 	"github.com/gorilla/mux"
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
 	"github.com/volcengine/veadk-go/v2/apps"
 	verunner "github.com/volcengine/veadk-go/v2/runner"
 	"google.golang.org/adk/v2/agent"
@@ -50,6 +51,12 @@ func NewAgentkitSimpleApp(config *apps.ApiConfig) apps.BasicApp {
 }
 
 func (a *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunConfig) error {
+	if config == nil || config.AgentLoader == nil || config.AgentLoader.RootAgent() == nil {
+		return fmt.Errorf("root agent is required")
+	}
+	if mode, _, known := veagent.SkillsModeFor(config.AgentLoader.RootAgent()); known && mode == "aio_sandbox" {
+		return fmt.Errorf("Simple API does not support aio_sandbox")
+	}
 
 	if a.appName == "" {
 		a.appName = config.AgentLoader.RootAgent().Name()

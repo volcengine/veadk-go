@@ -79,6 +79,8 @@ model:
     api_key: # <-- set your Volcengine ARK api key here
 ```
 
+[Ark Responses and tool-returned images](examples/model/ark_responses/README.md)
+
 ## Have a try
 
 Enjoy a minimal V2 agent from VeADK:

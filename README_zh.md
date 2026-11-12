@@ -80,6 +80,8 @@ model:
     api_key: # <-- 在这里填写你的火山引擎 ARK API Key
 ```
 
+[Ark Responses 与工具返回图片](examples/model/ark_responses/README_zh.md)
+
 ## 快速体验
 
 下面是一个最小 V2 Agent 示例：
