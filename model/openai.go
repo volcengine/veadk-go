@@ -203,12 +203,13 @@ type function struct {
 }
 
 type response struct {
-	ID      string   `json:"id"`
-	Object  string   `json:"object"`
-	Created int64    `json:"created"`
-	Model   string   `json:"model"`
-	Choices []choice `json:"choices"`
-	Usage   *usage   `json:"usage,omitempty"`
+	ID      string           `json:"id"`
+	Object  string           `json:"object"`
+	Created int64            `json:"created"`
+	Model   string           `json:"model"`
+	Choices []choice         `json:"choices"`
+	Usage   *usage           `json:"usage,omitempty"`
+	Error   *json.RawMessage `json:"error,omitempty"`
 }
 
 type choice struct {
@@ -485,6 +486,10 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 			var chunk response
 			if err := json.Unmarshal([]byte(data), &chunk); err != nil {
 				continue
+			}
+			if chunk.Error != nil {
+				yield(nil, fmt.Errorf("stream error: %s", *chunk.Error))
+				return
 			}
 
 			if chunk.Usage != nil {
