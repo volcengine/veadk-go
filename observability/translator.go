@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/volcengine/veadk-go/log"
@@ -101,6 +102,9 @@ func isToolSpanForTraceMapping(span trace.ReadOnlySpan) bool {
 // translatedSpan wraps a ReadOnlySpan and intercepts calls to Attributes().
 type translatedSpan struct {
 	trace.ReadOnlySpan
+	llmDataOnce sync.Once
+	llmData     llmSpanTelemetry
+	hasLLMData  bool
 }
 
 type translatedSpanKind int
@@ -129,6 +133,10 @@ func (p *translatedSpan) Attributes() []attribute.KeyValue {
 	newAttrs := p.processAttributesByKind(kind, attrs, existingKeys)
 	newAttrs = p.appendToolReconstructedAttributes(kind, newAttrs, raw)
 	newAttrs = appendToolSpanKindAttribute(newAttrs, raw)
+	if kind == translatedSpanLLM {
+		data, ok := p.consumeLLMTelemetry()
+		newAttrs = appendLLMTelemetryAttributes(newAttrs, data, ok)
+	}
 
 	// If it's an LLM span and has request model but no response model, set response model to request model
 	if kind == translatedSpanLLM {
@@ -292,11 +300,59 @@ func (p *translatedSpan) Events() []trace.Event {
 	if !p.isLLMSpan() {
 		return baseEvents
 	}
-	return appendLLMEventsFromAttributes(p.ReadOnlySpan.Attributes(), baseEvents, p.ReadOnlySpan.StartTime())
+	return appendLLMEventsFromAttributes(p.Attributes(), baseEvents, p.ReadOnlySpan.StartTime())
 }
 
 func (p *translatedSpan) isLLMSpan() bool {
 	return classifyTranslatedSpanKind(p.ReadOnlySpan.Name()) == translatedSpanLLM
+}
+
+func (p *translatedSpan) consumeLLMTelemetry() (llmSpanTelemetry, bool) {
+	p.llmDataOnce.Do(func() {
+		p.llmData, p.hasLLMData = GetRegistry().ConsumeLLMSpanTelemetry(p.ReadOnlySpan.SpanContext().TraceID())
+	})
+	return p.llmData, p.hasLLMData
+}
+
+func appendLLMTelemetryAttributes(attrs []attribute.KeyValue, data llmSpanTelemetry, ok bool) []attribute.KeyValue {
+	if !ok {
+		return attrs
+	}
+
+	existing := make(map[string]bool, len(attrs))
+	for _, kv := range attrs {
+		existing[string(kv.Key)] = true
+	}
+
+	appendIfMissing := func(key, value string) {
+		if value == "" || existing[key] {
+			return
+		}
+		attrs = append(attrs, attribute.String(key, value))
+		existing[key] = true
+	}
+	appendIntIfMissing := func(key string, value int64) {
+		if value <= 0 || existing[key] {
+			return
+		}
+		attrs = append(attrs, attribute.Int64(key, value))
+		existing[key] = true
+	}
+
+	appendIfMissing(AttrInputValue, data.Input)
+	appendIfMissing(AttrGenAIInput, data.Input)
+	appendIfMissing(AttrGenAIPrompt, data.Input)
+	appendIfMissing(AttrOutputValue, data.Output)
+	appendIfMissing(AttrGenAIOutput, data.Output)
+	appendIfMissing(AttrGenAICompletion, data.Output)
+	appendIfMissing(AttrGenAIRequestModel, data.RequestModel)
+	appendIfMissing(AttrGenAIResponseModel, data.ResponseModel)
+	appendIfMissing(AttrGenAIResponseFinishReason, data.FinishReason)
+	appendIntIfMissing(AttrGenAIUsageInputTokens, data.InputTokens)
+	appendIntIfMissing(AttrGenAIUsageOutputTokens, data.OutputTokens)
+	appendIntIfMissing(AttrGenAIUsageTotalTokens, data.TotalTokens)
+
+	return attrs
 }
 
 func appendLLMEventsFromAttributes(attrs []attribute.KeyValue, baseEvents []trace.Event, eventTime time.Time) []trace.Event {
