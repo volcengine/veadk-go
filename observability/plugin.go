@@ -272,6 +272,7 @@ func (p *adkObservabilityPlugin) BeforeModel(ctx agent.CallbackContext, req *mod
 	log.Debug("BeforeModel",
 		"InvocationID", ctx.InvocationID(), "SessionID", ctx.SessionID(), "UserID", ctx.UserID(), "AgentName", ctx.AgentName(), "AppName", ctx.AppName())
 	p.tryBridgeTraceMappingFromCallback(ctx, "BeforeModel")
+	recordLLMRequestOnCurrentSpan(context.Context(ctx), req)
 	// ADK now emits model spans natively. Plugin only keeps metadata for metrics and invocation aggregation.
 	meta := p.getSpanMetadata(ctx.State())
 	meta.StartTime = time.Now()
@@ -314,6 +315,8 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 		}
 	}
 
+	recordLLMResponseOnCurrentSpan(context.Context(ctx), resp, finalModelName)
+
 	if resp.UsageMetadata != nil {
 		p.accumulateLLMUsageAndRecordMetrics(ctx, resp, finalModelName)
 	}
@@ -343,6 +346,102 @@ func (p *adkObservabilityPlugin) AfterModel(ctx agent.CallbackContext, resp *mod
 	}
 
 	return nil, nil
+}
+
+func recordLLMRequestOnCurrentSpan(ctx context.Context, req *model.LLMRequest) {
+	if req == nil {
+		return
+	}
+
+	val := serializeLLMRequestForTelemetry(req)
+	if val == "" {
+		return
+	}
+
+	adkTraceID := trace.SpanFromContext(ctx).SpanContext().TraceID()
+	GetRegistry().RegisterLLMRequest(adkTraceID, val, req.Model)
+
+	span := trace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return
+	}
+
+	attrs := []attribute.KeyValue{
+		attribute.String(AttrInputValue, val),
+		attribute.String(AttrGenAIInput, val),
+		attribute.String(AttrGenAIPrompt, val),
+	}
+	if req.Model != "" {
+		attrs = append(attrs, attribute.String(AttrGenAIRequestModel, req.Model))
+	}
+	span.SetAttributes(attrs...)
+	span.AddEvent(EventGenAIUserMessage, trace.WithAttributes(
+		attribute.String(AttrGenAIMessages, val),
+	))
+	span.AddEvent(EventGenAIContentPrompt, trace.WithAttributes(
+		attribute.String(AttrInputValue, val),
+	))
+}
+
+func recordLLMResponseOnCurrentSpan(ctx context.Context, resp *model.LLMResponse, modelName string) {
+	if resp == nil || resp.Partial || resp.Content == nil {
+		return
+	}
+
+	val := serializeContentForTelemetry(resp.Content)
+	if val == "" {
+		return
+	}
+
+	update := llmSpanTelemetry{
+		Output:        val,
+		ResponseModel: modelName,
+	}
+	if resp.UsageMetadata != nil {
+		update.InputTokens = int64(resp.UsageMetadata.PromptTokenCount)
+		update.OutputTokens = int64(resp.UsageMetadata.CandidatesTokenCount)
+		update.TotalTokens = int64(resp.UsageMetadata.TotalTokenCount)
+	}
+	if resp.FinishReason != "" {
+		update.FinishReason = string(resp.FinishReason)
+	}
+	adkTraceID := trace.SpanFromContext(ctx).SpanContext().TraceID()
+	GetRegistry().RegisterLLMResponse(adkTraceID, update)
+
+	span := trace.SpanFromContext(ctx)
+	if !span.IsRecording() {
+		return
+	}
+
+	attrs := []attribute.KeyValue{
+		attribute.String(AttrOutputValue, val),
+		attribute.String(AttrGenAIOutput, val),
+		attribute.String(AttrGenAICompletion, val),
+	}
+	if modelName != "" {
+		attrs = append(attrs, attribute.String(AttrGenAIResponseModel, modelName))
+	}
+	if resp.UsageMetadata != nil {
+		if resp.UsageMetadata.PromptTokenCount > 0 {
+			attrs = append(attrs, attribute.Int(AttrGenAIUsageInputTokens, int(resp.UsageMetadata.PromptTokenCount)))
+		}
+		if resp.UsageMetadata.CandidatesTokenCount > 0 {
+			attrs = append(attrs, attribute.Int(AttrGenAIUsageOutputTokens, int(resp.UsageMetadata.CandidatesTokenCount)))
+		}
+		if resp.UsageMetadata.TotalTokenCount > 0 {
+			attrs = append(attrs, attribute.Int(AttrGenAIUsageTotalTokens, int(resp.UsageMetadata.TotalTokenCount)))
+		}
+	}
+	if resp.FinishReason != "" {
+		attrs = append(attrs, attribute.String(AttrGenAIResponseFinishReason, string(resp.FinishReason)))
+	}
+	span.SetAttributes(attrs...)
+	span.AddEvent(EventGenAIChoice, trace.WithAttributes(
+		attribute.String(AttrGenAIChoice, val),
+	))
+	span.AddEvent(EventGenAIContentCompletion, trace.WithAttributes(
+		attribute.String(AttrOutputValue, val),
+	))
 }
 
 func (p *adkObservabilityPlugin) recordFinalResponseMetrics(ctx agent.CallbackContext, meta *spanMetadata, finalModelName string) {
