@@ -1,10 +1,16 @@
 package observability
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/attribute"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/adk/model"
+	"google.golang.org/genai"
 )
 
 func TestMergeUsageTotals(t *testing.T) {
@@ -60,4 +66,72 @@ func TestRegisterTraceMappingIfPossible(t *testing.T) {
 		ok := registerTraceMappingIfPossible(registry, trace.SpanContext{}, veadkSC)
 		assert.False(t, ok)
 	})
+}
+
+func TestRecordLLMRequestOnCurrentSpan(t *testing.T) {
+	exporter := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
+
+	ctx, span := tp.Tracer(InstrumentationName).Start(context.Background(), SpanCallLLM)
+	recordLLMRequestOnCurrentSpan(ctx, &model.LLMRequest{
+		Model:    "test-model",
+		Contents: genai.Text("hello"),
+		Config: &genai.GenerateContentConfig{
+			SystemInstruction: genai.NewContentFromText("be brief", genai.RoleUser),
+		},
+	})
+	span.End()
+
+	spans := exporter.GetSpans()
+	assert.Len(t, spans, 1)
+	attrs := spanAttributesByKey(spans[0].Attributes)
+	assert.Contains(t, attrs[AttrInputValue].AsString(), "hello")
+	assert.Contains(t, attrs[AttrGenAIInput].AsString(), "hello")
+	assert.Contains(t, attrs[AttrGenAIPrompt].AsString(), "be brief")
+	assert.Equal(t, "test-model", attrs[AttrGenAIRequestModel].AsString())
+
+	assert.Len(t, spans[0].Events, 2)
+	assert.Equal(t, EventGenAIUserMessage, spans[0].Events[0].Name)
+	assert.Equal(t, EventGenAIContentPrompt, spans[0].Events[1].Name)
+}
+
+func TestRecordLLMResponseOnCurrentSpan(t *testing.T) {
+	exporter := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
+
+	ctx, span := tp.Tracer(InstrumentationName).Start(context.Background(), SpanCallLLM)
+	recordLLMResponseOnCurrentSpan(ctx, &model.LLMResponse{
+		Content: genai.NewContentFromText("hi there", genai.RoleModel),
+		UsageMetadata: &genai.GenerateContentResponseUsageMetadata{
+			PromptTokenCount:     3,
+			CandidatesTokenCount: 4,
+			TotalTokenCount:      7,
+		},
+	}, "response-model")
+	span.End()
+
+	spans := exporter.GetSpans()
+	assert.Len(t, spans, 1)
+	attrs := spanAttributesByKey(spans[0].Attributes)
+	assert.Contains(t, attrs[AttrOutputValue].AsString(), "hi there")
+	assert.Contains(t, attrs[AttrGenAIOutput].AsString(), "hi there")
+	assert.Contains(t, attrs[AttrGenAICompletion].AsString(), "hi there")
+	assert.Equal(t, "response-model", attrs[AttrGenAIResponseModel].AsString())
+	assert.Equal(t, int64(3), attrs[AttrGenAIUsageInputTokens].AsInt64())
+	assert.Equal(t, int64(4), attrs[AttrGenAIUsageOutputTokens].AsInt64())
+	assert.Equal(t, int64(7), attrs[AttrGenAIUsageTotalTokens].AsInt64())
+
+	assert.Len(t, spans[0].Events, 2)
+	assert.Equal(t, EventGenAIChoice, spans[0].Events[0].Name)
+	assert.Equal(t, EventGenAIContentCompletion, spans[0].Events[1].Name)
+}
+
+func spanAttributesByKey(attrs []attribute.KeyValue) map[string]attribute.Value {
+	out := make(map[string]attribute.Value, len(attrs))
+	for _, attr := range attrs {
+		out[string(attr.Key)] = attr.Value
+	}
+	return out
 }

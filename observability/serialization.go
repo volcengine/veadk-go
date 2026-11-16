@@ -6,12 +6,60 @@ import (
 	"fmt"
 	"strings"
 
+	"google.golang.org/adk/model"
 	"google.golang.org/genai"
 )
 
 func serializeContentForTelemetry(content *genai.Content) string {
 	if content == nil {
 		return ""
+	}
+
+	payload := normalizeContentForTelemetry(content)
+	if payload == nil {
+		return ""
+	}
+
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func serializeLLMRequestForTelemetry(req *model.LLMRequest) string {
+	if req == nil {
+		return ""
+	}
+
+	contents := make([]map[string]any, 0, len(req.Contents))
+	for _, content := range req.Contents {
+		if normalized := normalizeContentForTelemetry(content); normalized != nil {
+			contents = append(contents, normalized)
+		}
+	}
+
+	payload := map[string]any{
+		"model":    req.Model,
+		"contents": contents,
+	}
+
+	if req.Config != nil && req.Config.SystemInstruction != nil {
+		if normalized := normalizeContentForTelemetry(req.Config.SystemInstruction); normalized != nil {
+			payload["system_instruction"] = normalized
+		}
+	}
+
+	b, err := json.Marshal(payload)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func normalizeContentForTelemetry(content *genai.Content) map[string]any {
+	if content == nil {
+		return nil
 	}
 
 	parts := make([]map[string]any, 0, len(content.Parts))
@@ -30,11 +78,7 @@ func serializeContentForTelemetry(content *genai.Content) string {
 		"parts": parts,
 	}
 
-	b, err := json.Marshal(payload)
-	if err != nil {
-		return ""
-	}
-	return string(b)
+	return payload
 }
 
 func normalizePartForTelemetry(part *genai.Part) map[string]any {

@@ -65,6 +65,19 @@ type traceInfos struct {
 	veadkTraceID trace.TraceID
 	invocationSC trace.SpanContext
 	toolCallIDs  []string
+	llmSpans     []*llmSpanTelemetry
+	nextLLMSpan  int
+}
+
+type llmSpanTelemetry struct {
+	Input         string
+	Output        string
+	RequestModel  string
+	ResponseModel string
+	InputTokens   int64
+	OutputTokens  int64
+	TotalTokens   int64
+	FinishReason  string
 }
 
 var (
@@ -202,6 +215,65 @@ func (r *TraceRegistry) RegisterTraceMapping(adkTraceID trace.TraceID, veadkTrac
 	r.resourcesMu.Lock()
 	res.veadkTraceID = veadkTraceID
 	r.resourcesMu.Unlock()
+}
+
+func (r *TraceRegistry) RegisterLLMRequest(adkTraceID trace.TraceID, input, requestModel string) {
+	if !adkTraceID.IsValid() || input == "" {
+		return
+	}
+	res := r.getOrCreateTraceInfos(adkTraceID)
+	r.resourcesMu.Lock()
+	res.llmSpans = append(res.llmSpans, &llmSpanTelemetry{
+		Input:        input,
+		RequestModel: requestModel,
+	})
+	r.resourcesMu.Unlock()
+}
+
+func (r *TraceRegistry) RegisterLLMResponse(adkTraceID trace.TraceID, update llmSpanTelemetry) {
+	if !adkTraceID.IsValid() || update.Output == "" {
+		return
+	}
+	res := r.getOrCreateTraceInfos(adkTraceID)
+	r.resourcesMu.Lock()
+	defer r.resourcesMu.Unlock()
+
+	var target *llmSpanTelemetry
+	for i := len(res.llmSpans) - 1; i >= 0; i-- {
+		if res.llmSpans[i].Output == "" {
+			target = res.llmSpans[i]
+			break
+		}
+	}
+	if target == nil {
+		target = &llmSpanTelemetry{}
+		res.llmSpans = append(res.llmSpans, target)
+	}
+
+	target.Output = update.Output
+	target.ResponseModel = update.ResponseModel
+	target.InputTokens = update.InputTokens
+	target.OutputTokens = update.OutputTokens
+	target.TotalTokens = update.TotalTokens
+	target.FinishReason = update.FinishReason
+}
+
+func (r *TraceRegistry) ConsumeLLMSpanTelemetry(adkTraceID trace.TraceID) (llmSpanTelemetry, bool) {
+	if !adkTraceID.IsValid() {
+		return llmSpanTelemetry{}, false
+	}
+
+	r.resourcesMu.Lock()
+	defer r.resourcesMu.Unlock()
+
+	res, ok := r.adkTraceToVeadkTraceMap[adkTraceID]
+	if !ok || res.nextLLMSpan >= len(res.llmSpans) {
+		return llmSpanTelemetry{}, false
+	}
+
+	data := *res.llmSpans[res.nextLLMSpan]
+	res.nextLLMSpan++
+	return data, data.Input != "" || data.Output != ""
 }
 
 // GetVeadkParentContextByToolCallID finds the veadk parent for a tool span by its logical ToolCallID.
