@@ -18,6 +18,78 @@ It demonstrates three common patterns:
 
 For multi-turn conversations, reuse the same `userID` and `sessionID` across calls.
 
+## Update session state
+
+Update an existing session before the next agent run with `r.UpdateSession`:
+
+```go
+// r is an initialized VeADK runner. Create the session once, or use a session
+// already created by a previous Run/RunText call.
+_, err := r.SessionService().Create(ctx, &session.CreateRequest{
+    AppName: r.AppName(), UserID: "user", SessionID: "session",
+    State: map[string]any{"phase": "created", "keep": true},
+})
+if err != nil {
+    return err
+}
+if err := r.UpdateSession(ctx, "user", "session", map[string]any{
+    "phase": "approved", "approval": true,
+}); err != nil {
+    return err
+}
+// Read the committed state and event history through the same service.
+updated, err := r.SessionService().Get(ctx, &session.GetRequest{
+    AppName: r.AppName(), UserID: "user", SessionID: "session",
+})
+if err != nil {
+    return err
+}
+phase, err := updated.Session.State().Get("phase") // "approved"
+```
+
+The snippets use `google.golang.org/adk/v2/session`. Both SDK entry points return an error:
+
+```go
+func (r *Runner) UpdateSession(ctx context.Context, userID, sessionID string, stateDelta map[string]any) error
+func UpdateSession(ctx context.Context, sessionService session.Service, appName, userID, sessionID string, stateDelta map[string]any) error
+```
+
+For a custom runtime or app integration, pass its final session service to `runner.UpdateSession(ctx, svc, appName, userID, sessionID, delta)`. The runner method uses the normalized app name and service: `SessionService` takes precedence over `ShortTermMemory`, and the default is an in-memory service. Updating does not execute the agent or save long-term memory. A missing session returns an error even when `AutoCreateSession` is enabled.
+
+Choose a short-term backend once when constructing the runtime, using the existing memory factory:
+
+```go
+svc, err := memory.NewShortTermMemoryService(memory.BackendShortTermSQLite,
+    &short_term_memory_backends.SqliteBackendConfig{
+        CommonDatabaseConfig: &configs.CommonDatabaseConfig{DBUrl: "session.db"},
+    })
+if err != nil {
+    return err
+}
+r, err := runner.New(runner.Config{AppName: "app", Agent: rootAgent, ShortTermMemory: svc})
+```
+
+These packages are `github.com/volcengine/veadk-go/v2/{memory,configs,runner}` and `github.com/volcengine/veadk-go/v2/memory/short_term_memory_backends`.
+
+| Backend | Factory type | Configuration |
+| --- | --- | --- |
+| Local memory | `memory.BackendShortTermLocal` | `nil`; valid only for that service instance and process |
+| SQLite | `memory.BackendShortTermSQLite` | `*short_term_memory_backends.SqliteBackendConfig` |
+| MySQL | `memory.BackendShortTermMySQL` | `*short_term_memory_backends.MysqlBackendConfig` |
+| PostgreSQL | `memory.BackendShortTermPostgreSQL` | `*short_term_memory_backends.PostgresqlBackendConfig` |
+
+Database configurations embed `*configs.CommonDatabaseConfig`; provide `DBUrl` or the existing database settings. Keep credentials out of source and logs. Updates use the supplied service's normal persistence behavior; do not create another service to perform the update. Database services can read persisted state after reopening the same database, while a new in-memory service starts empty.
+
+State deltas merge at the top level, preserving unspecified keys. A supplied object replaces the whole value at its key; there is no deep merge. `nil` stores JSON null rather than deleting the key. Persistent values must be JSON serializable, including finite numbers; invalid values fail before appending. The caller's map is not modified and must remain stable during the call.
+
+Ordinary keys belong to the target session. ADK `user:` keys are shared across sessions of the same app/user, and `app:` keys across the same app. `temp:` keys are filtered before validation and never enter the new API's stored state or events. A nil, empty, or temp-only delta verifies that the session exists and succeeds without adding an event or changing the update time.
+
+Each nonempty persistent update appends one standard non-partial ADK event with author `system`, generated ID/invocation ID/timestamp, and no message content. Get, serialization, cancellation, and append errors preserve their underlying causes through Go error wrapping. MySQL strict mode has a known upstream ADK v2.1.0 limitation when creating shared app/user state: the PRD survey reproduced a mixed `app:`/`user:` update failing on a zero update-time value. Basic session keys are the compatibility target; shared-state errors are returned unchanged in the error chain. The standalone `user:` MySQL case still requires e2e verification.
+
+Serialize updates and runs on the same session. Get plus AppendEvent provides neither CAS nor cross-request deduplication, and database stale/lock errors are returned without retrying. If a response is lost, read back before deciding whether to retry. The caller is responsible for app/user authorization.
+
+The existing lower-level path remains available: `Get` the latest session, construct `session.NewEvent` with `Actions.StateDelta`, then `AppendEvent` on the same service. Calling `State().Set` on a retrieved snapshot alone does not persist it. For updates accompanying agent execution, continue using `adkrunner.WithStateDelta` with `Run`/`RunText`; arbitrary complete events still go through `SessionService.AppendEvent`.
+
 ## Runtime concepts
 
 `runner.Config` configures the VeADK runner instance. It owns stable runtime dependencies such as the root agent, session service, artifact service, memory service, plugin config, and auto-save behavior. `ShortTermMemory` and `LongTermMemory` are VeADK aliases for the ADK Go `SessionService` and `MemoryService` fields.
