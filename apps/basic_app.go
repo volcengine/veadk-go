@@ -34,11 +34,11 @@ import (
 	vememory "github.com/volcengine/veadk-go/v2/memory"
 	"github.com/volcengine/veadk-go/v2/observability"
 	verunner "github.com/volcengine/veadk-go/v2/runner"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/artifact"
 	"google.golang.org/adk/v2/cmd/launcher/web"
 	"google.golang.org/adk/v2/memory"
-	"google.golang.org/adk/v2/plugin"
 	"google.golang.org/adk/v2/runner"
 	"google.golang.org/adk/v2/session"
 	"google.golang.org/adk/v2/telemetry"
@@ -56,6 +56,9 @@ type RunConfig struct {
 	TelemetryOptions     []telemetry.Option
 	AutoSaveSession      bool
 	AutoSaveMemoryPolicy *vememory.MemoryAutoSavePolicy
+	// TraceExporter replaces configured trace exporters when VeADK initializes
+	// the default observability plugin. VeADK flushes and shuts it down.
+	TraceExporter sdktrace.SpanExporter
 	// DisableObservability skips VeADK's default observability plugin and
 	// shutdown hook. Embedders that manage telemetry themselves can use this to
 	// avoid installing or shutting down global providers.
@@ -63,22 +66,13 @@ type RunConfig struct {
 }
 
 func (cfg *RunConfig) AppendObservability() {
-	if len(cfg.PluginConfig.Plugins) == 0 {
-		cfg.PluginConfig = runner.PluginConfig{
-			Plugins: []*plugin.Plugin{observability.NewPlugin()},
+	for _, p := range cfg.PluginConfig.Plugins {
+		if p.Name() == observability.PluginName {
+			log.Info("Plugin already configured")
+			return
 		}
-	} else {
-		observabilityPlugin := observability.NewPlugin()
-		for _, p := range cfg.PluginConfig.Plugins {
-			if p.Name() == observabilityPlugin.Name() {
-				log.Info("Plugin already configured")
-				return
-			}
-		}
-		cfg.PluginConfig.Plugins = append(cfg.PluginConfig.Plugins, observabilityPlugin)
-		log.Info("Plugin configured")
 	}
-
+	cfg.PluginConfig.Plugins = append(cfg.PluginConfig.Plugins, observability.NewPluginWithTraceExporter(cfg.TraceExporter))
 	cfg.TelemetryOptions = append(cfg.TelemetryOptions, observability.ADKTelemetryOptions()...)
 }
 

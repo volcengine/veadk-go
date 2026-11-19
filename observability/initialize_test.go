@@ -51,21 +51,21 @@ func TestSetGlobalTracerProvider(t *testing.T) {
 
 func TestInitializeWithConfig(t *testing.T) {
 	// Nil config should return ErrNoExporters
-	err := initWithConfig(context.Background(), nil)
+	err := initWithConfig(context.Background(), nil, nil)
 	assert.ErrorIs(t, err, ErrNoExporters)
 
 	// Config without exporters should return ErrNoExporters.
 	cfg := &configs.OpenTelemetryConfig{
 		EnableMetrics: nil,
 	}
-	err = initWithConfig(context.Background(), cfg)
+	err = initWithConfig(context.Background(), cfg, nil)
 	assert.ErrorIs(t, err, ErrNoExporters)
 
 	// Config with stdout exporter should initialize traces.
 	cfgGlobal := &configs.OpenTelemetryConfig{
 		Stdout: &configs.StdoutConfig{Enable: true},
 	}
-	err = initWithConfig(context.Background(), cfgGlobal)
+	err = initWithConfig(context.Background(), cfgGlobal, nil)
 	assert.NoError(t, err)
 
 }

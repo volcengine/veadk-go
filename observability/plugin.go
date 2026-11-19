@@ -23,6 +23,7 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/model"
@@ -39,13 +40,23 @@ const (
 // NewPlugin creates a new observability plugin for ADK.
 // It returns a *plugin.Plugin that can be registered in launcher.Config or agent.Config.
 func NewPlugin(opts ...Option) *plugin.Plugin {
+	return NewPluginWithTraceExporter(nil, opts...)
+}
+
+// NewPluginWithTraceExporter creates the default ADK observability plugin with
+// a custom OpenTelemetry trace exporter. A non-nil exporter replaces configured
+// trace exporters, including those selected by OTEL_TRACES_EXPORTER. VeADK owns
+// batching, span translation, and shutdown for that exporter. Metrics and
+// OTEL_SDK_DISABLED are still honored. The first initialization in the process
+// selects the exporter. A nil exporter uses the normal configuration.
+func NewPluginWithTraceExporter(exporter sdktrace.SpanExporter, opts ...Option) *plugin.Plugin {
 	// use global config by default. deep copy to avoid mutating global config.
 	observabilityConfig := configs.GetGlobalConfig().Observability.Clone()
 	for _, opt := range opts {
 		opt(observabilityConfig)
 	}
 
-	if err := Init(context.Background(), observabilityConfig); err != nil {
+	if err := initObservability(context.Background(), observabilityConfig, exporter); err != nil {
 		log.Warn("Return a noop plugin", "error", err)
 		return noOpPlugin(PluginName)
 	}
