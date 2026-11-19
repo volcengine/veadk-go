@@ -1,0 +1,4 @@
+# Additive SDK entry points; existing runtime and storage contracts are retained.
+change_ref: "feat/4f204cd7-z82c: Session Update SDK (Meego 7397916600)"
+breaking: none
+surfaces_checked: [api, cli, lib-signature, config, storage-format, protocol]
