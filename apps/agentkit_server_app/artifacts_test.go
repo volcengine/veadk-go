@@ -76,7 +76,7 @@ func TestDeleteArtifactVersionHandlerMapsRequest(t *testing.T) {
 			defer cancel()
 			request := mux.SetURLVars(httptest.NewRequest(http.MethodDelete, "/", nil).WithContext(ctx), vars)
 			response := httptest.NewRecorder()
-			deleteArtifactVersionHandler(service)(response, request)
+			NewDeleteArtifactVersionHandler(service)(response, request)
 			if response.Code != http.StatusOK || response.Body.Len() != 0 {
 				t.Fatalf("response = %d %q, want 200 and empty body", response.Code, response.Body.String())
 			}
@@ -123,7 +123,7 @@ func assertArtifactParametersRejected(t *testing.T, vars map[string]string, para
 	t.Helper()
 	service := &recordingArtifactService{}
 	response := httptest.NewRecorder()
-	deleteArtifactVersionHandler(service)(response, mux.SetURLVars(httptest.NewRequest(http.MethodDelete, "/", nil), vars))
+	NewDeleteArtifactVersionHandler(service)(response, mux.SetURLVars(httptest.NewRequest(http.MethodDelete, "/", nil), vars))
 	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), parameter) {
 		t.Fatalf("response = %d %q, want 400 identifying %s", response.Code, response.Body.String(), parameter)
 	}
