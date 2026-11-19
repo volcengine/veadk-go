@@ -523,6 +523,17 @@ func waitForTCP(t *testing.T, address string) {
 }
 
 func TestCustomTraceExporterReplacesConfiguredOTLP(t *testing.T) {
+	// Observability initializes once per process and shutdown is terminal.
+	const childEnv = "VEADK_TRACE_EXPORTER_TEST_CHILD"
+	if os.Getenv(childEnv) != "1" {
+		command := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout=30s")
+		command.Env = []string{childEnv + "=1"}
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("trace exporter test process: %v\n%s", err, output)
+		}
+		return
+	}
+
 	t.Chdir(t.TempDir())
 	var requests atomic.Int32
 	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -535,9 +546,7 @@ func TestCustomTraceExporterReplacesConfiguredOTLP(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", collector.URL+"/v1/traces")
 	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "http/protobuf")
 
-	original := otel.GetTracerProvider()
 	t.Cleanup(func() {
-		defer otel.SetTracerProvider(original)
 		if err := observability.Shutdown(context.Background()); err != nil {
 			t.Error(err)
 		}
