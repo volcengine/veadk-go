@@ -166,6 +166,26 @@ If a large agent takes a long time to run, you can increase the timeout paramete
 go run agent.go web -read-timeout 3m -write-timeout 3m api webui
 ```
 
+## Delete an artifact version through VeADK Server
+
+When using `apps/agentkit_server_app.NewAgentkitServerApp` with an
+`apps.RunConfig.ArtifactService`, you can delete one saved artifact version:
+
+```http
+DELETE /apps/{app_name}/users/{user_id}/sessions/{session_id}/artifacts/{artifact_name}/versions/{version}
+```
+
+Prepend your configured `ApiPathPrefix` (for example, `/api`) to this path.
+`version` must be a positive int64 integer; invalid, zero, or negative values
+return HTTP 400. Success returns HTTP 200 with an empty body. Backend failures
+return HTTP 500 with the backend error text. A missing ArtifactService returns
+a controlled HTTP 500. Other versions remain available. The existing
+`DELETE .../artifacts/{artifact_name}` continues to delete all versions.
+
+This endpoint is provided by VeADK `AgentkitServerApp`. The native ADK
+`full.NewLauncher()` shown above uses the upstream REST routes and does not
+include this VeADK endpoint.
+
 ## Use the runner directly
 
 For programmatic calls, use `runner.RunText` when you only need the final text response:

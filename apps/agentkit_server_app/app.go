@@ -116,6 +116,14 @@ func (a *AgentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 		return apps.NewSetupError("setup A2A routes", err)
 	}
 
+	var deleteVersionHandler http.Handler = deleteArtifactVersionHandler(config.ArtifactService)
+	if !config.DisableObservability {
+		deleteVersionHandler = observability.HTTPMiddleware(deleteVersionHandler)
+	}
+	router.Methods(http.MethodDelete).
+		Path(a.ApiPathPrefix + "/apps/{app_name}/users/{user_id}/sessions/{session_id}/artifacts/{artifact_name}/versions/{version}").
+		Handler(deleteVersionHandler)
+
 	for _, setup := range a.routeSetups {
 		if err = setup(router, config); err != nil {
 			return apps.NewSetupError("setup custom routes", err)
