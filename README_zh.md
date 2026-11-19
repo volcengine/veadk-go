@@ -163,6 +163,24 @@ go run agent.go web api webui
 go run agent.go web -read-timeout 3m -write-timeout 3m api webui
 ```
 
+## 通过 VeADK Server 删除制品的指定版本
+
+使用 `apps/agentkit_server_app.NewAgentkitServerApp` 并配置
+`apps.RunConfig.ArtifactService` 后，可调用以下接口删除一个已保存的版本：
+
+```http
+DELETE /apps/{app_name}/users/{user_id}/sessions/{session_id}/artifacts/{artifact_name}/versions/{version}
+```
+
+路径前需添加配置的 `ApiPathPrefix`，例如 `/api`。`version` 必须为大于 0
+的 int64 整数；非法值、0 和负数返回 HTTP 400。成功返回 HTTP 200 和空响应体，
+底层失败返回 HTTP 500 及对应错误文本，未配置 ArtifactService 时返回受控的
+HTTP 500。其他版本仍可使用，原有 `DELETE .../artifacts/{artifact_name}`
+继续删除该制品的全部版本。
+
+该接口由 VeADK `AgentkitServerApp` 提供。上文原生 ADK 的 `full.NewLauncher()`
+使用上游 REST 路由，不包含此 VeADK 扩展接口。
+
 ## 直接使用 Runner
 
 如果你希望在代码中直接调用 Agent，并且只关心最终文本响应，可以使用 `runner.RunText`：
