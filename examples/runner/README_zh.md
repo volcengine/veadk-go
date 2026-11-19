@@ -18,6 +18,78 @@ go run ./examples/runner/basic
 
 多轮对话时，复用相同的 `userID` 和 `sessionID` 即可延续会话上下文。
 
+## 更新 Session 状态
+
+在下一轮 Agent 执行前，使用 `r.UpdateSession` 更新已有会话：
+
+```go
+// r 为已初始化的 VeADK runner。会话只需创建一次，也可使用此前
+// Run/RunText 已创建的会话。
+_, err := r.SessionService().Create(ctx, &session.CreateRequest{
+    AppName: r.AppName(), UserID: "user", SessionID: "session",
+    State: map[string]any{"phase": "created", "keep": true},
+})
+if err != nil {
+    return err
+}
+if err := r.UpdateSession(ctx, "user", "session", map[string]any{
+    "phase": "approved", "approval": true,
+}); err != nil {
+    return err
+}
+// 从同一服务重新读取已提交的状态及事件历史。
+updated, err := r.SessionService().Get(ctx, &session.GetRequest{
+    AppName: r.AppName(), UserID: "user", SessionID: "session",
+})
+if err != nil {
+    return err
+}
+phase, err := updated.Session.State().Get("phase") // "approved"
+```
+
+示例使用 `google.golang.org/adk/v2/session`。两个 SDK 入口均返回 error：
+
+```go
+func (r *Runner) UpdateSession(ctx context.Context, userID, sessionID string, stateDelta map[string]any) error
+func UpdateSession(ctx context.Context, sessionService session.Service, appName, userID, sessionID string, stateDelta map[string]any) error
+```
+
+自定义运行时或 app 集成可调用 `runner.UpdateSession(ctx, svc, appName, userID, sessionID, delta)`，传入最终选定的服务。Runner 方法使用归一化后的 appName 和服务：`SessionService` 优先于 `ShortTermMemory`，默认使用内存服务。更新本身不执行 Agent、不写长期记忆；即使开启 `AutoCreateSession`，目标不存在也返回错误。
+
+构建运行时时，通过现有 memory factory 选择一次短期后端：
+
+```go
+svc, err := memory.NewShortTermMemoryService(memory.BackendShortTermSQLite,
+    &short_term_memory_backends.SqliteBackendConfig{
+        CommonDatabaseConfig: &configs.CommonDatabaseConfig{DBUrl: "session.db"},
+    })
+if err != nil {
+    return err
+}
+r, err := runner.New(runner.Config{AppName: "app", Agent: rootAgent, ShortTermMemory: svc})
+```
+
+对应包为 `github.com/volcengine/veadk-go/v2/{memory,configs,runner}` 与 `github.com/volcengine/veadk-go/v2/memory/short_term_memory_backends`。
+
+| 后端 | Factory 类型 | 配置 |
+| --- | --- | --- |
+| 本地内存 | `memory.BackendShortTermLocal` | `nil`；仅当前服务实例、当前进程有效 |
+| SQLite | `memory.BackendShortTermSQLite` | `*short_term_memory_backends.SqliteBackendConfig` |
+| MySQL | `memory.BackendShortTermMySQL` | `*short_term_memory_backends.MysqlBackendConfig` |
+| PostgreSQL | `memory.BackendShortTermPostgreSQL` | `*short_term_memory_backends.PostgresqlBackendConfig` |
+
+数据库配置嵌入 `*configs.CommonDatabaseConfig`，提供 `DBUrl` 或已有数据库配置字段；凭据不要写入源码或日志。更新沿用服务自身的持久化流程，不要为了更新另建服务。数据库服务重连同一数据库可读取已持久化状态；新建内存服务则从空状态开始。
+
+增量按顶层 key 合并，保留未提及 key；传入对象会整体替换该 key 的旧值，不做嵌套深度合并。`nil` 写入 JSON null，不表示删除。持久值须可 JSON 序列化，数值须有限；无法序列化时在追加前失败。不修改调用方 map，调用期间应保持输入稳定。
+
+普通 key 属于指定 session；ADK `user:` 在同 app/user 的会话间共享，`app:` 在同 app 下共享。`temp:` 在校验前过滤，不进入新接口的持久状态或历史事件。nil、空 map 或仅 temp 的增量仍检查目标存在，成功后不新增事件、不改变更新时间。
+
+每次非空持久增量追加一个标准 ADK 非 Partial 事件，Author 为 `system`，ID、InvocationID、Timestamp 使用标准生成能力，且不带消息内容。Get、序列化、取消及追加错误使用 Go error wrapping 保留底层原因。MySQL 严格模式存在 ADK v2.1.0 共享态初始化限制：PRD 调研已复现混合 `app:`/`user:` 更新因零更新时间失败。本能力保证基础 session key 的兼容路径，共享态失败如实透传；MySQL 独立 `user:` 场景仍需下一节点 e2e 验证。
+
+同会话更新与 Run 应由调用方串行化；Get+AppendEvent 不提供 CAS 或跨请求去重，数据库 stale/锁冲突直接返回，不自动重试。响应丢失时先读回再决定是否重试。调用方负责 app/user 访问授权。
+
+已有底层路径继续有效：Get 最新会话，构造 `session.NewEvent` 并设置 `Actions.StateDelta`，通过同服务 AppendEvent。仅对读取快照调用 `State().Set` 不会完成持久化。伴随 Agent 执行的更新继续使用 `adkrunner.WithStateDelta` 与 Run/RunText；任意完整 ADK Event 仍通过 `SessionService.AppendEvent` 追加。
+
 ## 运行时概念
 
 `runner.Config` 用于配置 VeADK runner 实例。它承载稳定的运行时依赖，例如 root agent、session service、artifact service、memory service、plugin config 和 auto-save 行为。`ShortTermMemory` 和 `LongTermMemory` 是 VeADK 对 ADK Go `SessionService` 和 `MemoryService` 字段的别名。
