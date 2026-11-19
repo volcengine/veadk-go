@@ -27,11 +27,15 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/volcengine/veadk-go/observability"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
 func TestRunRejectsInvalidInputs(t *testing.T) {
@@ -515,5 +519,56 @@ func waitForTCP(t *testing.T, address string) {
 			t.Fatalf("server did not listen on %s: %v", address, err)
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestCustomTraceExporterReplacesConfiguredOTLP(t *testing.T) {
+	// Observability initializes once per process and shutdown is terminal.
+	const childEnv = "VEADK_TRACE_EXPORTER_TEST_CHILD"
+	if os.Getenv(childEnv) != "1" {
+		command := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout=30s")
+		command.Env = []string{childEnv + "=1"}
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("trace exporter test process: %v\n%s", err, output)
+		}
+		return
+	}
+
+	t.Chdir(t.TempDir())
+	var requests atomic.Int32
+	collector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer collector.Close()
+	t.Setenv("OTEL_SDK_DISABLED", "false")
+	t.Setenv("OTEL_TRACES_EXPORTER", "otlp")
+	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", collector.URL+"/v1/traces")
+	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "http/protobuf")
+
+	t.Cleanup(func() {
+		if err := observability.Shutdown(context.Background()); err != nil {
+			t.Error(err)
+		}
+	})
+	exporter := tracetest.NewInMemoryExporter()
+	cfg := RunConfig{TraceExporter: exporter}
+	cfg.AppendObservability()
+	cfg.AppendObservability()
+	if len(cfg.PluginConfig.Plugins) != 1 {
+		t.Fatal("expected a single VeADK observability plugin")
+	}
+
+	_, span := otel.Tracer("test").Start(t.Context(), "generate_content test")
+	span.End()
+	if err := observability.ForceFlush(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	spans := exporter.GetSpans()
+	if len(spans) != 1 || spans[0].Name != "call_llm" {
+		t.Fatal("expected exactly one translated model span")
+	}
+	if got := requests.Load(); got != 0 {
+		t.Fatalf("configured OTLP exporter sent %d requests", got)
 	}
 }

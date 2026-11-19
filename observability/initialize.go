@@ -39,6 +39,10 @@ var (
 // Users usually don't need to call this function directly unless they want to override the default global configuration.
 // NewPlugin will call this function to initialize observability once.
 func Init(ctx context.Context, cfg *configs.ObservabilityConfig) error {
+	return initObservability(ctx, cfg, nil)
+}
+
+func initObservability(ctx context.Context, cfg *configs.ObservabilityConfig, exporter sdktrace.SpanExporter) error {
 	initConfigOnce.Do(func() {
 		// In veadk-go, config loading might depend on loggers which might depend on global tracer
 		// or vice versa. We ensure InitConfig is called, and then initialize based on that.
@@ -56,7 +60,7 @@ func Init(ctx context.Context, cfg *configs.ObservabilityConfig) error {
 			otelCfg = &configs.OpenTelemetryConfig{}
 		}
 
-		initErr = initWithConfig(ctx, otelCfg)
+		initErr = initWithConfig(ctx, otelCfg, exporter)
 		if initErr == nil {
 			log.Info("Initializing TraceProvider and MetricsProvider based on observability config")
 		}
@@ -102,14 +106,12 @@ func Shutdown(ctx context.Context) error {
 	return errors.Join(errs...)
 }
 
-// initWithConfig automatically initializes the observability system based on the provided configuration.
-// It creates the appropriate exporter and calls RegisterExporter.
-func initWithConfig(ctx context.Context, cfg *configs.OpenTelemetryConfig) error {
+func initWithConfig(ctx context.Context, cfg *configs.OpenTelemetryConfig, exporter sdktrace.SpanExporter) error {
 	if sdkDisabled() {
 		return ErrNoExporters
 	}
 	var errs []error
-	traceInitialized, err := initializeTraceProvider(ctx, cfg)
+	traceInitialized, err := initializeTraceProvider(ctx, cfg, exporter)
 	if err != nil && !errors.Is(err, ErrNoExporters) {
 		errs = append(errs, err)
 	}
@@ -176,7 +178,11 @@ func setGlobalTracerProvider(exp sdktrace.SpanExporter, spanProcessors ...sdktra
 	otel.SetTracerProvider(tp)
 }
 
-func initializeTraceProvider(ctx context.Context, cfg *configs.OpenTelemetryConfig) (bool, error) {
+func initializeTraceProvider(ctx context.Context, cfg *configs.OpenTelemetryConfig, exporter sdktrace.SpanExporter) (bool, error) {
+	if exporter != nil {
+		setGlobalTracerProvider(exporter)
+		return true, nil
+	}
 	exp, err := NewMultiExporter(ctx, cfg)
 	if err != nil {
 		return false, err
