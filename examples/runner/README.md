@@ -32,8 +32,9 @@ _, err := r.SessionService().Create(ctx, &session.CreateRequest{
 if err != nil {
     return err
 }
-if err := r.UpdateSession(ctx, "user", "session", map[string]any{
-    "phase": "approved", "approval": true,
+if err := r.UpdateSession(ctx, runner.SessionUpdateRequest{
+    UserID: "user", SessionID: "session",
+    StateDelta: map[string]any{"phase": "approved", "approval": true},
 }); err != nil {
     return err
 }
@@ -47,14 +48,50 @@ if err != nil {
 phase, err := updated.Session.State().Get("phase") // "approved"
 ```
 
-The snippets use `google.golang.org/adk/v2/session`. Both SDK entry points return an error:
+The snippets use `google.golang.org/adk/v2/session`. The SDK accepts one request shape for state, content, and artifact-version updates:
 
 ```go
-func (r *Runner) UpdateSession(ctx context.Context, userID, sessionID string, stateDelta map[string]any) error
-func UpdateSession(ctx context.Context, sessionService session.Service, appName, userID, sessionID string, stateDelta map[string]any) error
+type SessionUpdateRequest struct {
+    AppName string // package helper only; Runner uses r.AppName()
+    UserID string
+    SessionID string
+    StateDelta map[string]any
+    Content *genai.Content
+    ArtifactDelta map[string]int64
+    Author string
+    InvocationID string
+}
+
+func (r *Runner) UpdateSession(ctx context.Context, req runner.SessionUpdateRequest) error
+func UpdateSession(ctx context.Context, sessionService session.Service, req runner.SessionUpdateRequest) error
 ```
 
-For a custom runtime or app integration, pass its final session service to `runner.UpdateSession(ctx, svc, appName, userID, sessionID, delta)`. The runner method uses the normalized app name and service: `SessionService` takes precedence over `ShortTermMemory`, and the default is an in-memory service. Updating does not execute the agent or save long-term memory. A missing session returns an error even when `AutoCreateSession` is enabled.
+For a custom runtime or app integration, pass its final session service to `runner.UpdateSession(ctx, svc, runner.SessionUpdateRequest{AppName: appName, ...})`. The runner method uses the normalized app name and service: `SessionService` takes precedence over `ShortTermMemory`, and the default is an in-memory service. Updating does not execute the agent or save long-term memory. A missing session returns an error even when `AutoCreateSession` is enabled.
+
+The simple HTTP API exposes the same request shape:
+
+```http
+POST /sessions/{session_id}:update
+Content-Type: application/json
+
+{
+  "user_id": "user",
+  "state_delta": {
+    "phase": "approved",
+    "approval": true
+  },
+  "author": "external_tool",
+  "content": {
+    "role": "user",
+    "parts": [{"text": "approval granted"}]
+  },
+  "artifact_delta": {
+    "approval.pdf": 3
+  }
+}
+```
+
+`session_id` comes from the path. `user_id` is optional for the simple app and defaults to its configured user; custom callers should pass the intended user explicitly. The endpoint returns `{ "code": 200, "message": "success", "session_id": "..." }` on success and uses `400` for malformed request payloads or obvious validation errors.
 
 Choose a short-term backend once when constructing the runtime, using the existing memory factory:
 
@@ -84,7 +121,7 @@ State deltas merge at the top level, preserving unspecified keys. A supplied obj
 
 Ordinary keys belong to the target session. ADK `user:` keys are shared across sessions of the same app/user, and `app:` keys across the same app. `temp:` keys are filtered before validation and never enter the new API's stored state or events. A nil, empty, or temp-only delta verifies that the session exists and succeeds without adding an event or changing the update time.
 
-Each nonempty persistent update appends one standard non-partial ADK event with author `system`, generated ID/invocation ID/timestamp, and no message content. Get, serialization, cancellation, and append errors preserve their underlying causes through Go error wrapping. MySQL strict mode has a known upstream ADK v2.1.0 limitation when creating shared app/user state: the PRD survey reproduced a mixed `app:`/`user:` update failing on a zero update-time value. Basic session keys are the compatibility target; shared-state errors are returned unchanged in the error chain. The standalone `user:` MySQL case still requires e2e verification.
+Each nonempty persistent update appends one standard non-partial ADK event. State/artifact-only updates default to author `system`; content updates must provide `Author` because they enter session history and can affect later prompts. `ArtifactDelta` records filename/version references only; save artifact bytes through the same runtime's `ArtifactService` before adding those references. Get, serialization, cancellation, and append errors preserve their underlying causes through Go error wrapping. MySQL strict mode has a known upstream ADK v2.1.0 limitation when creating shared app/user state: the PRD survey reproduced a mixed `app:`/`user:` update failing on a zero update-time value. Basic session keys are the compatibility target; shared-state errors are returned unchanged in the error chain. The standalone `user:` MySQL case still requires e2e verification.
 
 Serialize updates and runs on the same session. Get plus AppendEvent provides neither CAS nor cross-request deduplication, and database stale/lock errors are returned without retrying. If a response is lost, read back before deciding whether to retry. The caller is responsible for app/user authorization.
 

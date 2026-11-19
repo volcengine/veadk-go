@@ -107,7 +107,9 @@ func TestUpdateSessionStateAndEvents(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := UpdateSession(ctx, svc, "app", "user", "session", delta); err != nil {
+			if err := UpdateSession(ctx, svc, SessionUpdateRequest{
+				AppName: "app", UserID: "user", SessionID: "session", StateDelta: delta,
+			}); err != nil {
 				t.Fatal(err)
 			}
 			after := getUpdateTestSession(t, svc, "app", "user", "session")
@@ -143,7 +145,10 @@ func TestUpdateSessionStateAndEvents(t *testing.T) {
 			if event.Actions.StateDelta["phase"] != "approved" {
 				t.Fatal("stored event aliases caller map")
 			}
-			if err := UpdateSession(ctx, svc, "app", "user", "session", map[string]any{"phase": "completed"}); err != nil {
+			if err := UpdateSession(ctx, svc, SessionUpdateRequest{
+				AppName: "app", UserID: "user", SessionID: "session",
+				StateDelta: map[string]any{"phase": "completed"},
+			}); err != nil {
 				t.Fatal(err)
 			}
 			latest := getUpdateTestSession(t, svc, "app", "user", "session")
@@ -153,7 +158,9 @@ func TestUpdateSessionStateAndEvents(t *testing.T) {
 				t.Fatal("sequential updates must have distinct events")
 			}
 			for _, empty := range []map[string]any{nil, {}, {"temp:scratch": make(chan int)}} {
-				if err := UpdateSession(ctx, svc, "app", "user", "session", empty); err != nil {
+				if err := UpdateSession(ctx, svc, SessionUpdateRequest{
+					AppName: "app", UserID: "user", SessionID: "session", StateDelta: empty,
+				}); err != nil {
 					t.Fatal(err)
 				}
 				fresh := getUpdateTestSession(t, svc, "app", "user", "session")
@@ -173,8 +180,9 @@ func TestUpdateSessionScopes(t *testing.T) {
 			for _, target := range [][3]string{{"app", "user", "s1"}, {"app", "user", "s2"}, {"app", "other", "s1"}, {"other", "user", "s1"}} {
 				createUpdateTestSession(t, svc, target[0], target[1], target[2])
 			}
-			if err := UpdateSession(context.Background(), svc, "app", "user", "s1", map[string]any{
-				"phase": "approved", "app:brand": "veadk", "user:locale": "zh",
+			if err := UpdateSession(context.Background(), svc, SessionUpdateRequest{
+				AppName: "app", UserID: "user", SessionID: "s1",
+				StateDelta: map[string]any{"phase": "approved", "app:brand": "veadk", "user:locale": "zh"},
 			}); err != nil {
 				t.Fatal(err)
 			}
@@ -198,6 +206,53 @@ func TestUpdateSessionScopes(t *testing.T) {
 			}
 			if sameUser.Events().Len() != 0 || otherUser.Events().Len() != 0 || otherApp.Events().Len() != 0 {
 				t.Fatal("update event was appended to another session")
+			}
+		})
+	}
+}
+
+// Content and artifact deltas share the same external update event. Artifact
+// contents must be saved separately through ArtifactService.
+func TestUpdateSessionContentAndArtifactDelta(t *testing.T) {
+	for _, backend := range []string{"local", "sqlite"} {
+		t.Run(backend, func(t *testing.T) {
+			svc := newUpdateTestService(t, backend)
+			createUpdateTestSession(t, svc, "app", "user", "session")
+			req := SessionUpdateRequest{
+				AppName:   "app",
+				UserID:    "user",
+				SessionID: "session",
+				Author:    "external_tool",
+				Content:   genai.NewContentFromText("approval granted", genai.RoleUser),
+				StateDelta: map[string]any{
+					"phase": "approved",
+				},
+				ArtifactDelta: map[string]int64{"approval.pdf": 3},
+				InvocationID:  "external-invocation",
+			}
+			if err := UpdateSession(context.Background(), svc, req); err != nil {
+				t.Fatal(err)
+			}
+			updated := getUpdateTestSession(t, svc, "app", "user", "session")
+			assertUpdateState(t, updated, "phase", "approved")
+			if updated.Events().Len() != 1 {
+				t.Fatalf("events = %d, want 1", updated.Events().Len())
+			}
+			event := updated.Events().At(0)
+			if event.Author != "external_tool" || event.InvocationID != "external-invocation" {
+				t.Fatalf("event metadata = author %q invocation %q", event.Author, event.InvocationID)
+			}
+			if event.Content == nil || event.Content.Role != genai.RoleUser || len(event.Content.Parts) != 1 || event.Content.Parts[0].Text != "approval granted" {
+				t.Fatalf("content not persisted: %+v", event.Content)
+			}
+			if got := event.Actions.ArtifactDelta["approval.pdf"]; got != 3 {
+				t.Fatalf("artifact delta = %d, want 3", got)
+			}
+			req.Content.Parts[0].Text = "caller changed"
+			req.ArtifactDelta["approval.pdf"] = 9
+			freshEvent := getUpdateTestSession(t, svc, "app", "user", "session").Events().At(0)
+			if freshEvent.Content.Parts[0].Text != "approval granted" || freshEvent.Actions.ArtifactDelta["approval.pdf"] != 3 {
+				t.Fatal("stored content or artifact delta aliases caller input")
 			}
 		})
 	}
@@ -259,7 +314,9 @@ func TestRunnerUpdateSessionUsesRuntimeService(t *testing.T) {
 			if ignored != nil {
 				createUpdateTestSession(t, ignored, r.AppName(), "user", "session")
 			}
-			if err := r.UpdateSession(context.Background(), "user", "session", map[string]any{"phase": "approved"}); err != nil {
+			if err := r.UpdateSession(context.Background(), SessionUpdateRequest{
+				UserID: "user", SessionID: "session", StateDelta: map[string]any{"phase": "approved"},
+			}); err != nil {
 				t.Fatal(err)
 			}
 			if calls != 0 || len(longTerm.sessions) != 0 {
@@ -278,7 +335,9 @@ func TestRunnerUpdateSessionUsesRuntimeService(t *testing.T) {
 				t.Fatalf("WithStateDelta = %q, %v", text, err)
 			}
 			for _, delta := range []map[string]any{nil, {"phase": "approved"}, {"temp:key": true}} {
-				if err := r.UpdateSession(context.Background(), "user", "missing", delta); err == nil {
+				if err := r.UpdateSession(context.Background(), SessionUpdateRequest{
+					UserID: "user", SessionID: "missing", StateDelta: delta,
+				}); err == nil {
 					t.Fatal("missing session accepted")
 				}
 			}
@@ -317,19 +376,36 @@ func (s *updateRecordingService) AppendEvent(ctx context.Context, target session
 func TestUpdateSessionInvalidParameters(t *testing.T) {
 	for _, target := range [][3]string{{"", "user", "session"}, {"app", "", "session"}, {"app", "user", ""}} {
 		svc := &updateRecordingService{}
-		if err := UpdateSession(context.Background(), svc, target[0], target[1], target[2], nil); err == nil || !strings.Contains(err.Error(), "required") {
+		if err := UpdateSession(context.Background(), svc, SessionUpdateRequest{
+			AppName: target[0], UserID: target[1], SessionID: target[2],
+		}); err == nil || !strings.Contains(err.Error(), "required") {
 			t.Fatalf("invalid tuple accepted: %v", err)
 		}
 		if svc.gets != 0 || svc.appends != 0 {
 			t.Fatal("invalid input accessed service")
 		}
 	}
-	if err := UpdateSession(context.Background(), nil, "app", "user", "session", nil); err == nil {
+	if err := UpdateSession(context.Background(), nil, SessionUpdateRequest{AppName: "app", UserID: "user", SessionID: "session"}); err == nil {
 		t.Fatal("nil service accepted")
 	}
 	for _, r := range []*Runner{nil, {}} {
-		if err := r.UpdateSession(context.Background(), "user", "session", nil); err == nil {
+		if err := r.UpdateSession(context.Background(), SessionUpdateRequest{UserID: "user", SessionID: "session"}); err == nil {
 			t.Fatal("invalid runner accepted")
+		}
+	}
+	base := session.InMemoryService()
+	createUpdateTestSession(t, base, "app", "user", "session")
+	for _, req := range []SessionUpdateRequest{
+		{AppName: "app", UserID: "user", SessionID: "session", Content: genai.NewContentFromText("missing author", genai.RoleUser)},
+		{AppName: "app", UserID: "user", SessionID: "session", ArtifactDelta: map[string]int64{"": 1}},
+		{AppName: "app", UserID: "user", SessionID: "session", ArtifactDelta: map[string]int64{"file.txt": -1}},
+	} {
+		svc := &updateRecordingService{Service: base}
+		if err := UpdateSession(context.Background(), svc, req); err == nil {
+			t.Fatalf("invalid request accepted: %+v", req)
+		}
+		if svc.appends != 0 {
+			t.Fatal("invalid request appended an event")
 		}
 	}
 }
@@ -345,7 +421,10 @@ func TestUpdateSessionRejectsNonJSONValues(t *testing.T) {
 			before := getUpdateTestSession(t, base, "app", "user", "session")
 			for _, value := range []any{func() {}, make(chan int), cycle, math.NaN(), math.Inf(1)} {
 				svc := &updateRecordingService{Service: base}
-				err := UpdateSession(context.Background(), svc, "app", "user", "session", map[string]any{"phase": "wrong", "invalid": value})
+				err := UpdateSession(context.Background(), svc, SessionUpdateRequest{
+					AppName: "app", UserID: "user", SessionID: "session",
+					StateDelta: map[string]any{"phase": "wrong", "invalid": value},
+				})
 				var typeErr *json.UnsupportedTypeError
 				var valueErr *json.UnsupportedValueError
 				if !errors.As(err, &typeErr) && !errors.As(err, &valueErr) {
@@ -417,7 +496,9 @@ func TestUpdateSessionErrorsAndCancellation(t *testing.T) {
 				want = context.Canceled
 				delta["cancel"] = updateCancelMarshaler{cancel: cancel}
 			}
-			err := UpdateSession(ctx, svc, "app", "user", "session", delta)
+			err := UpdateSession(ctx, svc, SessionUpdateRequest{
+				AppName: "app", UserID: "user", SessionID: "session", StateDelta: delta,
+			})
 			if err == nil || (want != nil && !errors.Is(err, want)) {
 				t.Fatalf("error = %v, want cause %v", err, want)
 			}
