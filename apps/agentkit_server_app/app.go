@@ -116,7 +116,7 @@ func (a *AgentkitServerApp) SetupRouters(router *mux.Router, config *apps.RunCon
 		return apps.NewSetupError("setup A2A routes", err)
 	}
 
-	var deleteVersionHandler http.Handler = deleteArtifactVersionHandler(config.ArtifactService)
+	var deleteVersionHandler http.Handler = NewDeleteArtifactVersionHandler(config.ArtifactService)
 	if !config.DisableObservability {
 		deleteVersionHandler = observability.HTTPMiddleware(deleteVersionHandler)
 	}

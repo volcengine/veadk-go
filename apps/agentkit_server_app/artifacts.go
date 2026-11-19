@@ -23,7 +23,9 @@ import (
 	"google.golang.org/adk/v2/server/adkrest/controllers"
 )
 
-func deleteArtifactVersionHandler(service artifact.Service) http.HandlerFunc {
+// NewDeleteArtifactVersionHandler returns a handler that deletes one version of
+// an artifact through the configured artifact service.
+func NewDeleteArtifactVersionHandler(service artifact.Service) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		vars := mux.Vars(request)
 		for _, name := range []string{"app_name", "user_id", "session_id", "artifact_name", "version"} {
