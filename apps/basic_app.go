@@ -31,11 +31,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/volcengine/veadk-go/log"
 	"github.com/volcengine/veadk-go/observability"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/artifact"
 	"google.golang.org/adk/cmd/launcher/web"
 	"google.golang.org/adk/memory"
-	"google.golang.org/adk/plugin"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 	"google.golang.org/adk/telemetry"
@@ -49,6 +49,9 @@ type RunConfig struct {
 	A2AOptions       []a2asrv.RequestHandlerOption
 	PluginConfig     runner.PluginConfig
 	TelemetryOptions []telemetry.Option
+	// TraceExporter replaces configured trace exporters when VeADK initializes
+	// the default observability plugin. VeADK flushes and shuts it down.
+	TraceExporter sdktrace.SpanExporter
 	// DisableObservability skips VeADK's default observability plugin and
 	// shutdown hook. Embedders that manage telemetry themselves can use this to
 	// avoid installing or shutting down global providers.
@@ -56,22 +59,13 @@ type RunConfig struct {
 }
 
 func (cfg *RunConfig) AppendObservability() {
-	if len(cfg.PluginConfig.Plugins) == 0 {
-		cfg.PluginConfig = runner.PluginConfig{
-			Plugins: []*plugin.Plugin{observability.NewPlugin()},
+	for _, p := range cfg.PluginConfig.Plugins {
+		if p.Name() == observability.PluginName {
+			log.Info("Plugin already configured")
+			return
 		}
-	} else {
-		observabilityPlugin := observability.NewPlugin()
-		for _, p := range cfg.PluginConfig.Plugins {
-			if p.Name() == observabilityPlugin.Name() {
-				log.Info("Plugin already configured")
-				return
-			}
-		}
-		cfg.PluginConfig.Plugins = append(cfg.PluginConfig.Plugins, observabilityPlugin)
-		log.Info("Plugin configured")
 	}
-
+	cfg.PluginConfig.Plugins = append(cfg.PluginConfig.Plugins, observability.NewPluginWithTraceExporter(cfg.TraceExporter))
 	cfg.TelemetryOptions = append(cfg.TelemetryOptions, observability.ADKTelemetryOptions()...)
 }
 
