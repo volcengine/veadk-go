@@ -32,8 +32,9 @@ _, err := r.SessionService().Create(ctx, &session.CreateRequest{
 if err != nil {
     return err
 }
-if err := r.UpdateSession(ctx, "user", "session", map[string]any{
-    "phase": "approved", "approval": true,
+if err := r.UpdateSession(ctx, runner.SessionUpdateRequest{
+    UserID: "user", SessionID: "session",
+    StateDelta: map[string]any{"phase": "approved", "approval": true},
 }); err != nil {
     return err
 }
@@ -47,14 +48,50 @@ if err != nil {
 phase, err := updated.Session.State().Get("phase") // "approved"
 ```
 
-示例使用 `google.golang.org/adk/v2/session`。两个 SDK 入口均返回 error：
+示例使用 `google.golang.org/adk/v2/session`。SDK 用同一个 request 结构支持 state、content 和 artifact 版本引用更新：
 
 ```go
-func (r *Runner) UpdateSession(ctx context.Context, userID, sessionID string, stateDelta map[string]any) error
-func UpdateSession(ctx context.Context, sessionService session.Service, appName, userID, sessionID string, stateDelta map[string]any) error
+type SessionUpdateRequest struct {
+    AppName string // 仅包级 helper 使用；Runner 使用 r.AppName()
+    UserID string
+    SessionID string
+    StateDelta map[string]any
+    Content *genai.Content
+    ArtifactDelta map[string]int64
+    Author string
+    InvocationID string
+}
+
+func (r *Runner) UpdateSession(ctx context.Context, req runner.SessionUpdateRequest) error
+func UpdateSession(ctx context.Context, sessionService session.Service, req runner.SessionUpdateRequest) error
 ```
 
-自定义运行时或 app 集成可调用 `runner.UpdateSession(ctx, svc, appName, userID, sessionID, delta)`，传入最终选定的服务。Runner 方法使用归一化后的 appName 和服务：`SessionService` 优先于 `ShortTermMemory`，默认使用内存服务。更新本身不执行 Agent、不写长期记忆；即使开启 `AutoCreateSession`，目标不存在也返回错误。
+自定义运行时或 app 集成可调用 `runner.UpdateSession(ctx, svc, runner.SessionUpdateRequest{AppName: appName, ...})`，传入最终选定的服务。Runner 方法使用归一化后的 appName 和服务：`SessionService` 优先于 `ShortTermMemory`，默认使用内存服务。更新本身不执行 Agent、不写长期记忆；即使开启 `AutoCreateSession`，目标不存在也返回错误。
+
+simple HTTP API 暴露同一套 request 结构：
+
+```http
+POST /sessions/{session_id}:update
+Content-Type: application/json
+
+{
+  "user_id": "user",
+  "state_delta": {
+    "phase": "approved",
+    "approval": true
+  },
+  "author": "external_tool",
+  "content": {
+    "role": "user",
+    "parts": [{"text": "approval granted"}]
+  },
+  "artifact_delta": {
+    "approval.pdf": 3
+  }
+}
+```
+
+`session_id` 来自路径。simple app 中 `user_id` 可省略，默认使用应用配置的用户；自定义调用方应显式传入目标 user。成功时返回 `{ "code": 200, "message": "success", "session_id": "..." }`；JSON 格式错误或明显参数错误返回 `400`。
 
 构建运行时时，通过现有 memory factory 选择一次短期后端：
 
@@ -84,7 +121,7 @@ r, err := runner.New(runner.Config{AppName: "app", Agent: rootAgent, ShortTermMe
 
 普通 key 属于指定 session；ADK `user:` 在同 app/user 的会话间共享，`app:` 在同 app 下共享。`temp:` 在校验前过滤，不进入新接口的持久状态或历史事件。nil、空 map 或仅 temp 的增量仍检查目标存在，成功后不新增事件、不改变更新时间。
 
-每次非空持久增量追加一个标准 ADK 非 Partial 事件，Author 为 `system`，ID、InvocationID、Timestamp 使用标准生成能力，且不带消息内容。Get、序列化、取消及追加错误使用 Go error wrapping 保留底层原因。MySQL 严格模式存在 ADK v2.1.0 共享态初始化限制：PRD 调研已复现混合 `app:`/`user:` 更新因零更新时间失败。本能力保证基础 session key 的兼容路径，共享态失败如实透传；MySQL 独立 `user:` 场景仍需下一节点 e2e 验证。
+每次非空持久增量追加一个标准 ADK 非 Partial 事件。仅 state/artifact 的更新默认 Author 为 `system`；带 `Content` 的更新必须显式提供 `Author`，因为它会进入 session history 并影响后续 prompt。`ArtifactDelta` 只记录文件名/版本引用；artifact 内容需要先通过同一运行时的 `ArtifactService` 保存。Get、序列化、取消及追加错误使用 Go error wrapping 保留底层原因。MySQL 严格模式存在 ADK v2.1.0 共享态初始化限制：PRD 调研已复现混合 `app:`/`user:` 更新因零更新时间失败。本能力保证基础 session key 的兼容路径，共享态失败如实透传；MySQL 独立 `user:` 场景仍需下一节点 e2e 验证。
 
 同会话更新与 Run 应由调用方串行化；Get+AppendEvent 不提供 CAS 或跨请求去重，数据库 stale/锁冲突直接返回，不自动重试。响应丢失时先读回再决定是否重试。调用方负责 app/user 访问授权。
 
