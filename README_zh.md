@@ -219,6 +219,12 @@ answer, err := runner.CollectFinalText(
 
 可运行示例和 runner 用法说明见 [examples/runner](examples/runner)。
 
+## Workflow 场景化设计
+
+如果你需要基于 ADK `workflow` 做自定义节点编排，可以先阅读 [Workflow 场景化使用设计](docs/workflow/README_zh.md)。该文档用 PR 自动评审与发布门禁作为真实例子，对比了顺序流程、条件分支、并行合并、循环/动态调度、Agent 节点和人工介入等场景的 ADK 原生写法与 VeADK 初版封装写法。
+
+可运行示例见 [examples/workflow/pr_release_gate](examples/workflow/pr_release_gate)。
+
 ## 贡献
 
 欢迎贡献代码、文档、示例和测试。提交 Pull Request 前，请阅读[贡献指南](CONTRIBUTING_zh.md)，选择正确的 V1 或 V2 分支，并遵守兼容性规则。
