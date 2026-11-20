@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"net/http"
 
@@ -82,9 +83,11 @@ func (a *agentkitSimpleApp) SetupRouters(router *mux.Router, config *apps.RunCon
 	a.runner = r
 
 	router.NewRoute().Path("/invoke").Methods(http.MethodPost).HandlerFunc(a.newInvokeHandler())
+	router.NewRoute().Path("/sessions/{session_id}:update").Methods(http.MethodPost).HandlerFunc(a.newUpdateSessionHandler())
 	router.NewRoute().Path("/health").Methods(http.MethodGet).HandlerFunc(a.newHealthHandler())
 
 	log.Infof("       invoke:  you can invoke agent using %s/invoke", a.GetWebUrl())
+	log.Infof("       update:  you can update session using %s/sessions/{session_id}:update", a.GetWebUrl())
 	log.Infof("       health:  you can get health status using: %s/health", a.GetWebUrl())
 
 	return nil
@@ -103,6 +106,12 @@ type Response struct {
 	Message   string `json:"message"`
 	SessionId string `json:"session_id"`
 	Data      string `json:"data"`
+}
+
+type UpdateSessionResponse struct {
+	Code      int    `json:"code"`
+	Message   string `json:"message"`
+	SessionId string `json:"session_id"`
 }
 
 func (a *agentkitSimpleApp) newInvokeHandler() func(w http.ResponseWriter, r *http.Request) {
@@ -142,6 +151,69 @@ func (a *agentkitSimpleApp) newInvokeHandler() func(w http.ResponseWriter, r *ht
 		}
 		_ = json.NewEncoder(w).Encode(res)
 	}
+}
+
+func (a *agentkitSimpleApp) newUpdateSessionHandler() func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		sessionID := mux.Vars(r)["session_id"]
+		if sessionID == "" {
+			writeUpdateSessionResponse(w, http.StatusBadRequest, "session_id is required", "")
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		defer func() {
+			_ = r.Body.Close()
+		}()
+		if err != nil {
+			writeUpdateSessionResponse(w, http.StatusBadRequest, fmt.Sprintf("read request error: %s", err.Error()), sessionID)
+			return
+		}
+
+		var req verunner.SessionUpdateRequest
+		if len(body) > 0 {
+			if err := json.Unmarshal(body, &req); err != nil {
+				writeUpdateSessionResponse(w, http.StatusBadRequest, fmt.Sprintf("json unmarshal %s error:%v", string(body), err), sessionID)
+				return
+			}
+		}
+		if req.SessionID != "" && req.SessionID != sessionID {
+			writeUpdateSessionResponse(w, http.StatusBadRequest, fmt.Sprintf("session_id %q does not match path session_id %q", req.SessionID, sessionID), sessionID)
+			return
+		}
+		if req.Content != nil && strings.TrimSpace(req.Author) == "" {
+			writeUpdateSessionResponse(w, http.StatusBadRequest, "author is required when content is set", sessionID)
+			return
+		}
+		for filename, version := range req.ArtifactDelta {
+			if strings.TrimSpace(filename) == "" {
+				writeUpdateSessionResponse(w, http.StatusBadRequest, "artifact filename is required", sessionID)
+				return
+			}
+			if version < 0 {
+				writeUpdateSessionResponse(w, http.StatusBadRequest, fmt.Sprintf("artifact %q version must be non-negative", filename), sessionID)
+				return
+			}
+		}
+		req.SessionID = sessionID
+		if req.UserID == "" {
+			req.UserID = a.userID
+		}
+		if err := a.runner.UpdateSession(ctx, req); err != nil {
+			writeUpdateSessionResponse(w, http.StatusInternalServerError, fmt.Sprintf("update session error: %s", err.Error()), sessionID)
+			return
+		}
+		writeUpdateSessionResponse(w, http.StatusOK, "success", sessionID)
+	}
+}
+
+func writeUpdateSessionResponse(w http.ResponseWriter, status int, message, sessionID string) {
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(UpdateSessionResponse{
+		Code:      status,
+		Message:   message,
+		SessionId: sessionID,
+	})
 }
 
 func (a *agentkitSimpleApp) newHealthHandler() func(w http.ResponseWriter, r *http.Request) {
