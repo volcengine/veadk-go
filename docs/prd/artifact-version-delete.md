@@ -4,11 +4,12 @@
 - **需求来源：**开发者功能特性；关联 Meego 需求 `7397937083`，优先级 P1。
 - 类型与变更面：Open API、Server 路由、参数校验与错误处理、兼容性；依据为需求文本、`apps/agentkit_server_app/app.go` 和官方 ADK Artifact 实现。
 - 差异判断：仅面向 Go V2/main。依据 `CONTRIBUTING.md`，新特性不回移 Go V1；本次不是 MR 同步，不要求 Python/Java 跟进。
+- **本次变更关键信息：**用户已确认仅允许正整数 int64；0 和负数返回 400，底层 Delete 零次调用。
 - **Review 重点：**`Version=0` 的全量删除语义、API 前缀、HTTP 方法匹配、缺失路径与 handler 缺参的差别、底层失败映射。
 
 ## Scope Note
 
-展开 API、后端行为、兼容性、验收及验证附录；不涉及前端 UX、新数据模型、存储实现、埋点和 Dashboard。范围较小，不单独维护追溯矩阵。版本取值边界需负责人确认，见第 6 节。
+展开 API、后端行为、兼容性、验收及验证附录；不涉及前端 UX、新数据模型、存储实现、埋点和 Dashboard。范围较小，不单独维护追溯矩阵。版本取值边界已由用户确认，决策记录见第 6 节。
 
 # PRD：VeADK Go Artifact 按版本删除 API
 
@@ -61,7 +62,7 @@ Scenario: 清理中间历史版本
 
 - If handler 接收缺失或为空的 app_name、user_id、session_id、artifact_name 或 version，VeADK shall 返回 400，指出缺失字段，且不调用 Delete。
 - If version 为非整数或超出 int64 范围，VeADK shall 返回 400，且不调用 Delete；路由不能用仅匹配数字的正则把非法版本变成 404/405。
-- **推荐契约（尚未确认）：**version 必须为正整数；`0`、负数均返回 400，防止零值触发全量删除。使用十进制 int64 解析，不 trim 空白，不将空值默认成 0；是否接受正号/前导零随十进制标准解析，不新增不同版本含义。
+- **已确认契约：**version 必须为正整数 int64，范围 `1..9223372036854775807`。If version 为 `0` 或负数，VeADK shall 返回 400 且不调用 Delete，防止零值触发全量删除。使用十进制 int64 解析，不 trim 空白，不将空值默认成 0；正号和前导零按标准十进制解析接受（如 `+1`、`01` 均为版本 1），不新增不同版本含义。
 - If ArtifactService.Delete 返回错误，VeADK shall 按锁定 ADK 的旧删除行为返回 500 及现有 HTTP 错误表示，不能吞错或返回 200；不增加业务错误码体系。
 - If 未配置 ArtifactService，VeADK shall 返回 500 的明确服务未配置错误；这只约束新增 handler，不扩展修复旧 API。
 - 缺失 URL 段导致路由不匹配时，沿用现有路由的 404/重定向行为，不补宽泛删除路由；必须证明缺段不会落到全量删除接口。handler 缺参 400 由直接 handler 测试覆盖。
@@ -85,10 +86,10 @@ DELETE {ApiPathPrefix}/apps/{app_name}/users/{user_id}/sessions/{session_id}/art
 | user_id | Path / string | 是 | 非空，写入 UserID |
 | session_id | Path / string | 是 | 非空，写入 SessionID |
 | artifact_name | Path / string | 是 | 非空，写入 FileName；沿用 ADK 的文件名/命名空间约束 |
-| version | Path / int64 | 是 | 十进制合法整数；推荐取值 1 到 9223372036854775807，需确认 |
+| version | Path / int64 | 是 | 十进制正整数，取值 1 到 9223372036854775807；0 和负数返回 400 |
 
 - Request body：无。成功 HTTP 200；采用旧 controller 的 `EncodeJSONResponse(nil, 200, writer)` 等价行为，以实测空 body 为准，不改为 204。
-- 400：参数缺失、非法整数/溢出；推荐再覆盖零与负数。500：底层失败或未配置服务。错误格式沿用现有 text/plain HTTP 错误响应。
+- 400：参数缺失、非法整数/溢出、零与负数。500：底层失败或未配置服务。错误格式沿用现有 text/plain HTTP 错误响应。
 - 认证与权限：沿用宿主应用已有 middleware；不新增独立鉴权体系或控制台 API。OPTIONS 使用现有 CORS 链，不能触发 Delete。
 
 ```bash
@@ -110,7 +111,7 @@ curl -i -X DELETE 'http://127.0.0.1:18080/api/apps/artifact_probe/users/u1/sessi
 | 中间版本删除 | 实际服务保存 1/2/3；HTTP 删除 2；版本列表为 1/3；读取内容保持；删除 2 再次成功 |
 | 边界版本 | 删除第一版和最新版本；剩余编号/内容保持；删最新后无 version 的 Load 返回剩余最新版本 |
 | 最后一版/不存在 | 删除最后一版后 list 不含文件；重复删除、不存在文件或版本遵循 Service 幂等成功 |
-| 非法版本 | abc、1.5、空白、int64 溢出均 400；spy 证明零次调用；确认后补充 0/负数规则 |
+| 非法版本 | abc、1.5、空白、int64 溢出、0、-1 均 400；spy 证明底层 Delete 零次调用；+1/01 映射版本 1 |
 | 缺少参数 | handler 逐项缺少/为空五字段返回 400；实际 URL 缺段不误删，记录 router 原有状态/重定向 |
 | 底层失败/未配置 | error 服务返回 500；nil 服务返回明确 500；不 panic、不返回成功 |
 | 隔离 | 同名跨 app/user/session、不同文件保持；user: 命名空间遵循官方语义 |
@@ -140,15 +141,14 @@ curl -i -X DELETE 'http://127.0.0.1:18080/api/apps/artifact_probe/users/u1/sessi
 - [官方 ADK Go REST controller main](https://github.com/google/adk-go/blob/main/server/adkrest/controllers/artifacts.go)
 - [官方 ADK Python 同类实现](https://github.com/google/adk-python/blob/main/src/google/adk/artifacts/in_memory_artifact_service.py)
 
-## 6. 待确认问题与交付状态
+## 6. 决策记录、待确认问题与交付状态
 
-| ID | 决策 / 不确定来源 | 推荐方案与影响 | 负责人 |
-|---|---|---|---|
-| OQ-001 | 原文“合法整数”包含 0/负数；ADK 0 表示全量删除，与单版隔离冲突 | 新 API 仅允许正整数；0/负数返回 400，底层零次调用。若要求支持 0，必须先明确自定义服务版本语义及官方 ADK 契约改造范围，不能直接透传 | 单春华 |
-
-- **当前状态：**PRD 草案已完成调研和主分支能力缺口验证，等待 OQ-001 决策后形成可下游执行的最终契约。
-- 本轮交付：PRD（包含完整临时应用、独立验证脚本、命令与实测结果）；没有实现新 REST route/handler。
-- 文档评审时确认接口边界后进入开发与自测；不得将这份草案标记为新功能已实现或已发布。
+- **决策 D-001（已确认）：**用户选择“仅允许正整数 int64；0 和负数返回 400”。本次直接落实到 REQ-002、API 参数表及非法版本验收场景。
+- 决策依据：官方 ADK 自动版本从 1 起始，`DeleteRequest.Version=0` 表示全量删除；拒绝零值可满足“仅删除指定版本”的隔离要求。
+- **待确认问题：无。**无需改造底层服务、升级或降级依赖。
+- **当前状态：**需求澄清与 Spec 设计完成，可以进入开发与自测。官方 SDK/同类实现调研、主分支端到端能力缺口验证及可执行附录已齐备。
+- 本轮交付：PRD（包含临时应用、独立验证脚本、命令与实测结果）；没有实现新 REST route/handler，新接口功能测试和全库回归由下游开发完成。
+- 风险与阻塞：无未解决需求决策或外部服务阻塞；必须按第 4 节证明 0/负数不会触发删除，不能将基线验证当作新功能验收或已发布证明。
 
 ## 7. 附录：调研 / 验证代码
 
