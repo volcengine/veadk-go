@@ -22,9 +22,11 @@ import (
 	"os"
 	"strings"
 
+	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
 	verunner "github.com/volcengine/veadk-go/v2/runner"
 	veworkflow "github.com/volcengine/veadk-go/v2/workflow"
 	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/model"
 	"google.golang.org/adk/v2/session"
 	adkworkflow "google.golang.org/adk/v2/workflow"
@@ -55,8 +57,11 @@ func main() {
 	ctx := context.Background()
 
 	newWorkflow := newPRReleaseGate
-	if os.Getenv("VEADK_WORKFLOW_EXAMPLE_MODE") == "legacy" {
+	switch os.Getenv("VEADK_WORKFLOW_EXAMPLE_MODE") {
+	case "legacy":
 		newWorkflow = newLegacyPRReleaseGate
+	case "llm":
+		newWorkflow = newLLMPRReleaseGate
 	}
 
 	rootAgent, err := newWorkflow()
@@ -99,6 +104,26 @@ func main() {
 }
 
 func newPRReleaseGate() (agent.Agent, error) {
+	return newPRReleaseGateWithQualityNode(
+		"pr_release_gate",
+		"PR 自动评审与发布门禁",
+		qualityAgentNode,
+	)
+}
+
+func newLLMPRReleaseGate() (agent.Agent, error) {
+	return newPRReleaseGateWithQualityNode(
+		"pr_release_gate_llm",
+		"PR 自动评审与发布门禁，质量评审节点会请求真实模型。",
+		llmQualityAgentNode,
+	)
+}
+
+func newPRReleaseGateWithQualityNode(
+	name string,
+	description string,
+	newQualityNode func() (veworkflow.Node, error),
+) (agent.Agent, error) {
 	collectPR := veworkflow.FuncNode[string, PRContext](
 		"collect_pr_context",
 		func(ctx veworkflow.Context, input string) (PRContext, error) {
@@ -147,7 +172,7 @@ func newPRReleaseGate() (agent.Agent, error) {
 			return ReviewResult{Name: "test", Risk: 4}, nil
 		},
 	)
-	qualityReview, err := qualityAgentNode()
+	qualityReview, err := newQualityNode()
 	if err != nil {
 		return nil, err
 	}
@@ -223,8 +248,8 @@ func newPRReleaseGate() (agent.Agent, error) {
 	)
 
 	wf := veworkflow.New(
-		"pr_release_gate",
-		veworkflow.WithDescription("PR 自动评审与发布门禁"),
+		name,
+		veworkflow.WithDescription(description),
 	)
 	wf.StartWith(collectPR)
 	wf.Then(collectPR, classify)
@@ -264,6 +289,25 @@ func qualityAgentNode() (veworkflow.Node, error) {
 		return nil, err
 	}
 	return veworkflow.AgentNode(qualityAgent)
+}
+
+func llmQualityAgentNode() (veworkflow.Node, error) {
+	qualityAgent, err := veagent.New(&veagent.Config{
+		Config: llmagent.Config{
+			Name:        "llm_quality_agent",
+			Description: "使用真实模型评估代码质量风险。",
+			Instruction: strings.TrimSpace(`
+你是代码质量评审专家。用户会给你一个 PR 上下文。
+请只输出一行中文质量评审结论，包含风险等级和最重要的原因。
+不要输出 Markdown 表格，不要调用工具。
+`),
+		},
+		DisableThought: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return veworkflow.AgentNodeTyped[PRContext, string](qualityAgent)
 }
 
 func workflowInputResponse(interruptID string, reply HumanReply) *genai.Content {
