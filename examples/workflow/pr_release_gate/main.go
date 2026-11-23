@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"iter"
+	"os"
 	"strings"
 
 	verunner "github.com/volcengine/veadk-go/v2/runner"
@@ -53,7 +54,12 @@ type HumanReply struct {
 func main() {
 	ctx := context.Background()
 
-	rootAgent, err := newPRReleaseGate()
+	newWorkflow := newPRReleaseGate
+	if os.Getenv("VEADK_WORKFLOW_EXAMPLE_MODE") == "legacy" {
+		newWorkflow = newLegacyPRReleaseGate
+	}
+
+	rootAgent, err := newWorkflow()
 	if err != nil {
 		panic(err)
 	}
