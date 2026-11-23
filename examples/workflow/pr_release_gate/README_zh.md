@@ -4,6 +4,7 @@
 
 - `main.go`：VeADK workflow 封装后的推荐写法，默认运行。
 - `legacy_adk.go`：ADK 原生 workflow 写法，对比用，可通过环境变量运行。
+- `VEADK_WORKFLOW_EXAMPLE_MODE=llm`：复用新封装写法，但质量评审节点会请求真实模型。
 
 运行示例：
 
@@ -16,6 +17,23 @@ go run ./examples/workflow/pr_release_gate
 ```bash
 VEADK_WORKFLOW_EXAMPLE_MODE=legacy go run ./examples/workflow/pr_release_gate
 ```
+
+运行真实模型版本：
+
+```bash
+VEADK_WORKFLOW_EXAMPLE_MODE=llm go run ./examples/workflow/pr_release_gate
+```
+
+真实模型版本沿用 VeADK Go 的模型配置。可以使用 `config.yaml`，也可以设置环境变量：
+
+```bash
+export MODEL_AGENT_PROVIDER=openai
+export MODEL_AGENT_NAME="<your_model_name>"
+export MODEL_AGENT_API_BASE="<your_model_base_url>"
+export MODEL_AGENT_API_KEY="<your_model_api_key>"
+```
+
+如果使用 Ark 默认鉴权，也可以通过火山 AK/SK 生成模型 token；不要把密钥写入示例代码。
 
 ## 场景
 
@@ -31,7 +49,7 @@ VEADK_WORKFLOW_EXAMPLE_MODE=legacy go run ./examples/workflow/pr_release_gate
 
 ## 新写法
 
-`main.go` 里开发者主要面对业务 node：
+`main.go` 里开发者主要面对业务 node。默认版本中的质量评审 Agent 是本地确定性 agent，便于无凭证运行；`llm` 模式会把质量评审替换为真实 LLM agent。
 
 ```go
 collectPR := workflow.FuncNode("collect_pr_context", func(ctx workflow.Context, input string) (PRContext, error) {
@@ -91,3 +109,18 @@ Edges: []workflow.Edge{
 新写法把底层 `Event`、`Route`、`Edge`、`SubAgents` 和 HITP 暂停恢复细节收敛到封装里，开发者主要写“节点做什么”和“节点怎么连”。
 
 旧写法更贴近 ADK 的执行模型，适合需要完全控制底层事件和图结构的高级场景，但普通业务 workflow 会暴露更多机制细节。
+
+真实模型版本进一步验证 `AgentNode` 可以包装普通 VeADK LLM Agent：
+
+```go
+qualityAgent, err := veagent.New(&veagent.Config{
+    Config: llmagent.Config{
+        Name:        "llm_quality_agent",
+        Description: "使用真实模型评估代码质量风险。",
+        Instruction: "请只输出一行中文质量评审结论。",
+    },
+})
+qualityNode, err := workflow.AgentNodeTyped[PRContext, string](qualityAgent)
+```
+
+这样 workflow 仍然使用同一套 `StartWith` / `Route` / `Merge` 编排方式，只是其中一个 node 的输出来自真实模型。
