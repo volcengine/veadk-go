@@ -251,8 +251,15 @@ func RecordStreamingTimeToGenerate(ctx context.Context, durationSeconds float64,
 
 // RecordStreamingTimePerOutputToken records the time per output token.
 func RecordStreamingTimePerOutputToken(ctx context.Context, timeSeconds float64, attrs ...attribute.KeyValue) {
-	for _, histogram := range streamingTimePerOutputTokenHistograms {
-		histogram.Record(ctx, timeSeconds, metric.WithAttributes(attrs...))
+	// Take a snapshot before calling exporters: they may fail or call back into telemetry.
+	instrumentsMu.RLock()
+	histograms := append([]metric.Float64Histogram(nil), streamingTimePerOutputTokenHistograms...)
+	instrumentsMu.RUnlock()
+	for _, histogram := range histograms {
+		func() {
+			defer func() { _ = recover() }()
+			histogram.Record(ctx, timeSeconds, metric.WithAttributes(attrs...))
+		}()
 	}
 }
 
