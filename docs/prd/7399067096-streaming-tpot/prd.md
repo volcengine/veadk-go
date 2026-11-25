@@ -3,9 +3,9 @@
 - **本次需求**：为 Go 现有 Ark Chat Completions 流式请求补齐 SDK 接收侧 TPOT 采集与上报。
 - **需求来源**：GitHub MR 同步，Python PR #1223；Meego 7399067096，P3。
 - **变更面**：Model 原始流式接收与清理、Observability Span/Histogram、文档、隔离验证；复杂度 medium。
-- **判断依据**：源 MR 增量、Go main 8034d8e、官方 ADK/Ark SDK 源码、两语言 Agent E2E 结果。
+- **判断依据**：源 MR 增量、Go main ee9c7a2、官方 ADK/Ark SDK 源码、11 月 20 日两语言 Agent E2E 与 11 月 25 日 Go 复验。
 - **差异判断**：Python LiteLLM 内部结构不复刻；Go 使用 Ark 官方 SDK。站点不新增差异；支持版本矩阵由维护者确认。
-- **本次变更关键信息**：复用现有 Histogram；新增请求级计时与真实终态校验；维持业务输出和异常；尾部 usage/清理延迟不计入。
+- **本次变更关键信息**：更新最新 main 基线并复验 Go 用户链路，修正临时验证命令的基线固定方式；复用现有 Histogram，请求级计时与真实终态校验契约保持一致。
 - **Review 重点**：SDK 增量与 ADK 输出粒度不同；EOF/兜底 STOP 不等于正常终态；隐藏输出计数风险；关闭错误与取消；未采样指标独立性。
 
 ## Scope Note
@@ -24,7 +24,7 @@
 | 来源 | GitHub MR 同步；[Python PR #1223](https://github.com/volcengine/veadk-python/pull/1223)，合并于 2026-11-18 09:25:19 UTC |
 | 源提交 | 1763e5a548a952449d87e0ccfc11c2ec8d78c8cc；7 文件，+909/-25；author wujiaming-ai |
 | 目标仓库 | volcengine/veadk-go，Model / Observability；只覆盖 Ark Chat Completions 流 |
-| 基线与分支 | main：8034d8e9680e6ce87500bc1370aadf80deb3645f；交付分支 feat/687dfb82-mj7o |
+| 基线与分支 | 2026-11-25 fetch 的 main：ee9c7a2bdc7d4a02ca83077b5b32657e75da2550；历史对比基线 8034d8e9680e6ce87500bc1370aadf80deb3645f；交付分支 feat/687dfb82-mj7o |
 | 共享上下文 | 执行时 CLI context_version=5，repository_resolution=resolved，目标 Go@main；输入版本 4 已由实时上下文更新 |
 | 人员 | 创建人、负责人、RD：单春华；PMO：丁彦俊；Meego 查询回读核对，优先级 P3 |
 | 产品定位 | 封装原生 ADK 能力并适配火山引擎；模型流式性能观测属于核心能力 |
@@ -37,7 +37,7 @@
 
 ## 2. 调研现状与验证结论
 
-**验证类型为同步缺口验证**，并非把已上线 Go 需求重新归类为开发者 Bug。2026-11-20 fetch 最新 main 后，从 VeADK Agent → Runner → 官方 Ark SDK → 本地 SSE → 事件文件与遥测文件完整执行，再用独立测试程序读取文件断言。
+**验证类型为同步缺口验证**，并非把已上线 Go 需求重新归类为开发者 Bug。历史文档记录 2026-11-20 两语言对比；2026-11-25 已重新 fetch 并固定 Go main ee9c7a2，从 VeADK Agent → Runner → 官方 Ark SDK → 本地 SSE → 事件文件与遥测文件完整执行，再用独立测试程序读取文件断言。
 
 | 证据 | 当前行为与影响 |
 |---|---|
@@ -48,7 +48,7 @@
 | buildArkUsageMetadata | completion_tokens 转 int32 CandidatesTokenCount，未传 reasoning 细分；TPOT 应用原始 SDK int 计数，避免转型溢出和推理重复叠加 |
 | ADK Go v2.1.0 | 有 generate_content Span，Go 翻译导出成 call_llm；当前无 model_request Span、无 TPOT 实现 |
 
-**实测对比**（相同本地 SSE，首末发送间隔 0.99 s，尾部 usage 延迟 0.15 s，completion_tokens=100）：
+**历史实测对比（2026-11-20；本次 Go 复验结果一致）**（相同本地 SSE，首末发送间隔 0.99 s，尾部 usage 延迟 0.15 s，completion_tokens=100）：
 
 | 场景 | Python 源合并提交 | Go 最新 main |
 |---|---|---|
@@ -56,7 +56,7 @@
 | 无 finish_reason，仅 usage + DONE | Histogram count=0，属性省略 | 仍返回最终 STOP / output=100；TPOT 无样本 |
 | 已有遥测对照 | model_request、generate_content、call_llm 等 Span | call_llm、invoke_agent、invocation；Token usage、operation duration、chat count 正常导出 |
 
-Python 72 项源契约测试通过，37 条依赖弃用警告。Go 缺口已在用户路径复现；无终态场景说明不能从转换后的 STOP 判断成功。实测值是 SDK 接收间隔，受连接及调度影响，不把服务器发送 sleep 当成精确时钟；精确 0.01 s 由确定性计时测试验收。
+历史记录显示 Python 72 项源契约测试通过，37 条依赖弃用警告；本次核对源合并提交与 MR 文件，未重跑 Python。最新 Go main 两场景复验通过，已有 Token usage、operation duration、chat count 正常导出，TPOT 仍无属性或样本；Go 缺口仍存在。无终态场景说明不能从转换后的 STOP 判断成功。实测值是 SDK 接收间隔，受连接及调度影响，不把服务器发送 sleep 当成精确时钟；精确 0.01 s 由确定性计时测试验收。
 
 **验证限制**：本轮使用真实语言 SDK 连接本地 HTTP SSE，未调用真实云模型；为控制外部费用并确定性注入 usage/终态，没有使用云凭据。本轮无 AgentKit 控制台交互，无控制台 agentid；本地 app=tpot-prd、user=local-user、session=local-session。仅 Go 正常与无终态两场景是本轮 Go E2E 已执行，其余边界为开发验收要求，未声称已通过。
 
@@ -151,15 +151,16 @@ Scenario: 缺少真实终态
 
 ### 7.1 环境、命令与结果
 
-验证日：2026-11-20 UTC；Linux amd64。Go 1.26.5（按 go.mod 自动下载）、ADK Go v2.1.0、Ark Go SDK v1.1.53、OTel Go v1.43.0。Python 3.11、google-adk 2.11.0、LiteLLM 1.83.14、volcengine-python-sdk 5.0.47、opentelemetry-sdk 1.42.1；Python 使用源合并提交，而非混入最新 main 增量。
+历史验证日：2026-11-20 UTC；本次 Go 复验日：2026-11-25 UTC，详见 7.5。Linux amd64。Go 1.26.5（按 go.mod 自动下载）、ADK Go v2.1.0、Ark Go SDK v1.1.53、OTel Go v1.43.0。Python 3.11、google-adk 2.11.0、LiteLLM 1.83.14、volcengine-python-sdk 5.0.47、opentelemetry-sdk 1.42.1；Python 使用源合并提交，而非混入最新 main 增量。
 
 ```bash
 # 只读核对；在 workspace root 执行
 agentnative workflow repositories status --available --json
 git -C repos/volcengine_veadk-go fetch origin main
-git -C repos/volcengine_veadk-go rev-parse origin/main
+git -C repos/volcengine_veadk-go rev-parse FETCH_HEAD
 rg -n 'RecordStreamingTimePerOutputToken|streaming_time_per_output_token' repos/volcengine_veadk-go
-# main 输出：8034d8e9680e6ce87500bc1370aadf80deb3645f
+# 11 月 20 日：8034d8e9680e6ce87500bc1370aadf80deb3645f
+# 11 月 25 日：ee9c7a2bdc7d4a02ca83077b5b32657e75da2550
 # 官方 SDK 与 ADK 本地源码
 cd repos/volcengine_veadk-go
 go mod download google.golang.org/adk/v2 github.com/volcengine/volcengine-go-sdk
@@ -361,3 +362,50 @@ finally:server.shutdown()
 ```
 
 Python 内存 recorder 替换仅隔离导出，Agent/Runner、LiteLLM SDK、HTTP SSE 都实际执行，不替换 ModelTiming 或注入计时结果。两语言同一 fixture 验证真实终态与 usage 口径。Python 源 72 项测试另外使用可控时钟，覆盖精确公式与 SDK 生命周期；不能与云端性能测试混同。
+
+### 7.5 最新 main 复验（2026-11-25）
+
+本次固定 main 为 ee9c7a2bdc7d4a02ca83077b5b32657e75da2550（feat: support external session updates）。相对 8034d8e 新增 Session 更新、制品删除及对应文档/测试，Model、Observability、go.mod 均未变化。初始分支已有 PRD 提交 b6c3a56，故从 fetch 的提交导出临时源码，再让临时用户 module 引用该源码，避免把工作分支误当最新 main。没有切换或重置交付分支，没有向生产源码添加验证代码。
+
+可复现命令（workspace root 执行；临时目录须为新目录）：
+
+```bash
+git -C repos/volcengine_veadk-go fetch origin main
+git -C repos/volcengine_veadk-go rev-parse FETCH_HEAD
+git -C repos/volcengine_veadk-go diff 8034d8e FETCH_HEAD -- model observability go.mod
+# 本次 SHA：ee9c7a2bdc7d4a02ca83077b5b32657e75da2550；上述 diff 为空
+python - <<'PYREPRO'
+import io, pathlib, re, subprocess, tarfile, shutil
+repo = pathlib.Path('repos/volcengine_veadk-go').resolve()
+main = pathlib.Path('/tmp/tpot-go-main'); main.mkdir()
+data = subprocess.check_output(['git', '-C', str(repo), 'archive', 'FETCH_HEAD'])
+with tarfile.open(fileobj=io.BytesIO(data)) as archive:
+    archive.extractall(main, filter='data')
+app = pathlib.Path('/tmp/tpot-go-validation'); app.mkdir()
+prd = (repo / 'docs/prd/7399067096-streaming-tpot/prd.md').read_text()
+blocks = re.findall(r'```(\w*)\n(.*?)```', prd, re.S)
+(app / 'main.go').write_text(next(s for lang, s in blocks if lang == 'go'))
+(app / 'verify.py').write_text(next(s for lang, s in blocks if lang == 'python' and 'class Fixture' in s))
+shutil.copy(main / 'go.sum', app / 'go.sum')
+mod = (main / 'go.mod').read_text().replace('module github.com/volcengine/veadk-go/v2', 'module tpot-validation')
+mod += '\nrequire github.com/volcengine/veadk-go/v2 v2.0.0\n'
+mod += 'replace github.com/volcengine/veadk-go/v2 => ' + str(main) + '\n'
+(app / 'go.mod').write_text(mod)
+PYREPRO
+cd /tmp/tpot-go-validation
+go build -mod=readonly -o agent-app .
+python verify.py
+```
+
+实际结果：build 与独立文件断言退出码均为 0；sonic 提示当前 Go 版本回退 encoding/json，两场景正常完成。每场景输出两个 partial，最终 FinishReason=STOP，candidatesTokenCount=100；TPOT 样本与属性均为 0。已有 gen_ai.client.token.usage、gen_ai.client.operation.duration、gen_ai.chat.count 与 call_llm、invoke_agent、invocation 正常导出，排除遥测整体关闭造成的假阴性。
+
+```json
+[
+  {"scenario":"normal","partial_events":2,"final_finish_reason":"STOP","output_tokens":100,"tpot_samples":0,"tpot_attributes":0},
+  {"scenario":"no-terminal","partial_events":2,"final_finish_reason":"STOP","output_tokens":100,"tpot_samples":0,"tpot_attributes":0}
+]
+```
+
+本次同时回读 Meego 7399067096、源 MR 的合并时间/提交/7 文件 +909/-25，并核查实际下载的官方 ADK v2.1.0 与 Ark SDK v1.1.53 源码。Recv、Close error、CompletionTokens、ReasoningTokens 均存在，SDK 未声明 audio_tokens；Go SDK 范围判定问题继续保留 OQ-002。源 Python 72 项测试和具体 TPOT 数值来自 11 月 20 日历史文档，本次未重新运行。真实云服务与控制台未调用，原因及影响沿用第 2、4 节。本次仅改 Markdown，代码 CI 的 Go 文件/go.mod/go.sum 触发条件不涉及；未运行全仓 lint/单测，不影响上述现状 E2E 结论，也不代替开发节点的完整回归。
+
+飞书交付沿用同一需求目录：[需求目录](https://bytedance.larkoffice.com/wiki/XIscwDJsGixmarkdxXtclT6onOf)、[Go PRD](https://bytedance.larkoffice.com/docx/W1ojdV6ProrT8mxyvE3cKzEdnAc)、[同步判断](https://bytedance.larkoffice.com/docx/HMBvdQbzdo5jqexaib8cJi4RnFe)。本次原地更新，无重复建文档。

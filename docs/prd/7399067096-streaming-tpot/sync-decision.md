@@ -6,7 +6,7 @@
 
 来源：GitHub MR 同步，[volcengine/veadk-python#1223](https://github.com/volcengine/veadk-python/pull/1223)，feat(tracing): record streaming time per output token，合并于 2026-11-18 09:25:19 UTC，commit 1763e5a548a952449d87e0ccfc11c2ec8d78c8cc。GitHub API 核实 7 个文件 +909/-25，含 656 行 TPOT 测试及双语 tracing 文档。MR author wujiaming-ai；commit authors 信息来自需求输入。
 
-目标：volcengine/veadk-go main 8034d8e9680e6ce87500bc1370aadf80deb3645f，工作分支 feat/687dfb82-mj7o；实时共享 context_version=5，resolved。Meego 7399067096，P3；创建人/负责人/RD 单春华、PMO 丁彦俊，已回读确认。已存在的本工作项不重复创建；历史查重信息沿用输入，不将其当成本轮重新执行的全项目查重。
+目标：volcengine/veadk-go，2026-11-25 main ee9c7a2bdc7d4a02ca83077b5b32657e75da2550，历史对比基线 8034d8e9680e6ce87500bc1370aadf80deb3645f，工作分支 feat/687dfb82-mj7o；实时共享 context_version=5，resolved。Meego 7399067096，P3；创建人/负责人/RD 单春华、PMO 丁彦俊，已回读确认。已存在的本工作项不重复创建；历史查重信息沿用输入，不将其当成本轮重新执行的全项目查重。
 
 **能力归属**：统一模型流式性能指标属于“封装原生 ADK + 适配火山引擎”的核心观测能力。此次不涉及 Python Studio、Harness、CLI、MPA、Codex Runtime、packaging 或生态专属实现。Java 是否跟进应在独立 Java 任务中调研，不在此 Go 任务内新增仓库或生成未经核查的 Java 结论。
 
@@ -26,7 +26,7 @@
 
 ## 3. 端到端对比与验证结果
 
-2026-11-20 在 fetch 后 Go 最新 main 与 Python 源合并提交执行。用户代码独立于测试：用户创建 VeADK Agent + Runner，真实语言 SDK 请求本地 SSE；用户程序写业务事件与遥测文件/内存快照；测试程序从文件读取并断言，不直接调用 TPOT recorder 模拟成功。
+下表为历史文档记录的 2026-11-20 Go main 与 Python 源合并提交对比。2026-11-25 已对 Go 最新 main ee9c7a2 重新执行两个场景，结果一致；Model、Observability、go.mod 相对历史基线未变。源 MR 与合并提交已核对，本次未重跑 Python。用户代码独立于测试：用户创建 VeADK Agent + Runner，真实语言 SDK 请求本地 SSE；用户程序写业务事件与遥测文件/内存快照；测试程序从文件读取并断言，不直接调用 TPOT recorder 模拟成功。
 
 | fixture | Python 源提交实际结果 | Go 最新 main 实际结果 | 判断 |
 |---|---|---|---|
@@ -53,8 +53,8 @@ Go 官方 ADK v2.1.0 已有模型 Span、Ark SDK v1.1.53 已有 Recv/FinishReaso
 ```bash
 agentnative workflow repositories status --available --json
 git -C repos/volcengine_veadk-go fetch origin main
-git -C repos/volcengine_veadk-go rev-parse origin/main
-# 8034d8e9680e6ce87500bc1370aadf80deb3645f
+git -C repos/volcengine_veadk-go rev-parse FETCH_HEAD
+# 11 月 25 日：ee9c7a2bdc7d4a02ca83077b5b32657e75da2550
 rg -n 'RecordStreamingTimePerOutputToken|streaming_time_per_output_token' repos/volcengine_veadk-go
 # 只有函数/Histogram 定义与文档，无业务调用
 cd /tmp/tpot-go-validation
@@ -84,3 +84,5 @@ print('PASS: Python/Go 用户流式链路差异已确认，遥测启用对照正
 ```
 
 实际：上述断言通过；Go 正常与无终态均 TPOT 样本数=0，Python 分别一次与省略。预期修复后：Go 正常流一次，缺少真实终态省略；工具/完整推理、并发、重试、Close error、采样开关等按 PRD 继续验证。云端跳过影响仅限真实服务元数据和云平台集成证据，不能由本地测试替代。
+
+本次复验的固定 main、临时 module 配置、用户 app 提取命令与实际结果见 [PRD 附录 7.5](prd.md#75-最新-main-复验2026-11-25)。Python 结果与 72 项契约测试属于历史证据；本次 Go 验证仍使用真实 SDK 和同一 SSE fixture。
