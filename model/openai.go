@@ -30,6 +30,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/volcengine/veadk-go/v2/common"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 )
@@ -448,6 +449,7 @@ func (m *openAIModel) generate(ctx context.Context, openaiReq *openAIRequest) it
 
 func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIRequest) iter.Seq2[*model.LLMResponse, error] {
 	openaiReq.Stream = true
+	span := trace.SpanFromContext(ctx)
 
 	return func(yield func(*model.LLMResponse, error) bool) {
 		httpResp, err := m.sendRequest(ctx, openaiReq)
@@ -458,6 +460,10 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 		defer func() {
 			_ = httpResp.Body.Close()
 		}()
+		recorder := responseIDRecorder{span: span}
+		if isArkChatEndpoint(m.config.BaseURL) {
+			recorder.record(httpResp.Header.Get("x-request-id"))
+		}
 
 		scanner := bufio.NewScanner(httpResp.Body)
 		// Set a larger buffer for the scanner to handle long SSE lines
@@ -487,6 +493,7 @@ func (m *openAIModel) generateStream(ctx context.Context, openaiReq *openAIReque
 				continue
 			}
 
+			recorder.record(chunk.ID)
 			if chunk.Usage != nil {
 				finalUsage = *chunk.Usage
 				usageFound = true
@@ -692,11 +699,16 @@ func (m *openAIModel) doRequest(ctx context.Context, openaiReq *openAIRequest) (
 		return nil, err
 	}
 	defer drainAndCloseResponse(httpResp)
+	recorder := responseIDRecorder{span: trace.SpanFromContext(ctx)}
+	if isArkChatEndpoint(m.config.BaseURL) {
+		recorder.record(httpResp.Header.Get("x-request-id"))
+	}
 
 	var resp response
 	if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
+	recorder.record(resp.ID)
 
 	return &resp, nil
 }

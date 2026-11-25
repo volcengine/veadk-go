@@ -30,6 +30,7 @@ import (
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime"
 	arkmodel "github.com/volcengine/volcengine-go-sdk/service/arkruntime/model"
 	"github.com/volcengine/volcengine-go-sdk/volcengine"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/adk/v2/model"
 	"google.golang.org/genai"
 )
@@ -390,6 +391,7 @@ func newArkStringContent(s string) *arkmodel.ChatCompletionMessageContent {
 
 // generate handles non-streaming chat completion.
 func (m *arkModel) generate(ctx context.Context, arkReq *arkmodel.CreateChatCompletionRequest) iter.Seq2[*model.LLMResponse, error] {
+	span := trace.SpanFromContext(ctx)
 	return func(yield func(*model.LLMResponse, error) bool) {
 		client, key, err := m.clientForRequest(ctx)
 		if err != nil {
@@ -410,6 +412,9 @@ func (m *arkModel) generate(ctx context.Context, arkReq *arkmodel.CreateChatComp
 			return
 		}
 
+		recorder := responseIDRecorder{span: span}
+		recorder.record(resp.GetHeader().Get("x-request-id"))
+		recorder.record(resp.ID)
 		llmResp, err := m.convertArkResponse(&resp)
 		if err != nil {
 			yield(nil, err)
@@ -421,6 +426,7 @@ func (m *arkModel) generate(ctx context.Context, arkReq *arkmodel.CreateChatComp
 
 // generateStream handles streaming chat completion.
 func (m *arkModel) generateStream(ctx context.Context, arkReq *arkmodel.CreateChatCompletionRequest) iter.Seq2[*model.LLMResponse, error] {
+	span := trace.SpanFromContext(ctx)
 	return func(yield func(*model.LLMResponse, error) bool) {
 		client, key, err := m.clientForRequest(ctx)
 		if err != nil {
@@ -441,6 +447,8 @@ func (m *arkModel) generateStream(ctx context.Context, arkReq *arkmodel.CreateCh
 			return
 		}
 		defer stream.Close()
+		recorder := responseIDRecorder{span: span}
+		recorder.record(stream.GetHeader().Get("x-request-id"))
 
 		var textBuffer strings.Builder
 		var reasoningBuffer strings.Builder
@@ -458,6 +466,7 @@ func (m *arkModel) generateStream(ctx context.Context, arkReq *arkmodel.CreateCh
 				return
 			}
 
+			recorder.record(chunk.ID)
 			if chunk.Usage != nil {
 				finalUsage = chunk.Usage
 			}

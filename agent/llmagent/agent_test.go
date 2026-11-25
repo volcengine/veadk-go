@@ -21,6 +21,7 @@ import (
 	adkllmagent "google.golang.org/adk/v2/agent/llmagent"
 	"google.golang.org/adk/v2/memory"
 	adkmodel "google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/model/openaimodel"
 	"google.golang.org/adk/v2/tool"
 	"google.golang.org/adk/v2/tool/loadmemorytool"
 )
@@ -40,6 +41,31 @@ func (testLLM) Name() string { return "test-model" }
 
 func (testLLM) GenerateContent(context.Context, *adkmodel.LLMRequest, bool) iter.Seq2[*adkmodel.LLMResponse, error] {
 	return func(yield func(*adkmodel.LLMResponse, error) bool) {}
+}
+
+func TestNewTracesOnlyOfficialResponsesModel(t *testing.T) {
+	official, err := openaimodel.NewModel(t.Context(), "fixture-model", &openaimodel.ClientConfig{APIKey: "fixture-key"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name    string
+		llm     adkmodel.LLM
+		wrapped bool
+	}{
+		{"official-responses", official, true},
+		{"custom-model", testLLM{}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &Config{Config: adkllmagent.Config{Name: "response-id-agent", Model: tc.llm}}
+			if _, err := New(cfg); err != nil {
+				t.Fatal(err)
+			}
+			if (cfg.Model != tc.llm) != tc.wrapped || cfg.Model.Name() != tc.llm.Name() {
+				t.Errorf("model wrapping changed identity or unexpected model: %T", cfg.Model)
+			}
+		})
+	}
 }
 
 type testKnowledgeBackend struct{}

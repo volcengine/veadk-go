@@ -143,6 +143,7 @@ func New(cfg *Config) (agent.Agent, error) {
 		}
 		cfg.Model = veModel
 	}
+	cfg.Model = model.WithResponseIDTracing(cfg.Model)
 
 	if cfg.KnowledgeBase != nil {
 		knowledgeTool, err := builtin_tools.LoadKnowledgeBaseTool(cfg.KnowledgeBase)
