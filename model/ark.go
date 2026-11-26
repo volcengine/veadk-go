@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime"
@@ -421,26 +422,46 @@ func (m *arkModel) generate(ctx context.Context, arkReq *arkmodel.CreateChatComp
 
 // generateStream handles streaming chat completion.
 func (m *arkModel) generateStream(ctx context.Context, arkReq *arkmodel.CreateChatCompletionRequest) iter.Seq2[*model.LLMResponse, error] {
+	return m.generateStreamWithClock(ctx, arkReq, time.Now)
+}
+
+// The private clock seam keeps contract tests deterministic without changing the public API.
+func (m *arkModel) generateStreamWithClock(ctx context.Context, arkReq *arkmodel.CreateChatCompletionRequest, now func() time.Time) iter.Seq2[*model.LLMResponse, error] {
 	return func(yield func(*model.LLMResponse, error) bool) {
 		client, key, err := m.clientForRequest(ctx)
 		if err != nil {
 			yield(nil, err)
 			return
 		}
-		stream, err := client.CreateChatCompletionStream(ctx, *arkReq, arkruntime.WithCustomHeaders(m.config.ExtraHeaders))
+		requestCtx, requestSpan := startStreamingRequestSpan(ctx, arkReq.Model)
+		defer func() { endStreamingRequestSpan(requestSpan) }()
+		stream, err := client.CreateChatCompletionStream(requestCtx, *arkReq, arkruntime.WithCustomHeaders(m.config.ExtraHeaders))
 		_, canInvalidate := m.apiKeyProvider.(APIKeyInvalidator)
 		if err != nil && canInvalidate && isArkAuthError(err) {
+			endStreamingRequestSpan(requestSpan)
+			requestSpan = nil
 			m.invalidateClient(key)
 			client, _, err = m.clientForRequest(ctx)
 			if err == nil {
-				stream, err = client.CreateChatCompletionStream(ctx, *arkReq, arkruntime.WithCustomHeaders(m.config.ExtraHeaders))
+				requestCtx, requestSpan = startStreamingRequestSpan(ctx, arkReq.Model)
+				stream, err = client.CreateChatCompletionStream(requestCtx, *arkReq, arkruntime.WithCustomHeaders(m.config.ExtraHeaders))
 			}
 		}
 		if err != nil {
 			yield(nil, fmt.Errorf("ark: stream creation failed: %w", err))
 			return
 		}
-		defer stream.Close()
+		timing := newStreamingTPOT(stream, arkReq)
+		consumed := false
+		defer func() {
+			// Preserve the existing business semantics: a Close error is not returned.
+			closeErr := stream.Close()
+			// IsFinished distinguishes the SDK's [DONE] from a truncated transport EOF.
+			// It is only exhaustion evidence; timing still requires a real finish_reason.
+			if consumed && stream.IsFinished && closeErr == nil && ctx.Err() == nil {
+				timing.record(requestCtx, requestSpan, arkReq.Model)
+			}
+		}()
 
 		var textBuffer strings.Builder
 		var reasoningBuffer strings.Builder
@@ -456,6 +477,9 @@ func (m *arkModel) generateStream(ctx context.Context, arkReq *arkmodel.CreateCh
 			if err != nil {
 				yield(nil, fmt.Errorf("ark: stream recv failed: %w", err))
 				return
+			}
+			if !safeStreamingTelemetry(func() { timing.observe(chunk, now()) }) {
+				timing.invalid = true
 			}
 
 			if chunk.Usage != nil {
@@ -535,7 +559,13 @@ func (m *arkModel) generateStream(ctx context.Context, arkReq *arkmodel.CreateCh
 				finishReason = arkmodel.FinishReasonStop
 			}
 			finalResp := m.buildArkFinalResponse(textBuffer.String(), reasoningBuffer.String(), accToolCalls, finalUsage, finishReason)
-			yield(finalResp, nil)
+			delivery := newStreamingToolDelivery(ctx, finalResp)
+			consumed = yield(finalResp, nil)
+			if !consumed {
+				// ADK also stops this iterator after handling a normal tool turn.
+				// Require delivery evidence rather than treating all final stops as success.
+				consumed = delivery.accepted()
+			}
 		}
 	}
 }

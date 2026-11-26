@@ -16,10 +16,13 @@ package observability
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
@@ -148,5 +151,79 @@ func TestRegisterMetrics(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
 	assert.NotPanics(t, func() {
 		registerMetrics([]sdkmetric.Reader{reader})
+	})
+}
+
+type tpotFailingHistogram struct{ metric.Float64Histogram }
+
+func (tpotFailingHistogram) Record(context.Context, float64, ...metric.RecordOption) {
+	panic("fixture metric failure")
+}
+
+func TestStreamingTPOTHistogramContract(t *testing.T) {
+	ctx := context.Background()
+	attrs := []attribute.KeyValue{
+		attribute.String(AttrGenAIRequestModel, "fixture-model"),
+		attribute.String(AttrGenAIOperationName, "chat"),
+	}
+	instrumentsMu.Lock()
+	original := streamingTimePerOutputTokenHistograms
+	streamingTimePerOutputTokenHistograms = nil
+	instrumentsMu.Unlock()
+	t.Cleanup(func() {
+		instrumentsMu.Lock()
+		streamingTimePerOutputTokenHistograms = original
+		instrumentsMu.Unlock()
+	})
+	for _, value := range []float64{.01, 0} {
+		t.Run("seconds_and_zero", func(t *testing.T) {
+			reader := sdkmetric.NewManualReader()
+			mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+			defer func() { require.NoError(t, mp.Shutdown(ctx)) }()
+			initializeInstruments(mp.Meter("tpot-contract"))
+			// A failing sink cannot suppress a later healthy sink.
+			instrumentsMu.Lock()
+			histogram := streamingTimePerOutputTokenHistograms[len(streamingTimePerOutputTokenHistograms)-1]
+			streamingTimePerOutputTokenHistograms = []metric.Float64Histogram{tpotFailingHistogram{}, histogram}
+			instrumentsMu.Unlock()
+			require.NotPanics(t, func() { RecordStreamingTimePerOutputToken(ctx, value, attrs...) })
+			var rm metricdata.ResourceMetrics
+			require.NoError(t, reader.Collect(ctx, &rm))
+			found := false
+			for _, scope := range rm.ScopeMetrics {
+				for _, m := range scope.Metrics {
+					if m.Name != MetricNameStreamingTimePerOutputToken {
+						continue
+					}
+					require.Equal(t, "s", m.Unit)
+					points := m.Data.(metricdata.Histogram[float64]).DataPoints
+					require.Len(t, points, 1)
+					require.Equal(t, uint64(1), points[0].Count)
+					require.Equal(t, value, points[0].Sum)
+					require.Equal(t, attribute.NewSet(attrs...), points[0].Attributes)
+					found = true
+				}
+			}
+			require.True(t, found)
+		})
+	}
+	t.Run("disabled_metrics", func(t *testing.T) {
+		instrumentsMu.Lock()
+		streamingTimePerOutputTokenHistograms = nil
+		instrumentsMu.Unlock()
+		require.NotPanics(t, func() { RecordStreamingTimePerOutputToken(ctx, .01, attrs...) })
+	})
+	t.Run("initialization_and_recording_are_race_free", func(t *testing.T) {
+		reader := sdkmetric.NewManualReader()
+		mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+		defer func() { require.NoError(t, mp.Shutdown(ctx)) }()
+		var wg sync.WaitGroup
+		wg.Go(func() { initializeInstruments(mp.Meter("tpot-concurrent")) })
+		wg.Go(func() {
+			for range 100 {
+				RecordStreamingTimePerOutputToken(ctx, .01, attrs...)
+			}
+		})
+		wg.Wait()
 	})
 }
