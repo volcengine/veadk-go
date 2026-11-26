@@ -17,6 +17,7 @@ package model
 import (
 	"context"
 	"io"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -289,7 +290,9 @@ func TestArkModel_GenerateStream(t *testing.T) {
 		}
 
 		chunkIdx := 0
-		mockStreamReader := &utils.ChatCompletionStreamReader{}
+		mockStreamReader := &utils.ChatCompletionStreamReader{
+			Response: &http.Response{Body: io.NopCloser(strings.NewReader(""))},
+		}
 
 		mockey.Mock((*arkruntime.Client).CreateChatCompletionStream).Return(
 			mockStreamReader, nil,

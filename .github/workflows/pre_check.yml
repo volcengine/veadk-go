@@ -53,6 +53,7 @@ jobs:
       - name: Run unit tests
         run: |
           go test -mod=readonly -v -race -count=1 -shuffle=on \
+            -gcflags="all=-N -l" \
             -coverprofile=coverage.out -covermode=atomic \
             ./...
 
