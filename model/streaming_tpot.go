@@ -26,6 +26,9 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/adk/v2/agent"
+	adkmodel "google.golang.org/adk/v2/model"
+	"google.golang.org/genai"
 )
 
 // streamingTPOT is local to one SDK call. It retains no generated content.
@@ -285,6 +288,88 @@ func endStreamingRequestSpan(span trace.Span) {
 	if span != nil {
 		safeStreamingTelemetry(func() { span.End() })
 	}
+}
+
+// ADK ends a model iterator after a normal tool turn, returning false to its
+// final yield. The runner's newly appended call/response events prove delivery;
+// a rejected final tool event has no function response and must still be omitted.
+type streamingToolDelivery struct {
+	invocation                          agent.InvocationContext
+	start                               int
+	invocationID, branch, scope, author string
+	calls                               []*genai.FunctionCall
+}
+
+func newStreamingToolDelivery(ctx context.Context, response *adkmodel.LLMResponse) (delivery *streamingToolDelivery) {
+	if !safeStreamingTelemetry(func() {
+		if response == nil || response.Content == nil {
+			return
+		}
+		var calls []*genai.FunctionCall
+		for _, part := range response.Content.Parts {
+			if part != nil && part.FunctionCall != nil {
+				calls = append(calls, part.FunctionCall)
+			}
+		}
+		if len(calls) == 0 {
+			return
+		}
+		invocation, ok := ctx.(agent.InvocationContext)
+		if !ok {
+			return
+		}
+		delivery = &streamingToolDelivery{
+			invocation: invocation, start: invocation.Session().Events().Len(),
+			invocationID: invocation.InvocationID(), branch: invocation.Branch(),
+			scope: invocation.IsolationScope(), author: invocation.Agent().Name(), calls: calls,
+		}
+	}) {
+		return nil
+	}
+	return delivery
+}
+
+func (d *streamingToolDelivery) accepted() bool {
+	if d == nil {
+		return false
+	}
+	accepted := false
+	ok := safeStreamingTelemetry(func() {
+		pending := make(map[string]string, len(d.calls))
+		// ADK may populate a missing call ID in place before delivering the event.
+		for _, call := range d.calls {
+			if call.ID == "" || call.Name == "" {
+				return
+			}
+			if _, duplicate := pending[call.ID]; duplicate {
+				return
+			}
+			pending[call.ID] = call.Name
+		}
+		seen, answered := make(map[string]bool), make(map[string]bool)
+		events := d.invocation.Session().Events()
+		for i := d.start; i < events.Len(); i++ {
+			event := events.At(i)
+			if event == nil || event.Partial || event.Interrupted || event.ErrorCode != "" || event.Content == nil ||
+				event.InvocationID != d.invocationID || event.Branch != d.branch ||
+				event.IsolationScope != d.scope || event.Author != d.author {
+				continue
+			}
+			for _, part := range event.Content.Parts {
+				if part == nil {
+					continue
+				}
+				if call := part.FunctionCall; call != nil && pending[call.ID] == call.Name && call.Name != "" {
+					seen[call.ID] = true
+				}
+				if response := part.FunctionResponse; response != nil && seen[response.ID] && pending[response.ID] == response.Name {
+					answered[response.ID] = true
+				}
+			}
+		}
+		accepted = len(answered) == len(pending)
+	})
+	return ok && accepted
 }
 
 // Recovery is restricted to newly introduced telemetry calls, never model/yield/Close.

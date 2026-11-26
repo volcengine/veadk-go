@@ -559,7 +559,13 @@ func (m *arkModel) generateStreamWithClock(ctx context.Context, arkReq *arkmodel
 				finishReason = arkmodel.FinishReasonStop
 			}
 			finalResp := m.buildArkFinalResponse(textBuffer.String(), reasoningBuffer.String(), accToolCalls, finalUsage, finishReason)
+			delivery := newStreamingToolDelivery(ctx, finalResp)
 			consumed = yield(finalResp, nil)
+			if !consumed {
+				// ADK also stops this iterator after handling a normal tool turn.
+				// Require delivery evidence rather than treating all final stops as success.
+				consumed = delivery.accepted()
+			}
 		}
 	}
 }

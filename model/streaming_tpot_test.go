@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"os"
 	"os/exec"
@@ -41,7 +42,9 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/adk/v2/agent"
 	adkmodel "google.golang.org/adk/v2/model"
+	"google.golang.org/adk/v2/session"
 	"google.golang.org/genai"
 )
 
@@ -712,4 +715,128 @@ func TestStreamingTPOTTelemetryFailureAndOnce(t *testing.T) {
 	require.True(t, timing.recorded)
 	require.NotPanics(t, func() { timing.record(context.Background(), nil, "fixture") })
 	require.False(t, safeStreamingTelemetry(func() { panic("fixture clock failure") }))
+}
+
+type tpotDeliveryEvents []*session.Event
+
+func (e tpotDeliveryEvents) Len() int                { return len(e) }
+func (e tpotDeliveryEvents) At(i int) *session.Event { return e[i] }
+func (e tpotDeliveryEvents) All() iter.Seq[*session.Event] {
+	return func(yield func(*session.Event) bool) {
+		for _, event := range e {
+			if !yield(event) {
+				return
+			}
+		}
+	}
+}
+
+type tpotDeliverySession struct {
+	session.Session
+	events tpotDeliveryEvents
+	fail   bool
+}
+
+func (s *tpotDeliverySession) Events() session.Events {
+	if s.fail {
+		panic("fixture event reader failure")
+	}
+	return s.events
+}
+
+type tpotDeliveryAgent struct{ agent.Agent }
+
+func (tpotDeliveryAgent) Name() string { return "owner" }
+
+type tpotDeliveryInvocation struct {
+	agent.InvocationContext
+	sess *tpotDeliverySession
+}
+
+func (c *tpotDeliveryInvocation) Session() session.Session { return c.sess }
+func (c *tpotDeliveryInvocation) Agent() agent.Agent       { return tpotDeliveryAgent{} }
+func (c *tpotDeliveryInvocation) InvocationID() string     { return "invocation" }
+func (c *tpotDeliveryInvocation) Branch() string           { return "branch" }
+func (c *tpotDeliveryInvocation) IsolationScope() string   { return "scope" }
+
+// D-01: a false final yield is accepted only with this turn's complete tool evidence.
+func TestStreamingTPOTToolDeliveryEvidence(t *testing.T) {
+	event := func(response bool, id string) *session.Event {
+		part := &genai.Part{FunctionCall: &genai.FunctionCall{ID: id, Name: "add"}}
+		if response {
+			part = &genai.Part{FunctionResponse: &genai.FunctionResponse{ID: id, Name: "add"}}
+		}
+		return &session.Event{InvocationID: "invocation", Branch: "branch", IsolationScope: "scope", Author: "owner", LLMResponse: adkmodel.LLMResponse{Content: &genai.Content{Parts: []*genai.Part{part}}}}
+	}
+	for _, kind := range []string{"accepted", "no-response", "old-events", "wrong-invocation", "wrong-branch", "wrong-scope", "wrong-author", "wrong-id", "wrong-name", "partial", "interrupted", "error", "response-before-call", "missing-one-result", "all-results", "duplicate-id", "missing-id", "populated-id"} {
+		t.Run(kind, func(t *testing.T) {
+			sess := &tpotDeliverySession{}
+			ctx := &tpotDeliveryInvocation{sess: sess}
+			call := &genai.FunctionCall{ID: "call", Name: "add"}
+			response := &adkmodel.LLMResponse{Content: &genai.Content{Parts: []*genai.Part{{FunctionCall: call}}}}
+			if kind == "old-events" {
+				sess.events = append(sess.events, event(false, "call"), event(true, "call"))
+			}
+			if kind == "missing-one-result" || kind == "all-results" {
+				response.Content.Parts = append(response.Content.Parts, &genai.Part{FunctionCall: &genai.FunctionCall{ID: "call2", Name: "add"}})
+			}
+			if kind == "duplicate-id" {
+				response.Content.Parts = append(response.Content.Parts, &genai.Part{FunctionCall: call})
+			}
+			if kind == "missing-id" || kind == "populated-id" {
+				call.ID = ""
+			}
+			delivery := newStreamingToolDelivery(ctx, response)
+			if kind == "populated-id" {
+				call.ID = "call"
+			}
+			if kind != "old-events" {
+				called, answered := event(false, "call"), event(true, "call")
+				switch kind {
+				case "wrong-invocation":
+					answered.InvocationID = "other"
+				case "wrong-branch":
+					answered.Branch = "other"
+				case "wrong-scope":
+					answered.IsolationScope = "other"
+				case "wrong-author":
+					answered.Author = "user"
+				case "wrong-id":
+					answered.Content.Parts[0].FunctionResponse.ID = "other"
+				case "wrong-name":
+					answered.Content.Parts[0].FunctionResponse.Name = "other"
+				case "partial":
+					called.Partial = true
+				case "interrupted":
+					answered.Interrupted = true
+				case "error":
+					answered.ErrorCode = "error"
+				}
+				if kind == "response-before-call" {
+					sess.events = append(sess.events, answered, called)
+				} else {
+					sess.events = append(sess.events, called)
+					if kind != "no-response" {
+						sess.events = append(sess.events, answered)
+					}
+				}
+				if kind == "all-results" {
+					sess.events = append(sess.events, event(false, "call2"), event(true, "call2"))
+				}
+			}
+			require.Equal(t, kind == "accepted" || kind == "all-results" || kind == "populated-id", delivery.accepted())
+		})
+	}
+	response := &adkmodel.LLMResponse{Content: &genai.Content{Parts: []*genai.Part{{FunctionCall: &genai.FunctionCall{ID: "call", Name: "add"}}}}}
+	require.False(t, newStreamingToolDelivery(context.Background(), response).accepted())
+	require.False(t, newStreamingToolDelivery(context.Background(), nil).accepted())
+	t.Run("event_reader_failure_is_isolated", func(t *testing.T) {
+		sess := &tpotDeliverySession{fail: true}
+		ctx := &tpotDeliveryInvocation{sess: sess}
+		require.NotPanics(t, func() { require.False(t, newStreamingToolDelivery(ctx, response).accepted()) })
+		sess.fail = false
+		delivery := newStreamingToolDelivery(ctx, response)
+		sess.fail = true
+		require.NotPanics(t, func() { require.False(t, delivery.accepted()) })
+	})
 }
