@@ -18,9 +18,11 @@ import (
 	"context"
 	"fmt"
 	"iter"
+	"slices"
 	"strings"
 
 	veagent "github.com/volcengine/veadk-go/v2/agent/llmagent"
+	"github.com/volcengine/veadk-go/v2/integrations/agentkit"
 	vememory "github.com/volcengine/veadk-go/v2/memory"
 	"google.golang.org/adk/v2/agent"
 	"google.golang.org/adk/v2/artifact"
@@ -46,7 +48,13 @@ type Config struct {
 
 	PluginConfig adkrunner.PluginConfig
 
-	AutoCreateSession    bool
+	AutoCreateSession bool
+	// SkillsMode is required for generic ADK agents when AIOSandboxLifecycle is
+	// configured. VeADK LlmAgents carry their constructed mode and Skill IDs.
+	SkillsMode string
+	// AIOSandboxLifecycle is optional. Local-mode runners leave it nil.
+	// Its background worker is started by the embedding application.
+	AIOSandboxLifecycle  *agentkit.AIOLifecycle
 	AutoSaveSession      bool
 	AutoSaveMemoryPolicy *vememory.MemoryAutoSavePolicy
 }
@@ -58,6 +66,7 @@ type Runner struct {
 	agent          agent.Agent
 	sessionService session.Service
 	memoryService  memory.Service
+	aioLifecycle   *agentkit.AIOLifecycle
 }
 
 func New(cfg Config) (*Runner, error) {
@@ -83,12 +92,22 @@ func New(cfg Config) (*Runner, error) {
 		agent:          normalized.Agent,
 		sessionService: normalized.SessionService,
 		memoryService:  normalized.MemoryService,
+		aioLifecycle:   normalized.AIOSandboxLifecycle,
 	}, nil
 }
 
 func NormalizeConfig(cfg Config) (Config, error) {
 	if cfg.Agent == nil {
 		return cfg, fmt.Errorf("root agent is required")
+	}
+	if cfg.AIOSandboxLifecycle != nil {
+		mode, ids, known := veagent.SkillsModeFor(cfg.Agent)
+		if cfg.SkillsMode != "" && cfg.SkillsMode != "aio_sandbox" || known && (mode != "aio_sandbox" || !slices.Equal(ids, cfg.AIOSandboxLifecycle.SkillSpaceIDs())) || !known && cfg.SkillsMode != "aio_sandbox" {
+			return cfg, fmt.Errorf("AIO sandbox lifecycle does not match Agent Skill mode or Skill Space IDs")
+		}
+		if cfg.AutoCreateSession {
+			return cfg, fmt.Errorf("AIO sandbox lifecycle requires explicit ADK session creation")
+		}
 	}
 	if cfg.AppName == "" {
 		cfg.AppName = defaultAppName
@@ -153,6 +172,21 @@ func SaveSessionToLongTermMemory(ctx context.Context, sessionService session.Ser
 }
 
 func (r *Runner) Run(ctx context.Context, userID, sessionID string, msg *genai.Content, cfg agent.RunConfig, opts ...adkrunner.RunOption) iter.Seq2[*session.Event, error] {
+	if r.aioLifecycle != nil {
+		return func(yield func(*session.Event, error) bool) {
+			err := r.aioLifecycle.WithSessionContext(ctx, r.appName, userID, sessionID, func(ctx context.Context) error {
+				for event, runErr := range r.Runner.Run(ctx, userID, sessionID, msg, cfg, opts...) {
+					if !yield(event, runErr) || runErr != nil {
+						break
+					}
+				}
+				return nil
+			})
+			if err != nil {
+				yield(nil, err)
+			}
+		}
+	}
 	return r.Runner.Run(ctx, userID, sessionID, msg, cfg, opts...)
 }
 
